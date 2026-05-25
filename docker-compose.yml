@@ -43,7 +43,7 @@ services:
       AVATAR_FETCH_LIMIT: ${AVATAR_FETCH_LIMIT:-40}
       AVATAR_FETCH_TIMEOUT_MS: ${AVATAR_FETCH_TIMEOUT_MS:-7000}
       DEFAULT_ACCOUNT_ID: ${DEFAULT_ACCOUNT_ID:-default}
-      CHROME_EXECUTABLE_PATH: ${CHROME_EXECUTABLE_PATH:-/usr/bin/google-chrome-stable}
+      CHROME_EXECUTABLE_PATH: ${CHROME_EXECUTABLE_PATH:-/usr/bin/chromium}
     volumes:
       - whatsapp_auth:/app/.wwebjs_auth
     healthcheck:

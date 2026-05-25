@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   whatsapp-web.js@1.34.7:
-    hash: c876080b57999ee6745f1cf989728af5f8a79111479bbbd01fae0c02c2866b23
+    hash: bcd4940a0827e33126a3904c386437e06474664dbf45c5fdce10b87185b5a1c6
     path: patches/whatsapp-web.js@1.34.7.patch
 
 importers:
@@ -36,7 +36,7 @@ importers:
         version: 4.8.3
       whatsapp-web.js:
         specifier: ^1.34.7
-        version: 1.34.7(patch_hash=c876080b57999ee6745f1cf989728af5f8a79111479bbbd01fae0c02c2866b23)
+        version: 1.34.7(patch_hash=bcd4940a0827e33126a3904c386437e06474664dbf45c5fdce10b87185b5a1c6)
 
 packages:
 
@@ -2365,7 +2365,7 @@ snapshots:
 
   webidl-conversions@7.0.0: {}
 
-  whatsapp-web.js@1.34.7(patch_hash=c876080b57999ee6745f1cf989728af5f8a79111479bbbd01fae0c02c2866b23):
+  whatsapp-web.js@1.34.7(patch_hash=bcd4940a0827e33126a3904c386437e06474664dbf45c5fdce10b87185b5a1c6):
     dependencies:
       fluent-ffmpeg: 2.1.3
       mime: 3.0.0
