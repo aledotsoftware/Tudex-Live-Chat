@@ -3,17 +3,17 @@
   --font-heading: 'Outfit', sans-serif;
   
   /* Modern Dark Palette */
-  --bg-deep: #05080a;
+  --bg-deep: #f2f2f2;
   --bg-glass: rgba(17, 25, 31, 0.7);
   --bg-darker: #0d1418;
   --bg-card: #1f2c33;
-  --bg-sidebar: rgba(13, 20, 24, 0.85);
+  --bg-sidebar: rgba(13, 20, 24, 0.95);
   
-  /* Accent Colors */
-  --accent-primary: #00d2ff;
-  --accent-secondary: #9d50bb;
-  --accent-gradient: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
-  --accent-glow: rgba(0, 210, 255, 0.3);
+  /* Accent Colors (Orange Theme) */
+  --accent-primary: #ff6f24;
+  --accent-secondary: #e55d0d;
+  --accent-gradient: linear-gradient(135deg, #ff8c42 0%, #ff6f24 100%);
+  --accent-glow: rgba(255, 111, 36, 0.25);
   
   /* States */
   --success: #00e676;
@@ -26,8 +26,8 @@
   --text-muted: #cbd5e1;
   
   /* Borders */
-  --border-light: rgba(255, 255, 255, 0.18);
-  --border-focus: #00d2ff;
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-focus: #ff6f24;
 }
 
 * {
@@ -40,7 +40,7 @@ body {
   margin: 0;
   font-family: var(--font-main);
   background-color: var(--bg-deep);
-  color: var(--text-primary);
+  color: #1f2c33;
   height: 100dvh;
   overflow: hidden;
 }
@@ -304,6 +304,7 @@ button, textarea, input, select {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  color: #ffffff;
 }
 
 .sidebarHeader {
@@ -311,13 +312,32 @@ button, textarea, input, select {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #ff6f24;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .sidebarHeader h2 {
   font-family: var(--font-heading);
   font-weight: 600;
   font-size: 24px;
-  color: var(--text-primary);
+  color: #ffffff;
+}
+
+.sidebarHeader .secondary,
+.chatHeader .secondary {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  text-shadow: 0 0 4px #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.3) !important;
+}
+
+.sidebarHeader .secondary:hover,
+.chatHeader .secondary:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  text-shadow: 0 0 6px #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5) !important;
 }
 
 .headerActions {
@@ -370,20 +390,24 @@ button, textarea, input, select {
 
 .searchWrap input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-light);
+  background: #060d44;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   padding: 12px 16px;
-  color: var(--text-primary);
+  color: #ffffff;
   transition: all 0.3s ease;
 }
 
+.searchWrap input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .searchWrap input:focus {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--accent-primary);
-  outline: 3px solid var(--border-focus);
+  background: #060d44;
+  border-color: #ff6f24;
+  outline: 3px solid #ff6f24;
   outline-offset: 2px;
-  box-shadow: 0 0 15px var(--accent-glow);
+  box-shadow: 0 0 15px rgba(255, 111, 36, 0.4);
 }
 
 .chatList {
@@ -546,13 +570,14 @@ button, textarea, input, select {
   border-radius: 22px;
   box-shadow: 0 22px 38px rgba(0, 0, 0, 0.34);
   overflow: hidden;
+  color: #ffffff;
 }
 
 .chatHeader {
   padding: 14px 18px;
-  background: rgba(13, 20, 24, 0.76);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-light);
+  background: #ff6f24;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -593,7 +618,7 @@ button, textarea, input, select {
 .chatHeader h3 {
   font-family: var(--font-heading);
   font-size: 17px;
-  color: var(--text-primary);
+  color: #ffffff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -601,7 +626,7 @@ button, textarea, input, select {
 
 .chatHeader p {
   font-size: 12px;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.8);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1055,20 +1080,22 @@ button:active:not(:disabled) {
 }
 
 button.primary {
-  background: var(--accent-gradient);
-  color: white;
-  box-shadow: 0 4px 12px var(--accent-glow);
+  background: #ff6f24;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(255, 111, 36, 0.3);
 }
 
 @media (hover: hover) {
   button.primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px var(--accent-glow);
-}
+    background: #e55d0d;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(229, 93, 13, 0.4);
+  }
 }
 
 button:focus-visible {
-  outline: 3px solid var(--border-focus);
+  outline: 3px solid #ff6f24;
   outline-offset: 2px;
 }
 
@@ -1080,12 +1107,14 @@ button.secondary {
 
 @media (hover: hover) {
   button.secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-}
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
 button:disabled {
-  opacity: 0.5;
+  background: #a5a5a5 !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
   cursor: not-allowed;
 }
 

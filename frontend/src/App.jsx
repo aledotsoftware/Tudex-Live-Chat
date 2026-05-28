@@ -52,17 +52,20 @@ function parseApiItemsPayload(payload) {
 const originalFetch = window.fetch;
 window.fetch = async (...args) => {
   let [resource, config] = args;
-  const key = localStorage.getItem("tapchat_api_key");
+  const key = localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key");
   
   if (key) {
     config = config || {};
     let headers = config.headers || {};
     
     if (headers instanceof Headers) {
+      headers.set("Authorization", `Bearer ${key}`);
       headers.set("X-API-Key", key);
     } else if (Array.isArray(headers)) {
+      headers.push(["Authorization", `Bearer ${key}`]);
       headers.push(["X-API-Key", key]);
     } else {
+      headers["Authorization"] = `Bearer ${key}`;
       headers["X-API-Key"] = key;
     }
     config.headers = headers;
@@ -124,12 +127,16 @@ function initialsForChat(chat) {
 
 function getAvatarGradient(id) {
   const str = String(id || "default");
+  if (str.startsWith("hsl") || str.startsWith("#") || str.startsWith("rgb") || str.includes("linear-gradient")) {
+    if (str.includes("linear-gradient")) return str;
+    return `linear-gradient(135deg, ${str} 0%, rgba(0,0,0,0.3) 100%)`;
+  }
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const c1 = `hsl(${hash % 360}, 65%, 35%)`;
-  const c2 = `hsl(${(hash + 40) % 360}, 75%, 45%)`;
+  const c1 = `hsl(${Math.abs(hash) % 360}, 65%, 35%)`;
+  const c2 = `hsl(${(Math.abs(hash) + 40) % 360}, 75%, 45%)`;
   return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
 }
 
@@ -193,7 +200,6 @@ function App() {
   const [sending, setSending] = useState(false);
   const [sendingType, setSendingType] = useState(null);
   const [correctingAndSending, setCorrectingAndSending] = useState(false);
-  const [showAiSettings, setShowAiSettings] = useState(false);
   const [showResources, setShowResources] = useState(false);
   const [resources, setResources] = useState({ media: [], links: [], statuses: [] });
   const [loadingResources, setLoadingResources] = useState(false);
@@ -244,6 +250,97 @@ function App() {
     systemPrompt: "",
     userPromptTemplate: ""
   });
+
+  const [currentUser, setCurrentUser] = useState(null);
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+  const [authMode, setAuthMode] = useState("login");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [searchUserQuery, setSearchUserQuery] = useState("");
+  const [searchUserResults, setSearchUserResults] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [userBioInput, setUserBioInput] = useState("");
+  const [userAvatarColorInput, setUserAvatarColorInput] = useState("");
+  const [notifications, setNotifications] = useState([
+    { id: 1, type: 'info', text: '¡Bienvenido a Tapchat! Comienza a chatear con otros usuarios buscando en la red.', time: 'Ahora' },
+    { id: 2, type: 'success', text: 'Tu Asistente de IA personal está activo en el chat "AI Companion".', time: 'Hace 2 min' },
+    { id: 3, type: 'warning', text: 'El servidor de IA está listo para recibir tus mensajes.', time: 'Hace 5 min' }
+  ]);
+
+  useEffect(() => {
+    if (currentUser) {
+      setUserBioInput(currentUser.bio || "¡Hola! Estoy usando Tapchat.");
+      setUserAvatarColorInput(currentUser.avatarColor || "hsl(200, 70%, 40%)");
+    }
+  }, [currentUser]);
+
+  async function saveUserProfile() {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bio: userBioInput,
+          avatarColor: userAvatarColorInput
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(prev => ({
+          ...prev,
+          bio: data.user.bio,
+          avatarColor: data.user.avatarColor
+        }));
+        showNotice("Perfil actualizado correctamente.", "success");
+        setShowProfileMenu(false);
+      } else {
+        showNotice("No se pudo actualizar el perfil.", "error");
+      }
+    } catch (err) {
+      showNotice("Error de conexión al guardar el perfil.", "error");
+    }
+  }
+
+  const toggleProfileMenu = () => {
+    const nextVal = !showProfileMenu;
+    setShowProfileMenu(nextVal);
+    if (nextVal) {
+      fetchAiConfig();
+      fetchAiModels();
+    }
+  };
+
+  async function loadDirectoryUsers(query = "") {
+    setSearchingUsers(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/search?q=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchUserResults(data);
+      }
+    } catch (err) {
+      console.error("Error loading directory users:", err);
+    } finally {
+      setSearchingUsers(false);
+    }
+  }
+
+  useEffect(() => {
+    if (showNewChatModal) {
+      loadDirectoryUsers("");
+    } else {
+      setSearchUserQuery("");
+      setSearchUserResults([]);
+    }
+  }, [showNewChatModal]);
 
   const selectedChat = useMemo(
     () => chats.find((chat) => chat.id === selectedChatId),
@@ -463,6 +560,16 @@ function App() {
     const normalized = { ...msg, _uiId: messageId(msg) };
     if (!msg.fromMe && selectedChatIdRef.current === msg.chatId) {
       markChatAsRead(msg.chatId);
+    } else if (!msg.fromMe && selectedChatIdRef.current !== msg.chatId) {
+      setNotifications(prev => [
+        {
+          id: Date.now(),
+          type: 'message',
+          text: `Mensaje de ${msg.from === 'ai_assistant' ? 'AI Companion' : (msg.from || 'Usuario')}: "${msg.body.slice(0, 40)}${msg.body.length > 40 ? '...' : ''}"`,
+          time: 'Ahora'
+        },
+        ...prev
+      ]);
     }
     setChats((prev) => {
       const exists = prev.find((chat) => chat.id === msg.chatId);
@@ -505,8 +612,10 @@ function App() {
   }
 
   const handleLogout = () => {
+    localStorage.removeItem("tapchat_token");
     localStorage.removeItem("tapchat_api_key");
     setApiAuthenticated(false);
+    setCurrentUser(null);
     setSessionStatus("connecting");
     if (socketRef.current) {
       socketRef.current.close();
@@ -518,7 +627,7 @@ function App() {
   useEffect(() => {
     const handleAuthError = () => {
       handleLogout();
-      setAuthError("La sesión expiró o la API Key es inválida.");
+      setAuthError("La sesión expiró o es inválida.");
     };
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
@@ -544,27 +653,30 @@ function App() {
     setAuthError("");
     try {
       const res = await originalFetch(`${API_URL}/api/check-auth`, {
-        headers: { 'X-API-Key': key }
+        headers: { 'Authorization': `Bearer ${key}` }
       });
       if (res.ok) {
-        localStorage.setItem("tapchat_api_key", key);
+        const data = await res.json();
+        localStorage.setItem("tapchat_token", key);
+        setCurrentUser(data.user);
         setApiAuthenticated(true);
       } else {
         setApiAuthenticated(false);
-        setAuthError("API Key incorrecta. Por favor, verificá tus credenciales.");
-        showNotice("Autenticación fallida con la clave provista.", "error");
+        setAuthError("Sesión inválida. Por favor, iniciá sesión.");
+        localStorage.removeItem("tapchat_token");
         localStorage.removeItem("tapchat_api_key");
         clearCache().catch(() => {});
       }
     } catch (e) {
       setApiAuthenticated(false);
-      setAuthError("Error de conexión al verificar la API Key.");
+      setAuthError("Error de conexión al verificar credenciales.");
     }
     setAuthChecking(false);
   };
 
   useEffect(() => {
-    if (inputApiKey) checkAuth(inputApiKey);
+    const savedKey = localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key");
+    if (savedKey) checkAuth(savedKey);
     else setAuthChecking(false);
   }, []);
 
@@ -595,7 +707,7 @@ function App() {
 
     const socket = io(SOCKET_URL, {
       transports: ["websocket"],
-      auth: { token: localStorage.getItem("tapchat_api_key") || "" },
+      auth: { token: localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key") || "" },
       reconnection: true,
       reconnectionAttempts: Infinity
     });
@@ -614,7 +726,9 @@ function App() {
     socket.on("qr", (payload) => {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
-      if (eventProvider !== DEFAULT_PROVIDER || eventAccountId !== DEFAULT_ACCOUNT_ID) {
+      const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+          !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
       setQr(payload?.qr || (typeof payload === 'string' ? payload : "")); // payload can be the string itself backward compat
@@ -623,7 +737,9 @@ function App() {
     socket.on("ready", (payload) => {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
-      if (eventProvider !== DEFAULT_PROVIDER || eventAccountId !== DEFAULT_ACCOUNT_ID) {
+      const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+          !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
       setQr("");
@@ -632,7 +748,9 @@ function App() {
     socket.on("auth_failure", (payload) => {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
-      if (eventProvider !== DEFAULT_PROVIDER || eventAccountId !== DEFAULT_ACCOUNT_ID) {
+      const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+          !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
       setSessionStatus("auth_failure");
@@ -641,7 +759,9 @@ function App() {
     socket.on("disconnected", (payload) => {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
-      if (eventProvider !== DEFAULT_PROVIDER || eventAccountId !== DEFAULT_ACCOUNT_ID) {
+      const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+          !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
       setSessionStatus("disconnected");
@@ -650,7 +770,9 @@ function App() {
     socket.on("new_message", (payload) => {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
-      if (eventProvider !== DEFAULT_PROVIDER || eventAccountId !== DEFAULT_ACCOUNT_ID) {
+      const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+          !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
       mergeLiveMessage(payload);
@@ -658,7 +780,9 @@ function App() {
     socket.on("message_updated", (updated) => {
       const eventProvider = updated?.provider || DEFAULT_PROVIDER;
       const eventAccountId = updated?.accountId || DEFAULT_ACCOUNT_ID;
-      if (eventProvider !== DEFAULT_PROVIDER || eventAccountId !== DEFAULT_ACCOUNT_ID) {
+      const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+          !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
 
@@ -710,7 +834,7 @@ function App() {
       // Escape to close modals and clear context states
       if (e.key === 'Escape') {
         if (showResources) setShowResources(false);
-        if (showAiSettings) setShowAiSettings(false);
+        if (showProfileMenu) setShowProfileMenu(false);
         if (replyTarget) setReplyTarget(null);
         return; // Don't prevent default, just handle our local logic
       }
@@ -753,12 +877,12 @@ function App() {
 
   useEffect(() => {
     if (!Array.isArray(chats) || chats.length === 0) return;
-    setCachedChats(DEFAULT_PROVIDER, DEFAULT_ACCOUNT_ID, chats).catch(() => {});
+    setCachedChats("local", currentUser?.id || DEFAULT_ACCOUNT_ID, chats).catch(() => {});
   }, [chats]);
 
   useEffect(() => {
     if (!selectedChatId || !Array.isArray(messages) || messages.length === 0) return;
-    setCachedMessages(DEFAULT_PROVIDER, DEFAULT_ACCOUNT_ID, selectedChatId, messages).catch(() => {});
+    setCachedMessages("local", currentUser?.id || DEFAULT_ACCOUNT_ID, selectedChatId, messages).catch(() => {});
   }, [messages, selectedChatId]);
 
   useEffect(() => {
@@ -833,7 +957,7 @@ function App() {
       try {
         const url = new URL(`${API_URL}/api/status`);
         url.searchParams.set("provider", DEFAULT_PROVIDER);
-        url.searchParams.set("accountId", DEFAULT_ACCOUNT_ID);
+        url.searchParams.set("accountId", currentUserRef.current?.id || DEFAULT_ACCOUNT_ID);
         const res = await fetch(url.toString());
         if (!res.ok) return;
         const data = await res.json();
@@ -858,7 +982,7 @@ function App() {
     try {
       const url = new URL(`${API_URL}/api/status-archive`);
       url.searchParams.set("provider", DEFAULT_PROVIDER);
-      url.searchParams.set("accountId", DEFAULT_ACCOUNT_ID);
+      url.searchParams.set("accountId", currentUser?.id || DEFAULT_ACCOUNT_ID);
       url.searchParams.set("limit", "120");
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error("No se pudieron cargar los estados archivados.");
@@ -882,7 +1006,7 @@ function App() {
     try {
       const url = new URL(`${API_URL}/api/chats/${encodeURIComponent(selectedChatId)}/resources`);
       url.searchParams.set("provider", DEFAULT_PROVIDER);
-      url.searchParams.set("accountId", DEFAULT_ACCOUNT_ID);
+      url.searchParams.set("accountId", currentUser?.id || DEFAULT_ACCOUNT_ID);
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error("No se pudieron cargar los recursos.");
       const data = await res.json();
@@ -906,7 +1030,7 @@ function App() {
 
     setLoadingChats(true);
     try {
-      const cachedChats = await getCachedChats(DEFAULT_PROVIDER, DEFAULT_ACCOUNT_ID);
+      const cachedChats = await getCachedChats("local", currentUser?.id || DEFAULT_ACCOUNT_ID);
       if (cachedChats.length > 0) {
         const sortedCached = [...cachedChats].sort(
           (a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)
@@ -931,8 +1055,7 @@ function App() {
       }
 
       const url = new URL(`${API_URL}/api/chats`);
-      url.searchParams.set("provider", DEFAULT_PROVIDER);
-      url.searchParams.set("accountId", DEFAULT_ACCOUNT_ID);
+      url.searchParams.set("provider", "local");
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error("No se pudieron cargar los chats.");
 
@@ -957,7 +1080,7 @@ function App() {
           setSelectedChatId("");
         }
         await clearCache();
-        await setCachedChats(DEFAULT_PROVIDER, DEFAULT_ACCOUNT_ID, []);
+        await setCachedChats("local", currentUser?.id || DEFAULT_ACCOUNT_ID, []);
         return;
       }
 
@@ -974,7 +1097,7 @@ function App() {
         setMessages([]);
       }
 
-      await setCachedChats(DEFAULT_PROVIDER, DEFAULT_ACCOUNT_ID, safeChats);
+      await setCachedChats("local", currentUser?.id || DEFAULT_ACCOUNT_ID, safeChats);
     } catch (error) {
       console.error(error);
       showNotice(error.message, "error");
@@ -993,7 +1116,7 @@ function App() {
 
     try {
       if (!background) {
-        const cachedMessages = await getCachedMessages(DEFAULT_PROVIDER, DEFAULT_ACCOUNT_ID, chatId);
+        const cachedMessages = await getCachedMessages("local", currentUser?.id || DEFAULT_ACCOUNT_ID, chatId);
         if (cachedMessages.length > 0 && selectedChatIdRef.current === chatId) {
           setMessages(cachedMessages);
           setMessagesByChat((prev) => ({ ...prev, [chatId]: cachedMessages }));
@@ -1006,9 +1129,10 @@ function App() {
         return;
       }
 
+      const chat = chatsRef.current.find((c) => c.id === chatId);
+      const provider = chatId === 'ai_assistant' ? 'local' : (chat?.provider || 'local');
       const url = new URL(`${API_URL}/api/chats/${encodeURIComponent(chatId)}/messages`);
-      url.searchParams.set("provider", DEFAULT_PROVIDER);
-      url.searchParams.set("accountId", DEFAULT_ACCOUNT_ID);
+      url.searchParams.set("provider", provider);
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error("No se pudieron cargar los mensajes.");
       const payload = await res.json();
@@ -1025,7 +1149,7 @@ function App() {
         .sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
 
       setMessagesByChat((prev) => ({ ...prev, [chatId]: safeMessages }));
-      await setCachedMessages(DEFAULT_PROVIDER, DEFAULT_ACCOUNT_ID, chatId, safeMessages);
+      await setCachedMessages("local", currentUser?.id || DEFAULT_ACCOUNT_ID, chatId, safeMessages);
       if (selectedChatIdRef.current === chatId) {
         setMessages(prev => {
           // Keep optimistic messages that haven't been confirmed yet by the backend
@@ -1049,9 +1173,10 @@ function App() {
   async function markChatAsRead(chatId) {
     if (!chatId || !navigator.onLine) return;
     try {
+      const chat = chatsRef.current.find((c) => c.id === chatId);
+      const provider = chatId === 'ai_assistant' ? 'local' : (chat?.provider || 'local');
       const url = new URL(`${API_URL}/api/chats/${encodeURIComponent(chatId)}/read`);
-      url.searchParams.set("provider", DEFAULT_PROVIDER);
-      url.searchParams.set("accountId", DEFAULT_ACCOUNT_ID);
+      url.searchParams.set("provider", provider);
       await fetch(url.toString(), {
         method: "POST"
       });
@@ -1123,13 +1248,17 @@ function App() {
     const text = String(payload?.text || "").trim();
     if (!text) return false;
 
+    const chat = chats.find(c => c.id === selectedChatId);
+    const provider = selectedChatId === 'ai_assistant' ? 'local' : (chat?.provider || 'local');
+    const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+
     try {
       const res = await fetch(`${API_URL}/api/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: DEFAULT_PROVIDER,
-          accountId: DEFAULT_ACCOUNT_ID,
+          provider,
+          accountId,
           chatId: selectedChatId,
           text,
           originalText: payload?.originalText || text,
@@ -1413,75 +1542,239 @@ function App() {
           <div className="bg-blob blob-2"></div>
         </div>
         <main className="authScreen">
-        <section className="authCard" aria-labelledby="apiKeyHeading">
-          <h1 id="apiKeyHeading">Tapchat API</h1>
-          {authError && <div id="apiKeyError" role="alert" aria-live="assertive" className="notice error" style={{ marginBottom: '15px' }}>{authError}</div>}
+          <section className="authCard" aria-labelledby="authHeading" style={{ maxWidth: '420px', padding: '40px', width: '90%' }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                width: '64px',
+                height: '64px',
+                borderRadius: '20px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
+                marginBottom: '15px'
+              }}>
+                <span style={{ fontSize: '32px', color: '#fff' }}>💬</span>
+              </div>
+              <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tapchat</h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '5px' }}>
+                {authMode === "login" ? "Conéctate de forma segura" : "Crea tu cuenta de chat"}
+              </p>
+            </div>
 
-          <div className="onboarding-wizard">
-            <p><strong>¡Bienvenido a Tapchat!</strong></p>
-            <p>Para proteger tus conversaciones y conectar de forma segura con tu servidor (LM Studio, Cloudflare, o el proveedor), ingresa la clave de acceso API provista por tu administrador.</p>
-          </div>
+            {authError && (
+              <div id="authError" role="alert" aria-live="assertive" className="notice error" style={{ marginBottom: '20px', borderRadius: '12px', padding: '12px' }}>
+                {authError}
+              </div>
+            )}
 
-          <form onSubmit={(e) => { e.preventDefault(); checkAuth(inputApiKey); }}>
-            <label htmlFor="apiKeyInput" className="sr-only">Clave de acceso API</label>
-            <div className="passwordInputWrapper">
-              <input
-                id="apiKeyInput"
-                className="authInput"
-                type={showApiKey ? "text" : "password"}
-                value={inputApiKey}
-                onChange={(e) => setInputApiKey(e.target.value)}
-                placeholder="Introduce tu API Key"
-                aria-required="true"
-                aria-invalid={!!authError}
-                aria-describedby={authError ? "apiKeyError" : undefined}
-                spellCheck="false"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="none"
-              />
+            <div style={{
+              display: 'flex',
+              background: 'rgba(255, 255, 255, 0.05)',
+              padding: '4px',
+              borderRadius: '12px',
+              marginBottom: '25px',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
               <button
                 type="button"
-                className="passwordToggleBtn" aria-pressed={showApiKey}
-                onClick={() => setShowApiKey(!showApiKey)}
-                aria-label={showApiKey ? "Ocultar API Key" : "Mostrar API Key"}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: authMode === "login" ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                  color: authMode === "login" ? '#fff' : 'var(--text-muted)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => { setAuthMode("login"); setAuthError(""); }}
               >
-                {showApiKey ? "🙈" : "👁️"}
+                Ingresar
+              </button>
+              <button
+                type="button"
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: authMode === "register" ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                  color: authMode === "register" ? '#fff' : 'var(--text-muted)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => { setAuthMode("register"); setAuthError(""); }}
+              >
+                Registrarse
               </button>
             </div>
-            <button
-              type="submit"
-              className="primary fullWidth"
-              aria-label="Ingresar al panel de control"
-              disabled={authChecking || !inputApiKey}
-              aria-busy={authChecking}
-            >
-              {authChecking ? (
-                <>
-                  <span className="buttonSpinner" aria-hidden="true" />
-                  <span>Comprobando...</span>
-                </>
-              ) : "Ingresar de forma segura"}
-            </button>
-          </form>
-        </section>
 
-      {toasts.length > 0 && (
-        <div className="toast-container" aria-live="polite">
-          {toasts.map(t => (
-            <div key={t.id} className={`toast ${t.type}`}>
-              {t.text}
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setAuthChecking(true);
+              setAuthError("");
+              try {
+                if (authMode === "login") {
+                  const res = await originalFetch(`${API_URL}/api/auth/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ identifier: email, password })
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    localStorage.setItem("tapchat_token", data.token);
+                    setCurrentUser(data.user);
+                    setApiAuthenticated(true);
+                    showNotice("¡Bienvenido a Tapchat!", "success");
+                  } else {
+                    setAuthError(data.error || "Error al iniciar sesión.");
+                  }
+                } else {
+                  if (password !== confirmPassword) {
+                    setAuthError("Las contraseñas no coinciden.");
+                    setAuthChecking(false);
+                    return;
+                  }
+                  const res = await originalFetch(`${API_URL}/api/auth/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username, email, password })
+                  });
+                  const data = await res.json();
+                  if (res.ok) {
+                    localStorage.setItem("tapchat_token", data.token);
+                    setCurrentUser(data.user);
+                    setApiAuthenticated(true);
+                    showNotice("Cuenta creada con éxito.", "success");
+                  } else {
+                    setAuthError(data.error || "Error al registrar la cuenta.");
+                  }
+                }
+              } catch (err) {
+                setAuthError("Error de conexión con el servidor.");
+              } finally {
+                setAuthChecking(false);
+              }
+            }}>
+              {authMode === "register" && (
+                <div style={{ marginBottom: '18px' }}>
+                  <label htmlFor="usernameInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>Nombre de usuario</label>
+                  <input
+                    id="usernameInput"
+                    className="authInput"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="ej. carlos_dev"
+                    required
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              )}
+
+              <div style={{ marginBottom: '18px' }}>
+                <label htmlFor="emailInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>
+                  {authMode === "login" ? "Usuario o Correo" : "Correo electrónico"}
+                </label>
+                <input
+                  id="emailInput"
+                  className="authInput"
+                  type={authMode === "login" ? "text" : "email"}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={authMode === "login" ? "ej. admin o correo@ejemplo.com" : "ej. correo@ejemplo.com"}
+                  required
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: authMode === "register" ? '18px' : '25px' }}>
+                <label htmlFor="passwordInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>Contraseña</label>
+                <div className="passwordInputWrapper" style={{ width: '100%' }}>
+                  <input
+                    id="passwordInput"
+                    className="authInput"
+                    type={showApiKey ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    style={{ width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    className="passwordToggleBtn"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    aria-label={showApiKey ? "Ocultar" : "Mostrar"}
+                  >
+                    {showApiKey ? "🙈" : "👁️"}
+                  </button>
+                </div>
+              </div>
+
+              {authMode === "register" && (
+                <div style={{ marginBottom: '25px' }}>
+                  <label htmlFor="confirmPasswordInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>Confirmar Contraseña</label>
+                  <input
+                    id="confirmPasswordInput"
+                    className="authInput"
+                    type={showApiKey ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="primary fullWidth"
+                disabled={authChecking}
+                style={{
+                  background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                  border: 'none',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)',
+                  transition: 'transform 0.2s ease',
+                  cursor: 'pointer'
+                }}
+              >
+                {authChecking ? (
+                  <>
+                    <span className="buttonSpinner" aria-hidden="true" />
+                    <span>Procesando...</span>
+                  </>
+                ) : (
+                  authMode === "login" ? "Ingresar de forma segura" : "Crear cuenta"
+                )}
+              </button>
+            </form>
+          </section>
+
+          {toasts.length > 0 && (
+            <div className="toast-container" aria-live="polite">
+              {toasts.map(t => (
+                <div key={t.id} className={`toast ${t.type}`}>
+                  {t.text}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
-      </main>
-    </>
+          )}
+        </main>
+      </>
     );
   }
 
   // Revert: As per UX Audit and the repo state, 'connecting' should NOT be a blocking UI state. The user needs to see the warning banner instead.
-  const isBlockingSessionState = sessionStatus === "qr" || sessionStatus === "auth_failure";
+  const isBlockingSessionState = false;
   if (isBlockingSessionState) {
     return (
       <>
@@ -1610,49 +1903,59 @@ function App() {
         <aside className="sidebar">
         <header className="sidebarHeader">
           <h2>
-            {viewMode === "statuses" ? "Estados" : "Chats"}
+            {viewMode === "chats" ? "Chats" : viewMode === "statuses" ? "Estados" : "Notificaciones"}
             {viewMode === "chats" && syncingChats && (
               <span className="syncIndicator" title="Sincronizando chats..." aria-live="polite"> 🔄</span>
             )}
           </h2>
-          <div className="headerActions">
-            <button
-              className={`secondary ${viewMode === "statuses" ? "activeToggle" : ""}`}
-              aria-label="Ver estados archivados"
-              onClick={() => {
-                setViewMode("statuses");
-                setSelectedChatId("");
-                fetchStatusArchive(false);
-              }}
-            >
-              Estados
-            </button>
-            <button
-              className={`secondary ${viewMode === "chats" ? "activeToggle" : ""}`}
-              aria-label="Ver chats"
-              onClick={() => setViewMode("chats")}
-            >
-              Chats
-            </button>
-            <button
-              className="secondary"
-              aria-label="Configuración de IA"
-              onClick={() => {
-                setShowAiSettings(true);
-                fetchAiConfig();
-                fetchAiModels();
-              }}
-            >
-              ✨ IA
-            </button>
+          <div className="headerActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               className="secondary"
               aria-label="Actualizar chats"
               onClick={() => fetchChats(false)}
               disabled={loadingChats}
               aria-busy={loadingChats}
+              style={{
+                width: '36px',
+                height: '36px',
+                padding: 0,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                fontSize: '0.9rem',
+                cursor: 'pointer'
+              }}
             >
-              {loadingChats ? <><span className="buttonSpinner" aria-hidden="true" /><span className="hideOnMobile">Actualizando...</span></> : <>🔄 <span className="hideOnMobile">Actualizar</span></>}
+              {loadingChats ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
+            </button>
+            <button
+              type="button"
+              onClick={toggleProfileMenu}
+              aria-label="Perfil y configuraciones"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                color: '#fff',
+                fontWeight: '700',
+                border: '2px solid #fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.85rem',
+                boxShadow: '0 0 8px rgba(255,255,255,0.4)',
+                transition: 'all 0.2s ease',
+                padding: 0,
+                flexShrink: 0
+              }}
+            >
+              {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
             </button>
           </div>
         </header>
@@ -1666,7 +1969,7 @@ function App() {
           {totalUnread > 0 ? <strong className="pendingCounter" aria-label={`${totalUnread} mensajes pendientes`}>{totalUnread} pendientes</strong> : null}
         </div>
 
-        <div className="searchWrap">
+        <div className="searchWrap" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <label htmlFor="chatSearchInput" className="sr-only">
             {viewMode === "statuses" ? "Buscar estado" : "Buscar chat"}
           </label>
@@ -1677,7 +1980,33 @@ function App() {
             value={chatSearch}
             onChange={(e) => setChatSearch(e.target.value)}
             placeholder={viewMode === "statuses" ? "🔍 Buscar estado..." : "🔍 Buscar chat... (Ctrl+K)"}
+            style={{ flex: 1 }}
           />
+          {viewMode !== "statuses" && (
+            <button
+              type="button"
+              onClick={() => setShowNewChatModal(true)}
+              style={{
+                background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                color: '#fff',
+                border: 'none',
+                width: '38px',
+                height: '38px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 10px rgba(99, 102, 241, 0.2)',
+                flexShrink: 0
+              }}
+              title="Iniciar nuevo chat"
+            >
+              ➕
+            </button>
+          )}
         </div>
 
         <div className="chatList">
@@ -1754,12 +2083,161 @@ function App() {
             <p className="helper">{loadingStatusArchive ? "Cargando estados..." : "No hay estados archivados."}</p>
           ) : null}
           {viewMode === "chats" && filteredChats.length === 0 ? <p className="helper">No hay chats.</p> : null}
+          
+          {viewMode === "notifications" && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px 0' }}>
+              {notifications.length === 0 ? (
+                <p className="helper">No tienes notificaciones nuevas.</p>
+              ) : (
+                notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    style={{
+                      display: 'flex',
+                      gap: '12px',
+                      padding: '12px',
+                      borderRadius: '14px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      fontSize: '0.85rem',
+                      lineHeight: '1.4',
+                      alignItems: 'flex-start'
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem', marginTop: '2px' }}>
+                      {notif.type === 'message' ? '✉️' : notif.type === 'success' ? '✅' : notif.type === 'warning' ? '⚠️' : 'ℹ️'}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#fff', fontWeight: '500' }}>{notif.text}</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>{notif.time}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        padding: '0 4px',
+                        display: 'inline-flex'
+                      }}
+                      title="Eliminar"
+                    >
+                      ❌
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
-        <footer className="sidebarFooter">
-          <span>Ctrl+K buscar</span>
-          <span>Alt+↑↓ navegar</span>
-          <button className="logoutBtn" onClick={handleLogout} aria-label="Cerrar sesión">Cerrar sesión</button>
-        </footer>
+        <div style={{
+          display: 'flex',
+          background: 'rgba(13, 20, 24, 0.95)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '10px 4px',
+          justifyContent: 'space-around',
+          alignItems: 'center'
+        }}>
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode("statuses");
+              setSelectedChatId("");
+              fetchStatusArchive(false);
+            }}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              color: viewMode === "statuses" ? '#ff6f24' : 'var(--text-muted)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: viewMode === "statuses" ? '700' : '500',
+              transition: 'all 0.2s ease',
+              textShadow: viewMode === "statuses" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none'
+            }}
+          >
+            <span style={{ fontSize: '1.2rem' }}>⭕</span>
+            Estados
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => setViewMode("chats")}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              color: viewMode === "chats" ? '#ff6f24' : 'var(--text-muted)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: viewMode === "chats" ? '700' : '500',
+              transition: 'all 0.2s ease',
+              textShadow: viewMode === "chats" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none'
+            }}
+          >
+            <span style={{ fontSize: '1.2rem' }}>💬</span>
+            Chats
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => {
+              setViewMode("notifications");
+              setSelectedChatId("");
+            }}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              color: viewMode === "notifications" ? '#ff6f24' : 'var(--text-muted)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: viewMode === "notifications" ? '700' : '500',
+              transition: 'all 0.2s ease',
+              textShadow: viewMode === "notifications" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none',
+              position: 'relative'
+            }}
+          >
+            <span style={{ fontSize: '1.2rem' }}>🔔</span>
+            Notificaciones
+            {notifications.length > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '2px',
+                right: '25%',
+                background: '#ff6f24',
+                color: '#fff',
+                borderRadius: '50%',
+                width: '16px',
+                height: '16px',
+                fontSize: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '800',
+                border: '1px solid #1f2c33'
+              }}>
+                {notifications.length}
+              </span>
+            )}
+          </button>
+        </div>
       </aside>
 
       <section className="chatPanel">
@@ -1784,15 +2262,49 @@ function App() {
                   </p>
                 </div>
               </div>
-              <div className="chatHeaderActions">
+              <div className="chatHeaderActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   className="secondary"
                   aria-label="Actualizar estados archivados"
                   onClick={() => fetchStatusArchive(false)}
                   disabled={loadingStatusArchive}
                   aria-busy={loadingStatusArchive}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    padding: 0,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
                 >
-                  {loadingStatusArchive ? <><span className="buttonSpinner" aria-hidden="true" /><span className="hideOnMobile">Actualizando...</span></> : <>🔄 <span className="hideOnMobile">Actualizar</span></>}
+                  {loadingStatusArchive ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleProfileMenu}
+                  aria-label="Perfil y configuraciones"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                    color: '#fff',
+                    fontWeight: '700',
+                    border: '2px solid #fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.85rem',
+                    boxShadow: '0 0 8px rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s ease',
+                    padding: 0,
+                    flexShrink: 0
+                  }}
+                >
+                  {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
                 </button>
               </div>
             </header>
@@ -1864,7 +2376,7 @@ function App() {
                   </p>
                 </div>
               </div>
-              <div className="chatHeaderActions">
+              <div className="chatHeaderActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   className="secondary"
                   aria-label="Ver recursos del contacto"
@@ -1879,8 +2391,42 @@ function App() {
                   onClick={() => fetchMessages(selectedChatId, { withLoader: true })}
                   disabled={!selectedChatId || loadingMessages[selectedChatId]}
                   aria-busy={loadingMessages[selectedChatId]}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    padding: 0,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
                 >
-                  {loadingMessages[selectedChatId] ? <><span className="buttonSpinner" aria-hidden="true" /><span className="hideOnMobile">Recargando...</span></> : <>🔄 <span className="hideOnMobile">Recargar</span></>}
+                  {loadingMessages[selectedChatId] ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleProfileMenu}
+                  aria-label="Perfil y configuraciones"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                    color: '#fff',
+                    fontWeight: '700',
+                    border: '2px solid #fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.85rem',
+                    boxShadow: '0 0 8px rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s ease',
+                    padding: 0,
+                    flexShrink: 0
+                  }}
+                >
+                  {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
                 </button>
               </div>
             </header>
@@ -2258,211 +2804,595 @@ function App() {
         </section>
       ) : null}
 
-      {showAiSettings ? (
-        <section className="modalOverlay" onClick={() => setShowAiSettings(false)}>
+      {showProfileMenu && (
+        <section className="modalOverlay" onClick={() => setShowProfileMenu(false)}>
+          <div
+            className="modalCard profileSettingsModal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profileSettingsModalHeading"
+            style={{ maxWidth: '520px', width: '90%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
+          >
+            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '15px' }}>
+              <h3 id="profileSettingsModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>👤 Mi Perfil y Ajustes</h3>
+              <button className="secondary" onClick={() => setShowProfileMenu(false)} style={{ borderRadius: '8px', padding: '6px 12px' }}>Cerrar</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Profile Details Block */}
+              <section className="profileDetailSection" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div
+                    style={{
+                      width: '60px',
+                      height: '60px',
+                      borderRadius: '50%',
+                      background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                      color: '#fff',
+                      fontWeight: '700',
+                      border: '2.5px solid #fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.3rem',
+                      boxShadow: '0 0 12px rgba(255,255,255,0.25)',
+                      flexShrink: 0
+                    }}
+                  >
+                    {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ overflow: 'hidden' }}>
+                    <div style={{ fontWeight: '700', color: '#fff', fontSize: '1.1rem' }}>{currentUser?.username || 'Usuario'}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{currentUser?.email || 'sin-correo@tapchat.com'}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="userBioInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Estado / Biografía</label>
+                  <input
+                    id="userBioInput"
+                    type="text"
+                    value={userBioInput}
+                    onChange={(e) => setUserBioInput(e.target.value)}
+                    placeholder="¡Hola! Estoy usando Tapchat."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.15)',
+                      color: '#fff',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Color de Avatar Personalizado</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                    {[
+                      '#ff6f24', // Theme Sunset Orange
+                      '#0284c7', // Sky Blue
+                      '#16a34a', // Emerald Green
+                      '#7c3aed', // Royal Violet
+                      '#db2777', // Rose Pink
+                      '#ef4444', // Red Glow
+                      '#0f172a', // Deep Slate
+                      '#f59e0b'  // Amber Glow
+                    ].map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setUserAvatarColorInput(color)}
+                        style={{
+                          width: '26px',
+                          height: '26px',
+                          borderRadius: '50%',
+                          background: color,
+                          border: userAvatarColorInput === color ? '2px solid #fff' : '2px solid transparent',
+                          cursor: 'pointer',
+                          transition: 'transform 0.1s ease',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                          padding: 0
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
+                        title={color}
+                      />
+                    ))}
+                  </div>
+                  <input
+                    id="userAvatarColorInput"
+                    type="text"
+                    value={userAvatarColorInput}
+                    onChange={(e) => setUserAvatarColorInput(e.target.value)}
+                    placeholder="Ej. #ff6f24, hsl(200, 70%, 40%) o linear-gradient(...)"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.15)',
+                      color: '#fff',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={saveUserProfile}
+                  style={{
+                    padding: '10px 15px',
+                    borderRadius: '8px',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  Guardar Perfil
+                </button>
+
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <div style={{ fontWeight: '700', fontSize: '0.85rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>⌨️</span> Atajos de Teclado y Accesos
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      setTimeout(() => {
+                        searchInputRef.current?.focus();
+                      }, 100);
+                    }}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '8px',
+                      padding: '8px 10px',
+                      color: '#fff',
+                      fontSize: '0.8rem',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      width: '100%',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                  >
+                    <span>🔍 Buscar chats o usuarios</span>
+                    <kbd style={{ background: '#1f2c33', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', color: '#ff6f24', border: '1px solid rgba(255, 111, 36, 0.3)', fontWeight: 'bold' }}>Ctrl + K</kbd>
+                  </button>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span>🔄 Navegar entre chats</span>
+                    <span style={{ display: 'flex', gap: '4px' }}>
+                      <kbd style={{ background: '#1f2c33', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', color: '#ccc', border: '1px solid rgba(255,255,255,0.1)' }}>Alt</kbd>
+                      <span>+</span>
+                      <kbd style={{ background: '#1f2c33', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', color: '#ccc', border: '1px solid rgba(255,255,255,0.1)' }}>↑ / ↓</kbd>
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              {/* Collapsible AI Config panel */}
+              <details style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '10px', overflow: 'hidden' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: '700', color: '#fff', fontSize: '0.95rem', padding: '6px', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>⚙️</span> Ajustes del Asistente de IA (LM Studio / Cloudflare)
+                </summary>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+                  {loadingAiConfig ? <p className="helper">Cargando configuración...</p> : null}
+
+                  <div>
+                    <label htmlFor="aiProvider" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Proveedor</label>
+                    <select
+                      id="aiProvider"
+                      value={aiConfig.provider}
+                      onChange={(e) => setAiConfig((prev) => ({ ...prev, provider: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                    >
+                      <option value="lmstudio">LM Studio (local)</option>
+                      <option value="cloudflare">Cloudflare AI</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="aiEndpoint" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Endpoint activo</label>
+                    <input id="aiEndpoint" value={aiConfig.aiBaseUrl} readOnly style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.1)', color: 'var(--text-muted)', fontSize: '0.85rem' }} />
+                  </div>
+
+                  {aiConfig.provider === "lmstudio" ? (
+                    <div>
+                      <label htmlFor="lmStudioBaseUrl" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>URL LM Studio</label>
+                      <input
+                        id="lmStudioBaseUrl"
+                        value={aiConfig.lmStudioBaseUrl}
+                        spellCheck="false"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        onChange={(e) => setAiConfig((prev) => ({ ...prev, lmStudioBaseUrl: e.target.value }))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label htmlFor="cfAccountId" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Cloudflare Account ID</label>
+                        <input
+                          id="cfAccountId"
+                          value={aiConfig.cloudflareAccountId}
+                          spellCheck="false"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="none"
+                          onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareAccountId: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="cfApiToken" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Cloudflare API Token</label>
+                        <div className="passwordInputWrapper" style={{ position: 'relative' }}>
+                          <input
+                            id="cfApiToken"
+                            type={showCloudflareToken ? "text" : "password"}
+                            value={aiConfig.cloudflareApiToken}
+                            spellCheck="false"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="none"
+                            onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareApiToken: e.target.value }))}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', paddingRight: '40px' }}
+                          />
+                          <button
+                            type="button"
+                            className="passwordToggleBtn"
+                            aria-pressed={showCloudflareToken}
+                            onClick={() => setShowCloudflareToken(!showCloudflareToken)}
+                            aria-label={showCloudflareToken ? "Ocultar Cloudflare Token" : "Mostrar Cloudflare Token"}
+                            style={{ position: 'absolute', right: '5px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
+                          >
+                            {showCloudflareToken ? "🙈" : "👁️"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label htmlFor="cfBaseUrl" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Cloudflare Base URL (opcional)</label>
+                        <input
+                          id="cfBaseUrl"
+                          value={aiConfig.cloudflareBaseUrl}
+                          spellCheck="false"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="none"
+                          onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareBaseUrl: e.target.value }))}
+                          placeholder="https://api.cloudflare.com/client/v4/accounts/{account_id}/ai"
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <label htmlFor="aiModel" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Modelo</label>
+                    <select
+                      id="aiModel"
+                      value={aiConfig.modelName}
+                      onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', marginBottom: '8px' }}
+                    >
+                      <option value="">Seleccionar modelo...</option>
+                      {aiModels.map((model) => (
+                        <option key={model} value={model}>
+                          {model}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      id="aiModelInput"
+                      value={aiConfig.modelName}
+                      spellCheck="false"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
+                      placeholder="O escribe el nombre exacto del modelo..."
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label htmlFor="aiTemperature" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Temperatura</label>
+                      <input
+                        id="aiTemperature"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="2"
+                        value={aiConfig.temperature}
+                        onChange={(e) => setAiConfig((prev) => ({ ...prev, temperature: Number(e.target.value) }))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="aiTimeoutMs" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Timeout IA (ms)</label>
+                      <input
+                        id="aiTimeoutMs"
+                        type="number"
+                        min="5000"
+                        step="1000"
+                        value={aiConfig.timeoutMs}
+                        onChange={(e) => setAiConfig((prev) => ({ ...prev, timeoutMs: Number(e.target.value) }))}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="aiMaxTokens" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Max tokens</label>
+                    <input
+                      id="aiMaxTokens"
+                      type="number"
+                      min="32"
+                      max="2048"
+                      step="1"
+                      value={aiConfig.maxTokens}
+                      onChange={(e) => setAiConfig((prev) => ({ ...prev, maxTokens: Number(e.target.value) }))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="aiSystemPrompt" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Prompt de sistema</label>
+                    <textarea
+                      id="aiSystemPrompt"
+                      rows={3}
+                      value={aiConfig.systemPrompt}
+                      onChange={(e) => setAiConfig((prev) => ({ ...prev, systemPrompt: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="aiUserPrompt" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Prompt de usuario (usar {`{{text}}`})</label>
+                    <textarea
+                      id="aiUserPrompt"
+                      rows={3}
+                      value={aiConfig.userPromptTemplate}
+                      onChange={(e) => setAiConfig((prev) => ({ ...prev, userPromptTemplate: e.target.value }))}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={checkAiHealth}
+                      disabled={checkingAiHealth}
+                      aria-busy={checkingAiHealth}
+                      style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      {checkingAiHealth ? <><span className="buttonSpinner" aria-hidden="true" /><span>Probando...</span></> : "🧪 Probar Conexión"}
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={saveAiConfig}
+                      disabled={savingAiConfig}
+                      aria-busy={savingAiConfig}
+                      style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      {savingAiConfig ? <><span className="buttonSpinner" aria-hidden="true" /><span>Guardando...</span></> : "💾 Guardar IA"}
+                    </button>
+                  </div>
+
+                  {aiHealth ? (
+                    <p className={`notice ${aiHealth.ok ? "success" : "error"}`} style={{ margin: '8px 0 0 0', padding: '8px', fontSize: '0.8rem', borderRadius: '6px' }}>{aiHealth.message}</p>
+                  ) : null}
+                </div>
+              </details>
+            </div>
+
+            {/* Logout Footer Section */}
+            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                type="button"
+                className="logoutBtn"
+                onClick={() => {
+                  handleLogout();
+                  setShowProfileMenu(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#ef4444',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                }}
+              >
+                🚪 Cerrar Sesión Activa
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {showNewChatModal && (
+        <section className="modalOverlay" onClick={() => setShowNewChatModal(false)}>
           <div
             className="modalCard"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="aiSettingsModalHeading"
+            aria-labelledby="newChatModalHeading"
+            style={{ maxWidth: '480px', width: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
           >
-            <div className="modalHeader">
-              <h3 id="aiSettingsModalHeading">Configuración IA</h3>
-              <button className="secondary" onClick={() => setShowAiSettings(false)}>Cerrar</button>
+            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '15px', marginBottom: '15px' }}>
+              <h3 id="newChatModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>Nuevo Mensaje</h3>
+              <button className="secondary" onClick={() => setShowNewChatModal(false)} style={{ borderRadius: '8px', padding: '6px 12px' }}>Cerrar</button>
             </div>
-            {loadingAiConfig ? <p className="helper">Cargando configuración...</p> : null}
 
-            <label htmlFor="aiProvider">Proveedor</label>
-            <select
-              id="aiProvider"
-              value={aiConfig.provider}
-              onChange={(e) => setAiConfig((prev) => ({ ...prev, provider: e.target.value }))}
-            >
-              <option value="lmstudio">LM Studio (local)</option>
-              <option value="cloudflare">Cloudflare AI</option>
-            </select>
+            <div>
+              <input
+                type="text"
+                value={searchUserQuery}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchUserQuery(val);
+                  loadDirectoryUsers(val);
+                }}
+                placeholder="Buscar por usuario o correo..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(0,0,0,0.2)',
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  outline: 'none'
+                }}
+              />
+            </div>
 
-            <label htmlFor="aiEndpoint">Endpoint activo</label>
-            <input id="aiEndpoint" value={aiConfig.aiBaseUrl} readOnly />
+            <div style={{ marginTop: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+              {searchingUsers && <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Buscando usuarios...</p>}
+              
+              {!searchingUsers && searchUserResults.length === 0 && (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                  {searchUserQuery.trim() ? "No se encontraron usuarios." : "No hay otros usuarios registrados en el servidor todavía."}
+                </p>
+              )}
 
-            {aiConfig.provider === "lmstudio" ? (
-              <>
-                <label htmlFor="lmStudioBaseUrl">URL LM Studio</label>
-                <input
-                  id="lmStudioBaseUrl"
-                  value={aiConfig.lmStudioBaseUrl}
-                  spellCheck="false"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  onChange={(e) =>
-                    setAiConfig((prev) => ({ ...prev, lmStudioBaseUrl: e.target.value }))
-                  }
-                />
-              </>
-            ) : (
-              <>
-                <label htmlFor="cfAccountId">Cloudflare Account ID</label>
-                <input
-                  id="cfAccountId"
-                  value={aiConfig.cloudflareAccountId}
-                  spellCheck="false"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  onChange={(e) =>
-                    setAiConfig((prev) => ({ ...prev, cloudflareAccountId: e.target.value }))
-                  }
-                />
+              {searchUserResults.map((user) => (
+                <div
+                  key={user._id}
+                  onClick={() => {
+                    const localChat = {
+                      id: user._id,
+                      name: user.username,
+                      provider: 'local',
+                      accountId: currentUser?.id || 'default',
+                      timestamp: Math.floor(Date.now() / 1000),
+                      unreadCount: 0,
+                      isGroup: false,
+                      avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)'
+                    };
 
-                <label htmlFor="cfApiToken">Cloudflare API Token</label>
-                <div className="passwordInputWrapper">
-                  <input
-                    id="cfApiToken"
-                    type={showCloudflareToken ? "text" : "password"}
-                    value={aiConfig.cloudflareApiToken}
-                    spellCheck="false"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="none"
-                    onChange={(e) =>
-                      setAiConfig((prev) => ({ ...prev, cloudflareApiToken: e.target.value }))
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="passwordToggleBtn" aria-pressed={showCloudflareToken}
-                    onClick={() => setShowCloudflareToken(!showCloudflareToken)}
-                    aria-label={showCloudflareToken ? "Ocultar Cloudflare Token" : "Mostrar Cloudflare Token"}
+                    setChats(prev => {
+                      if (prev.some(c => c.id === user._id)) return prev;
+                      return [localChat, ...prev];
+                    });
+
+                    setSelectedChatId(user._id);
+                    selectedChatIdRef.current = user._id;
+                    setShowNewChatModal(false);
+                    setSearchUserQuery("");
+                    setSearchUserResults([]);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '10px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '12px',
+                      background: getAvatarGradient(user.avatarColor || user._id),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '700',
+                      color: '#fff',
+                      fontSize: '0.95rem'
+                    }}
                   >
-                    {showCloudflareToken ? "🙈" : "👁️"}
-                  </button>
+                    {user.username.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '600', color: '#fff', fontSize: '0.95rem' }}>{user.username}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '250px' }}>
+                      {user.bio || 'Sin estado'}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    padding: '3px 8px',
+                    borderRadius: '20px',
+                    background: 'rgba(168, 85, 247, 0.1)',
+                    color: '#a855f7',
+                    border: '1px solid rgba(168, 85, 247, 0.2)'
+                  }}>
+                    Conectar
+                  </span>
                 </div>
-
-                <label htmlFor="cfBaseUrl">Cloudflare Base URL (opcional)</label>
-                <input
-                  id="cfBaseUrl"
-                  value={aiConfig.cloudflareBaseUrl}
-                  spellCheck="false"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  onChange={(e) =>
-                    setAiConfig((prev) => ({ ...prev, cloudflareBaseUrl: e.target.value }))
-                  }
-                  placeholder="https://api.cloudflare.com/client/v4/accounts/{account_id}/ai"
-                />
-              </>
-            )}
-
-            <label htmlFor="aiModel">Modelo</label>
-            <select
-              id="aiModel"
-              value={aiConfig.modelName}
-              onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
-            >
-              <option value="">Seleccionar modelo...</option>
-              {aiModels.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
               ))}
-            </select>
-            <label htmlFor="aiModelInput" className="sr-only">Modelo (texto)</label>
-            <input
-              id="aiModelInput"
-              value={aiConfig.modelName}
-              spellCheck="false"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="none"
-              onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
-            />
-
-            <label htmlFor="aiTemperature">Temperatura</label>
-            <input
-              id="aiTemperature"
-              type="number"
-              step="0.1"
-              min="0"
-              max="2"
-              value={aiConfig.temperature}
-              onChange={(e) =>
-                setAiConfig((prev) => ({ ...prev, temperature: Number(e.target.value) }))
-              }
-            />
-
-            <label htmlFor="aiTimeoutMs">Timeout IA (ms)</label>
-            <input
-              id="aiTimeoutMs"
-              type="number"
-              min="5000"
-              step="1000"
-              value={aiConfig.timeoutMs}
-              onChange={(e) =>
-                setAiConfig((prev) => ({ ...prev, timeoutMs: Number(e.target.value) }))
-              }
-            />
-
-            <label htmlFor="aiMaxTokens">Max tokens</label>
-            <input
-              id="aiMaxTokens"
-              type="number"
-              min="32"
-              max="2048"
-              step="1"
-              value={aiConfig.maxTokens}
-              onChange={(e) =>
-                setAiConfig((prev) => ({ ...prev, maxTokens: Number(e.target.value) }))
-              }
-            />
-
-            <label htmlFor="aiSystemPrompt">Prompt de sistema</label>
-            <textarea
-              id="aiSystemPrompt"
-              rows={4}
-              value={aiConfig.systemPrompt}
-              onChange={(e) => setAiConfig((prev) => ({ ...prev, systemPrompt: e.target.value }))}
-            />
-
-            <label htmlFor="aiUserPrompt">Prompt de usuario (usar {`{{text}}`})</label>
-            <textarea
-              id="aiUserPrompt"
-              rows={5}
-              value={aiConfig.userPromptTemplate}
-              onChange={(e) =>
-                setAiConfig((prev) => ({ ...prev, userPromptTemplate: e.target.value }))
-              }
-            />
-
-            <div className="composerActions">
-              <button
-                className="secondary"
-                aria-label="Probar conexión con IA"
-                onClick={checkAiHealth}
-                disabled={checkingAiHealth}
-                aria-busy={checkingAiHealth}
-              >
-                {checkingAiHealth ? <><span className="buttonSpinner" aria-hidden="true" /><span>Probando...</span></> : "Probar conexión"}
-              </button>
-              <button
-                className="primary"
-                aria-label="Guardar configuración de IA"
-                onClick={saveAiConfig}
-                disabled={savingAiConfig}
-                aria-busy={savingAiConfig}
-              >
-                {savingAiConfig ? <><span className="buttonSpinner" aria-hidden="true" /><span>Guardando...</span></> : "Guardar"}
-              </button>
             </div>
-
-            {aiHealth ? (
-              <p className={`notice ${aiHealth.ok ? "success" : "error"}`}>{aiHealth.message}</p>
-            ) : null}
           </div>
         </section>
-      ) : null}
+      )}
 
       {toasts.length > 0 && (
         <div className="toast-container" aria-live="polite">

@@ -175,41 +175,111 @@ if (API_KEY.length > 0 && API_KEY.length < 8) {
   console.warn('⚠️ WARNING: API_KEY is missing or empty. Authentication is DISABLED. This is highly insecure for production environments.');
 }
 
-const authenticateApiKey = (req, res, next) => {
-  if (!API_KEY) return next();
-  
+const authenticateUser = async (req, res, next) => {
   if (req.method === 'OPTIONS') return next();
-  
-  const providedKey = req.headers['x-api-key'] || req.query.api_key;
-  if (providedKey !== API_KEY) {
-    console.error(`[AUTH FAILED] Path: ${req.path} | Method: ${req.method} | Invalid API Key provided.`);
+
+  let token = '';
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else {
+    token = req.headers['x-api-key'] || req.query.api_key;
+  }
+
+  if (!token) {
+    // Legacy support for API_KEY (admin credentials)
+    if (API_KEY && (req.headers['x-api-key'] === API_KEY || req.query.api_key === API_KEY)) {
+      let adminUser = await User.findOne({ username: 'admin' });
+      if (!adminUser) {
+        try {
+          adminUser = await User.create({
+            username: 'admin',
+            email: 'admin@tapchat.local',
+            password: hashPassword('admin123'),
+            avatarColor: 'hsl(200, 70%, 40%)',
+            bio: 'Administrador del sistema'
+          });
+        } catch (e) {
+          // If already exists or concurrently created
+          adminUser = await User.findOne({ username: 'admin' });
+        }
+      }
+      req.user = adminUser;
+      return next();
+    }
     return res.status(401).json({
       error: 'Unauthorized',
-      message: 'A valid API Key is required in X-API-Key header or api_key query parameter.'
+      message: 'Authentication token is required.'
     });
   }
-  next();
+
+  try {
+    const session = await Session.findOne({ token }).populate('userId');
+    if (!session || session.expiresAt < new Date()) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or expired session.'
+      });
+    }
+    req.user = session.userId;
+    req.session = session;
+    next();
+  } catch (err) {
+    console.error('Auth middleware error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 };
 
-io.use((socket, next) => {
-  if (!API_KEY) return next();
+io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
-  if (token !== API_KEY) {
-    const err = new Error("not authorized");
-    err.data = { content: "Please retry later" };
-    return next(err);
+  if (!token) {
+    return next(new Error("Authentication token is required"));
   }
-  next();
+
+  if (API_KEY && token === API_KEY) {
+    let adminUser = await User.findOne({ username: 'admin' });
+    if (!adminUser) {
+      try {
+        adminUser = await User.create({
+          username: 'admin',
+          email: 'admin@tapchat.local',
+          password: hashPassword('admin123'),
+          avatarColor: 'hsl(200, 70%, 40%)',
+          bio: 'Administrador del sistema'
+        });
+      } catch (e) {
+        adminUser = await User.findOne({ username: 'admin' });
+      }
+    }
+    socket.userId = String(adminUser._id);
+    return next();
+  }
+
+  try {
+    const session = await Session.findOne({ token });
+    if (!session || session.expiresAt < new Date()) {
+      return next(new Error("Invalid or expired session"));
+    }
+    socket.userId = String(session.userId);
+    next();
+  } catch (err) {
+    next(new Error("Authentication failed"));
+  }
 });
 
 io.on('connection', (socket) => {
-  console.log('🔌 Frontend client connected to socket');
+  console.log(`🔌 Client connected to socket: ${socket.userId}`);
+  
+  if (socket.userId) {
+    socket.join(socket.userId);
+  }
+
   for (const providerName of providerRegistry ? providerRegistry.listProviders() : [DEFAULT_PROVIDER]) {
     const state = getProviderState(providerName);
     if (state.status === 'qr' && state.lastQR) {
-      socket.emit('qr', { qr: state.lastQR, provider: providerName, accountId: DEFAULT_ACCOUNT_ID });
+      socket.emit('qr', { qr: state.lastQR, provider: providerName, accountId: socket.userId || DEFAULT_ACCOUNT_ID });
     } else if (state.status === 'authenticated') {
-      socket.emit('ready', { status: 'authenticated', provider: providerName, accountId: DEFAULT_ACCOUNT_ID });
+      socket.emit('ready', { status: 'authenticated', provider: providerName, accountId: socket.userId || DEFAULT_ACCOUNT_ID });
     }
   }
 });
@@ -224,9 +294,12 @@ app.use(express.json({ limit: '1mb' }));
 app.use(STATUS_ARCHIVE_PUBLIC_BASE, express.static(STATUS_ARCHIVE_DIR));
 app.use(MEDIA_ARCHIVE_PUBLIC_BASE, express.static(MEDIA_ARCHIVE_DIR));
 
-// Middleware global para proteger todas las rutas /api/ (incluyendo health y status)
+// Middleware global para proteger todas las rutas /api/ (incluyendo health y status, excepto auth de login y registro)
 app.use('/api', (req, res, next) => {
-  return authenticateApiKey(req, res, next);
+  if (req.path === '/auth/login' || req.path === '/auth/register') {
+    return next();
+  }
+  return authenticateUser(req, res, next);
 });
 
 // Root endpoint for connectivity check
@@ -235,8 +308,291 @@ app.get('/', (req, res) => {
 });
 
 // Healthcheck/Auth verify endpoint
+// Password hashing helper functions using native crypto module
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedPassword) {
+  if (!storedPassword || !storedPassword.includes(':')) return false;
+  const [salt, hash] = storedPassword.split(':');
+  const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return hash === checkHash;
+}
+
+// User Schema
+const UserSchema = new mongoose.Schema({
+  username: { type: String, unique: true, required: true, index: true },
+  email: { type: String, unique: true, required: true, index: true },
+  password: { type: String, required: true },
+  avatarColor: { type: String },
+  bio: { type: String, default: '¡Hola! Estoy usando Tapchat.' },
+  status: { type: String, default: 'online' }
+}, { timestamps: true });
+
+const User = mongoose.model('User', UserSchema);
+
+// Session Schema
+const SessionSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  token: { type: String, unique: true, required: true, index: true },
+  expiresAt: { type: Date, required: true }
+}, { timestamps: true });
+
+const Session = mongoose.model('Session', SessionSchema);
+
+// Register endpoint
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
+    }
+
+    const cleanUsername = String(username).trim().toLowerCase();
+    const cleanEmail = String(email).trim().toLowerCase();
+
+    if (cleanUsername.length < 3) {
+      return res.status(400).json({ error: 'El nombre de usuario debe tener al menos 3 caracteres.' });
+    }
+    if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
+      return res.status(400).json({ error: 'Formato de correo electrónico inválido.' });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [{ username: cleanUsername }, { email: cleanEmail }]
+    });
+
+    if (existingUser) {
+      if (existingUser.username === cleanUsername) {
+        return res.status(400).json({ error: 'El nombre de usuario ya está registrado.' });
+      }
+      return res.status(400).json({ error: 'El correo electrónico ya está registrado.' });
+    }
+
+    const hashedPassword = hashPassword(password);
+    const hue = Math.floor(Math.random() * 360);
+    const avatarColor = `hsl(${hue}, 70%, 40%)`;
+
+    const user = await User.create({
+      username: cleanUsername,
+      email: cleanEmail,
+      password: hashedPassword,
+      avatarColor,
+      bio: '¡Hola! Estoy usando Tapchat.'
+    });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    await Session.create({
+      userId: user._id,
+      token,
+      expiresAt
+    });
+
+    await Chat.findOneAndUpdate(
+      {
+        provider: 'local',
+        accountId: String(user._id),
+        conversationId: 'ai_assistant'
+      },
+      {
+        provider: 'local',
+        accountId: String(user._id),
+        conversationId: 'ai_assistant',
+        conversationKey: `local:${user._id}:ai_assistant`,
+        name: 'AI Companion',
+        timestamp: Math.floor(Date.now() / 1000),
+        isGroup: false,
+        avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&q=80',
+        unreadCount: 0
+      },
+      { upsert: true, new: true }
+    );
+
+    await Message.create({
+      provider: 'local',
+      accountId: String(user._id),
+      conversationId: 'ai_assistant',
+      providerMessageId: `ai-welcome-${user._id}-${Date.now()}`,
+      conversationKey: `local:${user._id}:ai_assistant`,
+      from: 'ai_assistant',
+      to: String(user._id),
+      body: `¡Hola ${username}! Bienvenido a Tapchat. Soy tu compañero de inteligencia artificial. Puedes chatear conmigo en cualquier momento o usarme para revisar la ortografía de tus mensajes. ¿En qué te puedo ayudar hoy?`,
+      fromMe: false,
+      timestamp: Math.floor(Date.now() / 1000)
+    });
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatarColor: user.avatarColor,
+        bio: user.bio
+      }
+    });
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Error interno del servidor durante el registro.' });
+  }
+});
+
+// Login endpoint
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Usuario o correo y contraseña son requeridos.' });
+    }
+
+    const cleanIdentifier = String(identifier).trim().toLowerCase();
+
+    const user = await User.findOne({
+      $or: [{ username: cleanIdentifier }, { email: cleanIdentifier }]
+    });
+
+    if (!user || !verifyPassword(password, user.password)) {
+      return res.status(401).json({ error: 'Credenciales inválidas. Por favor intenta de nuevo.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    await Session.create({
+      userId: user._id,
+      token,
+      expiresAt
+    });
+
+    await Chat.findOneAndUpdate(
+      {
+        provider: 'local',
+        accountId: String(user._id),
+        conversationId: 'ai_assistant'
+      },
+      {
+        provider: 'local',
+        accountId: String(user._id),
+        conversationId: 'ai_assistant',
+        conversationKey: `local:${user._id}:ai_assistant`,
+        name: 'AI Companion',
+        timestamp: Math.floor(Date.now() / 1000),
+        isGroup: false,
+        unreadCount: 0
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatarColor: user.avatarColor,
+        bio: user.bio
+      }
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Error interno del servidor durante el login.' });
+  }
+});
+
+// Logout endpoint
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    if (req.session) {
+      await Session.deleteOne({ _id: req.session._id });
+    }
+    res.json({ success: true, message: 'Sesión cerrada exitosamente.' });
+  } catch (err) {
+    console.error('Logout error:', err);
+    res.status(500).json({ error: 'Error al cerrar sesión.' });
+  }
+});
+
+// Profile Update endpoint
+app.put('/api/auth/profile', async (req, res) => {
+  try {
+    const { bio, avatarColor } = req.body;
+    
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
+    if (bio !== undefined) user.bio = String(bio).trim();
+    if (avatarColor !== undefined) user.avatarColor = String(avatarColor).trim();
+
+    await user.save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatarColor: user.avatarColor,
+        bio: user.bio
+      }
+    });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    res.status(500).json({ error: 'Error al actualizar el perfil.' });
+  }
+});
+
+// User Search endpoint
+app.get('/api/users/search', async (req, res) => {
+  try {
+    const query = String(req.query.q || '').trim();
+    
+    let filter = {
+      _id: { $ne: req.user._id },
+      username: { $ne: 'admin' }
+    };
+
+    if (query) {
+      filter.$or = [
+        { username: { $regex: query, $options: 'i' } },
+        { email: { $regex: query, $options: 'i' } }
+      ];
+    }
+
+    const users = await User.find(filter)
+      .select('_id username email avatarColor bio status')
+      .limit(20);
+
+    res.json(users);
+  } catch (err) {
+    console.error('User search error:', err);
+    res.status(500).json({ error: 'Error al buscar usuarios.' });
+  }
+});
+
+// Healthcheck/Auth verify endpoint
 app.get('/api/check-auth', (req, res) => {
-  res.json({ success: true, message: 'Authenticated' });
+  res.json({
+    success: true,
+    message: 'Authenticated',
+    user: {
+      id: req.user._id,
+      username: req.user.username,
+      email: req.user.email,
+      avatarColor: req.user.avatarColor,
+      bio: req.user.bio
+    }
+  });
 });
 
 // MongoDB connection
@@ -1405,6 +1761,14 @@ async function syncChatMessages(chatId, limit = 50, context = {}) {
 }
 
 async function executeSyncTask(task) {
+  if (task.provider === 'local') {
+    setSyncState(task, {
+      status: 'ok',
+      lastFinishedAt: nowIso(),
+      lastError: null
+    });
+    return;
+  }
   const adapter = resolveProviderAdapter(task.provider);
   if (!adapter.isReady()) {
     setSyncState(task, {
@@ -2136,11 +2500,13 @@ app.post(['/api/chats/:chatId/read', '/api/chats/:chatId/read/:channelCode'], as
     );
     invalidateChatsCache(provider, accountId);
 
-    const adapter = resolveProviderAdapter(provider);
-    if (adapter.isReady()) {
-      adapter.markRead({ provider, accountId, conversationId: chatId }).catch(err => {
-        console.warn(`⚠️ Failed to sendSeen via provider ${provider} for ${chatId}:`, err.message);
-      });
+    if (provider !== 'local') {
+      const adapter = resolveProviderAdapter(provider);
+      if (adapter.isReady()) {
+        adapter.markRead({ provider, accountId, conversationId: chatId }).catch(err => {
+          console.warn(`⚠️ Failed to sendSeen via provider ${provider} for ${chatId}:`, err.message);
+        });
+      }
     }
 
     res.json({ success: true, provider, accountId, conversationId: chatId });
@@ -2156,6 +2522,193 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
   try {
     if (req.params.channelCode) req.query.provider = req.params.channelCode;
     const { provider, accountId } = parseProviderContext(req);
+
+    if (provider === 'local') {
+      const senderId = accountId;
+      const receiverId = String(req.query.chatId || req.body?.chatId || '').trim();
+      const text = sanitizeTextInput(req.body?.text);
+
+      if (!receiverId || !text) {
+        return res.status(400).json({ error: 'Chat ID y texto son obligatorios.' });
+      }
+
+      const timestamp = Math.floor(Date.now() / 1000);
+      const messageIdBase = crypto.randomUUID();
+
+      // Case A: AI Companion Chat
+      if (receiverId === 'ai_assistant') {
+        const userMsg = await Message.create({
+          provider: 'local',
+          accountId: senderId,
+          conversationId: 'ai_assistant',
+          providerMessageId: `user-msg-${messageIdBase}`,
+          conversationKey: `local:${senderId}:ai_assistant`,
+          from: senderId,
+          to: 'ai_assistant',
+          body: text,
+          fromMe: true,
+          timestamp
+        });
+
+        await Chat.findOneAndUpdate(
+          { provider: 'local', accountId: senderId, conversationId: 'ai_assistant' },
+          { timestamp, lastSyncedAt: new Date() },
+          { upsert: true }
+        );
+
+        io.to(senderId).emit('new_message', userMsg);
+
+        res.json({ success: true, chatId: 'ai_assistant', message: 'Message queued to AI' });
+
+        try {
+          let systemPrompt = aiConfig.systemPrompt || "Eres un asistente de IA amigable e inteligente.";
+          let userPrompt = text;
+          let responseText = "Lo siento, no pude conectar con el servidor de IA.";
+
+          if (isAiConfigured()) {
+            const url = getAiChatCompletionsUrl();
+            const headers = {
+              'Content-Type': 'application/json',
+              ...getAiRequestHeaders()
+            };
+            const postData = {
+              model: aiConfig.modelName || 'llama-3.1-8b-instruct',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ],
+              temperature: aiConfig.temperature,
+              max_tokens: aiConfig.maxTokens
+            };
+
+            const aiRes = await axios.post(url, postData, {
+              headers,
+              timeout: aiConfig.timeoutMs || 15000
+            });
+
+            const choice = aiRes.data?.choices?.[0];
+            responseText = stripThinking(choice?.message?.content || choice?.text || responseText);
+          } else {
+            responseText = "¡Hola! He recibido tu mensaje, pero el servidor de IA (LM Studio o Cloudflare) no está configurado en el backend actualmente. Puedes configurarlo en la sección de Ajustes de IA.";
+          }
+
+          const aiMsgIdBase = crypto.randomUUID();
+          const aiMsg = await Message.create({
+            provider: 'local',
+            accountId: senderId,
+            conversationId: 'ai_assistant',
+            providerMessageId: `ai-msg-${aiMsgIdBase}`,
+            conversationKey: `local:${senderId}:ai_assistant`,
+            from: 'ai_assistant',
+            to: senderId,
+            body: responseText,
+            fromMe: false,
+            timestamp: Math.floor(Date.now() / 1000)
+          });
+
+          await Chat.findOneAndUpdate(
+            { provider: 'local', accountId: senderId, conversationId: 'ai_assistant' },
+            { timestamp: Math.floor(Date.now() / 1000) }
+          );
+
+          io.to(senderId).emit('new_message', aiMsg);
+        } catch (aiErr) {
+          console.error('AI Companion error:', aiErr);
+          const errBase = crypto.randomUUID();
+          const errMsg = await Message.create({
+            provider: 'local',
+            accountId: senderId,
+            conversationId: 'ai_assistant',
+            providerMessageId: `ai-err-${errBase}`,
+            conversationKey: `local:${senderId}:ai_assistant`,
+            from: 'ai_assistant',
+            to: senderId,
+            body: "⚠️ Error al conectar con el servidor de IA (LM Studio o Cloudflare). Por favor, comprueba que el servidor esté activo y la configuración en Ajustes sea correcta.",
+            fromMe: false,
+            timestamp: Math.floor(Date.now() / 1000)
+          });
+          io.to(senderId).emit('new_message', errMsg);
+        }
+        return;
+      }
+
+      // Case B: User-to-User Chat
+      const receiver = await User.findById(receiverId);
+      if (!receiver) {
+        return res.status(404).json({ error: 'El usuario destinatario no existe.' });
+      }
+
+      const senderMsg = await Message.create({
+        provider: 'local',
+        accountId: senderId,
+        conversationId: receiverId,
+        providerMessageId: `local-msg-${messageIdBase}`,
+        conversationKey: `local:${senderId}:${receiverId}`,
+        from: senderId,
+        to: receiverId,
+        body: text,
+        fromMe: true,
+        timestamp
+      });
+
+      await Chat.findOneAndUpdate(
+        { provider: 'local', accountId: senderId, conversationId: receiverId },
+        {
+          provider: 'local',
+          accountId: senderId,
+          conversationId: receiverId,
+          conversationKey: `local:${senderId}:${receiverId}`,
+          name: receiver.username,
+          timestamp,
+          isGroup: false,
+          avatarUrl: '',
+          lastSyncedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+
+      const receiverMsg = await Message.create({
+        provider: 'local',
+        accountId: receiverId,
+        conversationId: senderId,
+        providerMessageId: `local-msg-${messageIdBase}`,
+        conversationKey: `local:${receiverId}:${senderId}`,
+        from: senderId,
+        to: receiverId,
+        body: text,
+        fromMe: false,
+        timestamp
+      });
+
+      await Chat.findOneAndUpdate(
+        { provider: 'local', accountId: receiverId, conversationId: senderId },
+        {
+          provider: 'local',
+          accountId: receiverId,
+          conversationId: senderId,
+          conversationKey: `local:${receiverId}:${senderId}`,
+          name: req.user.username,
+          timestamp,
+          isGroup: false,
+          avatarUrl: '',
+          $inc: { unreadCount: 1 },
+          lastSyncedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+
+      io.to(senderId).emit('new_message', senderMsg);
+      io.to(receiverId).emit('new_message', receiverMsg);
+
+      return res.json({
+        success: true,
+        chatId: receiverId,
+        provider: 'local',
+        accountId: senderId,
+        message: 'Message sent'
+      });
+    }
+
     const adapter = resolveProviderAdapter(provider);
 
     if (!adapter.isReady()) {
