@@ -183,7 +183,12 @@ const authenticateUser = async (req, res, next) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.substring(7);
   } else {
-    token = req.headers['x-api-key'] || req.query.api_key;
+    const rawToken = req.headers['x-api-key'] || req.query.api_key;
+    if (typeof rawToken === 'string') {
+      token = rawToken;
+    } else if (Array.isArray(rawToken) && typeof rawToken[0] === 'string') {
+      token = rawToken[0];
+    }
   }
 
   if (!token) {
@@ -231,7 +236,11 @@ const authenticateUser = async (req, res, next) => {
 };
 
 io.use(async (socket, next) => {
-  const token = socket.handshake.auth.token;
+  let token = socket.handshake.auth.token;
+  if (typeof token !== 'string') {
+    token = '';
+  }
+
   if (!token) {
     return next(new Error("Authentication token is required"));
   }
