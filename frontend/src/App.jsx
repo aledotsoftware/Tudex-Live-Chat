@@ -140,6 +140,222 @@ function getAvatarGradient(id) {
   return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
 }
 
+function ChatIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function StatusIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a10 10 0 0 1 10 10" strokeDasharray="3 3" />
+    </svg>
+  );
+}
+
+function ProximityIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function MuroIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="9" y1="21" x2="9" y2="9" />
+    </svg>
+  );
+}
+
+function AlertIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function SettingsIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function PlusIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function CloseIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function SaveIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
+
+function SearchIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function SendIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  );
+}
+
+function TestIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M4.5 16.5c-1.5 1.26-2 3.18-1 4.5s3.24.54 4.5-1L18 8l-4-4L4.5 16.5z" />
+      <path d="M12 2l10 10" />
+      <path d="M9 5l10 10" />
+    </svg>
+  );
+}
+
+function HappyIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+      <line x1="9" y1="9" x2="9.01" y2="9" />
+      <line x1="15" y1="9" x2="15.01" y2="9" />
+    </svg>
+  );
+}
+
+function SadIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
+      <line x1="9" y1="9" x2="9.01" y2="9" />
+      <line x1="15" y1="9" x2="15.01" y2="9" />
+    </svg>
+  );
+}
+
+function LogoutIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
+function WarningIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+function InfoIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
+function AttachmentIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
+function HeartIcon({ size = 20, className = "", filled = false }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function EyeIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+function ReloadIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M23 4v6h-6" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </svg>
+  );
+}
+
+function UserIcon({ size = 20, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
 function AckIcon({ status }) {
   if (status === 3) return <span className="ackDoubleBlue">✓✓</span>;
   if (status === 2) return <span className="ackDouble">✓✓</span>;
@@ -256,6 +472,14 @@ function App() {
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  useEffect(() => {
+    chatsRef.current = chats;
+  }, [chats]);
+
+  useEffect(() => {
+    selectedChatIdRef.current = selectedChatId;
+  }, [selectedChatId]);
   const [authMode, setAuthMode] = useState("login");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -269,6 +493,14 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userBioInput, setUserBioInput] = useState("");
   const [userAvatarColorInput, setUserAvatarColorInput] = useState("");
+  const [userUsernameInput, setUserUsernameInput] = useState("");
+  const [userEmailInput, setUserEmailInput] = useState("");
+  const [userPasswordInput, setUserPasswordInput] = useState("");
+  const [userAvatarUrlInput, setUserAvatarUrlInput] = useState("");
+  const [showNewStatusModal, setShowNewStatusModal] = useState(false);
+  const [newStatusBody, setNewStatusBody] = useState("");
+  const [newStatusBgTheme, setNewStatusBgTheme] = useState("landscape1");
+  const [storyPlayList, setStoryPlayList] = useState([]);
   const [notifications, setNotifications] = useState([
     { id: 1, type: 'info', text: '¡Bienvenido a Tapchat! Comienza a chatear con otros usuarios buscando en la red.', time: 'Ahora' },
     { id: 2, type: 'success', text: 'Tu Asistente de IA personal está activo en el chat "AI Companion".', time: 'Hace 2 min' },
@@ -289,14 +521,14 @@ function App() {
   useEffect(() => {
     if (activeStoryIndex === null) return;
     const timer = setTimeout(() => {
-      if (activeStoryIndex < followedStories.length - 1) {
+      if (activeStoryIndex < storyPlayList.length - 1) {
         setActiveStoryIndex(activeStoryIndex + 1);
       } else {
         setActiveStoryIndex(null);
       }
     }, 5000);
     return () => clearTimeout(timer);
-  }, [activeStoryIndex, followedStories.length]);
+  }, [activeStoryIndex, storyPlayList.length]);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -308,6 +540,10 @@ function App() {
     if (currentUser) {
       setUserBioInput(currentUser.bio || "¡Hola! Estoy usando Tapchat.");
       setUserAvatarColorInput(currentUser.avatarColor || "hsl(200, 70%, 40%)");
+      setUserUsernameInput(currentUser.username || "");
+      setUserEmailInput(currentUser.email || "");
+      setUserPasswordInput("");
+      setUserAvatarUrlInput(currentUser.avatarUrl || "");
     }
   }, [currentUser]);
 
@@ -317,21 +553,29 @@ function App() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          username: userUsernameInput,
+          email: userEmailInput,
+          password: userPasswordInput,
           bio: userBioInput,
-          avatarColor: userAvatarColorInput
+          avatarColor: userAvatarColorInput,
+          avatarUrl: userAvatarUrlInput
         })
       });
       if (res.ok) {
         const data = await res.json();
         setCurrentUser(prev => ({
           ...prev,
+          username: data.user.username,
+          email: data.user.email,
           bio: data.user.bio,
-          avatarColor: data.user.avatarColor
+          avatarColor: data.user.avatarColor,
+          avatarUrl: data.user.avatarUrl
         }));
         showNotice("Perfil actualizado correctamente.", "success");
         setShowProfileMenu(false);
       } else {
-        showNotice("No se pudo actualizar el perfil.", "error");
+        const errorData = await res.json();
+        showNotice(errorData.error || "No se pudo actualizar el perfil.", "error");
       }
     } catch (err) {
       showNotice("Error de conexión al guardar el perfil.", "error");
@@ -424,6 +668,42 @@ function App() {
     } catch (err) {
       console.error("Error publishing status:", err);
       showNotice("Error al publicar estado.", "error");
+    } finally {
+      setPublishingStatus(false);
+    }
+  }
+
+  async function publishPersonalStatus() {
+    if (!newStatusBody.trim()) return;
+    setPublishingStatus(true);
+    try {
+      const bgImages = {
+        landscape1: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",
+        landscape2: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80",
+        landscape3: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+        landscape4: "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&w=400&q=80",
+        landscape5: "https://images.unsplash.com/photo-1433832597026-488b418f2bd3?auto=format&fit=crop&w=400&q=80"
+      };
+      const selectedBg = bgImages[newStatusBgTheme] || bgImages.landscape1;
+
+      const res = await fetch(`${API_URL}/api/public-statuses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body: newStatusBody,
+          mediaUrl: selectedBg,
+          mediaType: "image"
+        })
+      });
+      if (res.ok) {
+        setNewStatusBody("");
+        setShowNewStatusModal(false);
+        showNotice("¡Tu estado ha sido publicado!", "success");
+        loadPublicStatuses();
+      }
+    } catch (err) {
+      console.error("Error publishing personal status:", err);
+      showNotice("Error al publicar tu estado.", "error");
     } finally {
       setPublishingStatus(false);
     }
@@ -543,20 +823,14 @@ function App() {
   }, [chatSearch, publicStatuses]);
 
   const connectionLabel = useMemo(() => {
-    if (!socketConnected) return "Desconectado del servidor (WebSocket)";
-    if (sessionStatus === "authenticated") return "Conectado al proveedor";
-    if (sessionStatus === "qr") return "Requiere vinculación (QR)";
-    if (sessionStatus === "auth_failure") return "Sesión rechazada/inválida";
-    if (sessionStatus === "disconnected") return "Proveedor desconectado";
-    return "Sincronizando con proveedor...";
-  }, [sessionStatus, socketConnected]);
+    if (!socketConnected) return "Desconectado de la red de Tapchat";
+    return "Servidor En línea (WebSocket)";
+  }, [socketConnected]);
 
   const dotClass = useMemo(() => {
     if (!socketConnected) return "bad";
-    if (sessionStatus === "authenticated") return "ok";
-    if (sessionStatus === "qr" || sessionStatus === "connecting") return "warning";
-    return "bad";
-  }, [sessionStatus, socketConnected]);
+    return "ok";
+  }, [socketConnected]);
 
   const authScreenLabel = useMemo(() => {
     if (!socketConnected) return "Conectando al servidor...";
@@ -1325,7 +1599,6 @@ function App() {
     const reqId = ++messageFetchReqIdRef.current;
 
     if (withLoader) setLoadingMessages(prev => ({ ...prev, [chatId]: true }));
-    if (background && navigator.onLine) setSyncingChat(true);
 
     try {
       if (!background) {
@@ -1382,7 +1655,6 @@ function App() {
       showNotice(error.message, "error");
     } finally {
       if (withLoader) setLoadingMessages(prev => ({ ...prev, [chatId]: false }));
-      if (background) setSyncingChat(false);
     }
   }
 
@@ -1926,8 +2198,9 @@ function App() {
                     className="passwordToggleBtn"
                     onClick={() => setShowApiKey(!showApiKey)}
                     aria-label={showApiKey ? "Ocultar" : "Mostrar"}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)' }}
                   >
-                    {showApiKey ? "🙈" : "👁️"}
+                    {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                   </button>
                 </div>
               </div>
@@ -2090,29 +2363,29 @@ function App() {
       </div>
       {pwaUpdateAvailable && (
         <div className="updateBanner" role="alert" aria-live="assertive">
-          <span aria-hidden="true">🎁</span> Hay una nueva versión de Tapchat disponible.
+          <InfoIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Hay una nueva versión de Tapchat disponible.
           <button className="primary" onClick={() => pwaUpdateAvailable(true)}>Actualizar ahora</button>
           <button className="secondary" onClick={() => setPwaUpdateAvailable(null)}>Ignorar</button>
         </div>
       )}
       {isOffline && (
         <div className="offlineBanner" role="alert" aria-live="assertive">
-          <span aria-hidden="true">⚠️</span> Estás navegando sin conexión. Mostrando versión guardada.
+          <WarningIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Estás navegando sin conexión. Mostrando versión guardada.
         </div>
       )}
       {!isOffline && !socketConnected && (
         <div className="warningBanner" role="alert" aria-live="assertive">
-          <span aria-hidden="true">⚡</span> Reconectando con el servidor...
+          <InfoIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Reconectando con el servidor...
         </div>
       )}
       {!isOffline && socketConnected && sessionStatus === "disconnected" && (
         <div className="warningBanner" role="alert" aria-live="assertive">
-          <span aria-hidden="true">⚠️</span> Proveedor desconectado. Revisa la conexión en tu teléfono.
+          <WarningIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Proveedor desconectado. Revisa la conexión en tu teléfono.
         </div>
       )}
       {!isOffline && socketConnected && sessionStatus === "connecting" && (
         <div className="infoBanner" role="status" aria-live="polite">
-          <span aria-hidden="true">🔄</span> Estableciendo conexión con el proveedor...
+          <ReloadIcon size={16} className="spinning" style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Estableciendo conexión con el proveedor...
         </div>
       )}
       <main className={`waApp ${selectedChatId || viewMode === "statuses" ? "chatOpen" : ""}`}>
@@ -2121,7 +2394,7 @@ function App() {
           <h2>
             {viewMode === "chats" ? "Chats" : viewMode === "statuses" ? "Estados" : "Notificaciones"}
             {viewMode === "chats" && syncingChats && (
-              <span className="syncIndicator" title="Sincronizando chats..." aria-live="polite"> 🔄</span>
+              <span className="syncIndicator" title="Sincronizando chats..." aria-live="polite"><ReloadIcon size={14} className="spinning" style={{ marginLeft: '6px', display: 'inline-block', verticalAlign: 'middle' }} /></span>
             )}
           </h2>
           <div className="headerActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2146,7 +2419,7 @@ function App() {
                 cursor: 'pointer'
               }}
             >
-              {loadingChats ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
+              {loadingChats ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : <ReloadIcon size={16} />}
             </button>
             <button
               type="button"
@@ -2156,7 +2429,7 @@ function App() {
                 width: '36px',
                 height: '36px',
                 borderRadius: '50%',
-                background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                background: currentUser?.avatarUrl ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
                 color: '#fff',
                 fontWeight: '700',
                 border: '2px solid #fff',
@@ -2168,10 +2441,15 @@ function App() {
                 boxShadow: '0 0 8px rgba(255,255,255,0.4)',
                 transition: 'all 0.2s ease',
                 padding: 0,
-                flexShrink: 0
+                flexShrink: 0,
+                overflow: 'hidden'
               }}
             >
-              {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
+              {currentUser?.avatarUrl ? (
+                <img src={currentUser.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+              )}
             </button>
           </div>
         </header>
@@ -2180,23 +2458,24 @@ function App() {
           <span className={`dot ${dotClass}`} aria-hidden="true" />
           <span className="sr-only">{socketConnected ? "Conectado al servidor." : "Desconectado del servidor."}</span>
           <span>
-            {connectionLabel} · Provider: {backendStatus.providerStatus}
+            {connectionLabel}
           </span>
           {totalUnread > 0 ? <strong className="pendingCounter" aria-label={`${totalUnread} mensajes pendientes`}>{totalUnread} pendientes</strong> : null}
         </div>
 
-        <div className="searchWrap" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="searchWrap" style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative', width: '100%' }}>
           <label htmlFor="chatSearchInput" className="sr-only">
             {viewMode === "statuses" ? "Buscar estado" : "Buscar chat"}
           </label>
+          <SearchIcon size={16} className="searchIconSvg" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
           <input
             id="chatSearchInput"
             ref={searchInputRef}
             type="text"
             value={chatSearch}
             onChange={(e) => setChatSearch(e.target.value)}
-            placeholder={viewMode === "statuses" ? "🔍 Buscar estado..." : "🔍 Buscar chat... (Ctrl+K)"}
-            style={{ flex: 1 }}
+            placeholder={viewMode === "statuses" ? "Buscar estado..." : "Buscar chat... (Ctrl+K)"}
+            style={{ flex: 1, paddingLeft: '36px' }}
           />
           {viewMode !== "statuses" && (
             <button
@@ -2220,14 +2499,14 @@ function App() {
               }}
               title="Iniciar nuevo chat"
             >
-              ➕
+              <PlusIcon size={18} />
             </button>
           )}
         </div>
 
         <div className="chatList">
           {/* Followed Stories Circular Bar */}
-          {viewMode === "chats" && followedStories.length > 0 && (
+          {viewMode === "chats" && currentUser && (
             <div className="storiesBar" style={{
               display: 'flex',
               gap: '15px',
@@ -2239,11 +2518,107 @@ function App() {
               marginBottom: '10px',
               scrollbarWidth: 'none' // hides scrollbar on Firefox
             }}>
+              {/* My Status Bubble */}
+              {(() => {
+                const myActiveStatuses = publicStatuses.filter(s => String(s.userId) === String(currentUser?.id));
+                const hasMyStatus = myActiveStatuses.length > 0;
+                return (
+                  <button
+                    onClick={() => {
+                      if (hasMyStatus) {
+                        setStoryPlayList(myActiveStatuses);
+                        setActiveStoryIndex(0);
+                      } else {
+                        setShowNewStatusModal(true);
+                      }
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '50%',
+                      padding: '3px',
+                      background: hasMyStatus ? 'linear-gradient(135deg, #00d2ff 0%, #00d2ff 100%)' : 'rgba(255,255,255,0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative'
+                    }}>
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        background: (currentUser?.avatarUrl) ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                        border: '2px solid #0d1418',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '700',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden'
+                      }}>
+                        {currentUser?.avatarUrl ? (
+                          <img src={currentUser.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      
+                      {!hasMyStatus && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '-2px',
+                          right: '-2px',
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          background: '#ff6f24',
+                          border: '2px solid #0d1418',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#fff',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                        }}>
+                          +
+                        </div>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      color: hasMyStatus ? '#00d2ff' : 'var(--text-muted)',
+                      fontWeight: '600',
+                      maxWidth: '65px',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden'
+                    }}>
+                      {hasMyStatus ? 'Mi Estado' : 'Añadir'}
+                    </span>
+                  </button>
+                );
+              })()}
+
               {followedStories.map((story, idx) => (
                 <button
                   key={story._id}
                   onClick={() => {
                     viewPublicStatus(story._id); // Mark as viewed on backend
+                    setStoryPlayList(followedStories);
                     setActiveStoryIndex(idx);
                   }}
                   style={{
@@ -2271,16 +2646,21 @@ function App() {
                       width: '100%',
                       height: '100%',
                       borderRadius: '50%',
-                      background: getAvatarGradient(story.avatarColor || story.userId),
+                      background: story.avatarUrl ? 'transparent' : getAvatarGradient(story.avatarColor || story.userId),
                       border: '2px solid #0d1418',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: '700',
                       color: '#fff',
-                      fontSize: '0.85rem'
+                      fontSize: '0.85rem',
+                      overflow: 'hidden'
                     }}>
-                      {story.username.slice(0, 2).toUpperCase()}
+                      {story.avatarUrl ? (
+                        <img src={story.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        story.username.slice(0, 2).toUpperCase()
+                      )}
                     </div>
                   </div>
                   <span style={{ fontSize: '0.7rem', color: '#ccc', maxWidth: '55px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -2363,17 +2743,22 @@ function App() {
                         width: '54px',
                         height: '54px',
                         borderRadius: '50%',
-                        background: getAvatarGradient(user.avatarColor || user._id),
+                        background: user.avatarUrl ? 'transparent' : getAvatarGradient(user.avatarColor || user._id),
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: '700',
                         color: '#fff',
                         fontSize: '1.2rem',
-                        border: '2px solid rgba(255, 255, 255, 0.2)'
+                        border: '2px solid rgba(255, 255, 255, 0.2)',
+                        overflow: 'hidden'
                       }}
                     >
-                      {user.username.slice(0, 2).toUpperCase()}
+                      {user.avatarUrl ? (
+                        <img src={user.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        user.username.slice(0, 2).toUpperCase()
+                      )}
                     </div>
                     {/* Name & Bio */}
                     <div>
@@ -2406,7 +2791,8 @@ function App() {
                             timestamp: Math.floor(Date.now() / 1000),
                             unreadCount: 0,
                             isGroup: false,
-                            avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)'
+                            avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)',
+                            avatarUrl: user.avatarUrl || ''
                           };
 
                           setChats(prev => {
@@ -2549,16 +2935,21 @@ function App() {
                           width: '32px',
                           height: '32px',
                           borderRadius: '50%',
-                          background: getAvatarGradient(status.avatarColor || status.userId),
+                          background: status.avatarUrl ? 'transparent' : getAvatarGradient(status.avatarColor || status.userId),
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: '700',
                           color: '#fff',
                           fontSize: '0.75rem',
-                          border: '1px solid rgba(255,255,255,0.3)'
+                          border: '1px solid rgba(255,255,255,0.3)',
+                          overflow: 'hidden'
                         }}>
-                          {status.username.slice(0, 2).toUpperCase()}
+                          {status.avatarUrl ? (
+                            <img src={status.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            status.username.slice(0, 2).toUpperCase()
+                          )}
                         </div>
                         <div>
                           <div style={{ fontWeight: '600', color: '#fff', fontSize: '0.85rem' }}>{status.username}</div>
@@ -2586,10 +2977,10 @@ function App() {
                             fontWeight: '600'
                           }}
                         >
-                          {status.isLiked ? '❤️' : '🤍'} {status.likesCount || 0}
+                          <HeartIcon size={14} filled={status.isLiked} /> {status.likesCount || 0}
                         </button>
-                        <span style={{ color: 'var(--text-muted)' }}>
-                          👁️ {status.viewsCount || 0} vistas
+                        <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <EyeIcon size={14} /> {status.viewsCount || 0} vistas
                         </span>
                       </div>
                     </div>
@@ -2767,7 +3158,7 @@ function App() {
               textShadow: viewMode === "statuses" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none'
             }}
           >
-            <span style={{ fontSize: '1.1rem' }}>⭕</span>
+            <StatusIcon size={18} />
             Estados
           </button>
           
@@ -2790,7 +3181,7 @@ function App() {
               textShadow: viewMode === "chats" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none'
             }}
           >
-            <span style={{ fontSize: '1.1rem' }}>💬</span>
+            <ChatIcon size={18} />
             Chats
           </button>
 
@@ -2817,7 +3208,7 @@ function App() {
               textShadow: viewMode === "discover" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none'
             }}
           >
-            <span style={{ fontSize: '1.1rem' }}>👥</span>
+            <ProximityIcon size={18} />
             Cercanos
           </button>
 
@@ -2844,7 +3235,7 @@ function App() {
               textShadow: viewMode === "muro" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none'
             }}
           >
-            <span style={{ fontSize: '1.1rem' }}>📢</span>
+            <MuroIcon size={18} />
             Muro
           </button>
           
@@ -2871,7 +3262,7 @@ function App() {
               position: 'relative'
             }}
           >
-            <span style={{ fontSize: '1.1rem' }}>🔔</span>
+            <AlertIcon size={18} />
             Alertas
             {notifications.length > 0 && (
               <span style={{
@@ -2998,6 +3389,49 @@ function App() {
               </div>
             </div>
           </>
+        ) : !selectedChatId ? (
+          <div className="chatIntroPanel" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            padding: '24px',
+            textAlign: 'center',
+            color: 'rgba(255, 255, 255, 0.7)',
+            background: 'rgba(255, 255, 255, 0.01)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            margin: '16px'
+          }}>
+            <div style={{
+              width: '82px',
+              height: '82px',
+              borderRadius: '50%',
+              background: 'var(--accent-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              marginBottom: '24px',
+              boxShadow: '0 8px 32px var(--accent-glow)'
+            }}>
+              <ChatIcon size={42} />
+            </div>
+            <h2 style={{ color: '#fff', marginBottom: '12px', fontSize: '1.8rem', fontWeight: '600' }}>Tapchat Premium</h2>
+            <p style={{ maxWidth: '420px', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '24px', color: 'var(--text-muted)' }}>
+              Comienza a chatear con otros usuarios buscando en la red o selecciona una conversación existente en la barra lateral.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="primary" onClick={() => setViewMode("chats")} style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                Ver Chats
+              </button>
+              <button className="secondary" onClick={() => setShowNewChatModal(true)} style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+                Buscar Usuario
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             <header className="chatHeader">
@@ -3039,8 +3473,10 @@ function App() {
                   aria-label="Ver recursos del contacto"
                   onClick={fetchResources}
                   disabled={!selectedChatId}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  📂 <span className="hideOnMobile">Recursos</span>
+                  <AttachmentIcon size={16} />
+                  <span className="hideOnMobile">Recursos</span>
                 </button>
                 <button
                   className="secondary"
@@ -3058,7 +3494,7 @@ function App() {
                     justifyContent: 'center'
                   }}
                 >
-                  {loadingMessages[selectedChatId] ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
+                  {loadingMessages[selectedChatId] ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : <ReloadIcon size={16} />}
                 </button>
                 <button
                   type="button"
@@ -3419,27 +3855,18 @@ function App() {
                   }}
                   title="Enviar original"
                 >
-                  ✈️
+                  <SendIcon size={20} />
                 </button>
               </div>
 
               {/* Progress/Activity state indicators */}
-              {(sending || correcting || correctingAndSending || syncingChat) ? (
+              {(sending || correcting || correctingAndSending) ? (
                 <div 
-                  className={`activityStateBadge ${correctingAndSending ? "processingAndSending" : correcting ? "processing" : sending ? "sending" : "syncing"}`}
+                  className={`activityStateBadge ${correctingAndSending ? "processingAndSending" : correcting ? "processing" : "sending"}`}
                   style={{ marginTop: '12px' }}
                 >
-                  {(syncingChat && !sending && !correcting && !correctingAndSending) ? (
-                    <>
-                      <span className="syncSpinner" aria-hidden="true" />
-                      <span>Sincronizando chat en segundo plano...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="spinner" aria-hidden="true" />
-                      <span>{correctingAndSending ? "✨ Mejorando y enviando..." : correcting ? "✨ Mejorando redacción..." : sendingType === 'corrected' || sendingType === 'correctedAndSending' ? "✨ Enviando versión IA..." : "📤 Enviando mensaje original..."}</span>
-                    </>
-                  )}
+                  <span className="spinner" aria-hidden="true" />
+                  <span>{correctingAndSending ? "✨ Mejorando y enviando..." : correcting ? "✨ Mejorando redacción..." : sendingType === 'corrected' || sendingType === 'correctedAndSending' ? "✨ Enviando versión IA..." : "📤 Enviando mensaje original..."}</span>
                 </div>
               ) : null}
 
@@ -3460,13 +3887,13 @@ function App() {
           >
             <div className="modalHeader">
               <h3 id="resourcesModalHeading">Recursos de {selectedChat?.name || selectedChatId}</h3>
-              <button className="secondary" onClick={() => setShowResources(false)}>Cerrar</button>
+              <button className="secondary" onClick={() => setShowResources(false)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CloseIcon size={16} /> Cerrar</button>
             </div>
 
             {loadingResources ? <p className="helper">Cargando recursos...</p> : (
               <div className="resourcesContent">
                 <section className="resourceSection">
-                  <h4>📁 Media ({resources.media.length})</h4>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><AttachmentIcon size={18} /> Media ({resources.media.length})</h4>
                   <div className="resourceGrid">
                     {resources.media.map(m => (
                       <div key={m._id || m.id || m.providerMessageId} className="resourceItem">
@@ -3485,7 +3912,7 @@ function App() {
                 </section>
 
                 <section className="resourceSection">
-                  <h4>🔗 Enlaces ({resources.links.length})</h4>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><AttachmentIcon size={18} style={{ transform: 'rotate(-45deg)' }} /> Enlaces ({resources.links.length})</h4>
                   <ul className="resourceList">
                     {resources.links.map((link, i) => (
                       <li key={i}>
@@ -3531,9 +3958,13 @@ function App() {
             aria-labelledby="profileSettingsModalHeading"
             style={{ maxWidth: '520px', width: '90%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
           >
-            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '15px' }}>
-              <h3 id="profileSettingsModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>👤 Mi Perfil y Ajustes</h3>
-              <button className="secondary" onClick={() => setShowProfileMenu(false)} style={{ borderRadius: '8px', padding: '6px 12px' }}>Cerrar</button>
+            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 id="profileSettingsModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <UserIcon size={20} /> Mi Perfil y Ajustes
+              </h3>
+              <button className="secondary" onClick={() => setShowProfileMenu(false)} style={{ borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CloseIcon size={14} /> Cerrar
+              </button>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -3545,7 +3976,7 @@ function App() {
                       width: '60px',
                       height: '60px',
                       borderRadius: '50%',
-                      background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                      background: (userAvatarUrlInput || currentUser?.avatarUrl) ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
                       color: '#fff',
                       fontWeight: '700',
                       border: '2.5px solid #fff',
@@ -3554,15 +3985,145 @@ function App() {
                       justifyContent: 'center',
                       fontSize: '1.3rem',
                       boxShadow: '0 0 12px rgba(255,255,255,0.25)',
-                      flexShrink: 0
+                      flexShrink: 0,
+                      overflow: 'hidden'
                     }}
                   >
-                    {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
+                    {(userAvatarUrlInput || currentUser?.avatarUrl) ? (
+                      <img src={userAvatarUrlInput || currentUser?.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+                    )}
                   </div>
                   <div style={{ overflow: 'hidden' }}>
                     <div style={{ fontWeight: '700', color: '#fff', fontSize: '1.1rem' }}>{currentUser?.username || 'Usuario'}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{currentUser?.email || 'sin-correo@tapchat.com'}</div>
                   </div>
+                </div>
+
+                <div>
+                  <label htmlFor="userAvatarUploadInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Foto de Perfil Personalizada (Subir Imagen)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input
+                      id="userAvatarUploadInput"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setUserAvatarUrlInput(reader.result); // Base64 data URL
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('userAvatarUploadInput').click()}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <AttachmentIcon size={16} /> Subir foto de perfil
+                    </button>
+                    {(userAvatarUrlInput || currentUser?.avatarUrl) && (
+                      <button
+                        type="button"
+                        onClick={() => setUserAvatarUrlInput("")}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: '#ef4444',
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <CloseIcon size={14} /> Eliminar foto
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="userUsernameInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Nombre de Usuario</label>
+                  <input
+                    id="userUsernameInput"
+                    type="text"
+                    value={userUsernameInput}
+                    onChange={(e) => setUserUsernameInput(e.target.value)}
+                    placeholder="Tu nombre de usuario"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.15)',
+                      color: '#fff',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="userEmailInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Correo Electrónico</label>
+                  <input
+                    id="userEmailInput"
+                    type="email"
+                    value={userEmailInput}
+                    onChange={(e) => setUserEmailInput(e.target.value)}
+                    placeholder="tu@correo.com"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.15)',
+                      color: '#fff',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="userPasswordInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Nueva Contraseña (dejar en blanco para no cambiar)</label>
+                  <input
+                    id="userPasswordInput"
+                    type="password"
+                    value={userPasswordInput}
+                    onChange={(e) => setUserPasswordInput(e.target.value)}
+                    placeholder="••••••••"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(0,0,0,0.15)',
+                      color: '#fff',
+                      fontSize: '0.9rem',
+                      outline: 'none'
+                    }}
+                  />
                 </div>
 
                 <div>
@@ -3726,7 +4287,7 @@ function App() {
               {/* Collapsible AI Config panel */}
               <details style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '10px', overflow: 'hidden' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: '700', color: '#fff', fontSize: '0.95rem', padding: '6px', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>⚙️</span> Ajustes del Asistente de IA (LM Studio / Cloudflare)
+                  <SettingsIcon size={16} /> Ajustes del Asistente de IA (LM Studio / Cloudflare)
                 </summary>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
@@ -3800,9 +4361,9 @@ function App() {
                             aria-pressed={showCloudflareToken}
                             onClick={() => setShowCloudflareToken(!showCloudflareToken)}
                             aria-label={showCloudflareToken ? "Ocultar Cloudflare Token" : "Mostrar Cloudflare Token"}
-                            style={{ position: 'absolute', right: '5px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
+                            style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)' }}
                           >
-                            {showCloudflareToken ? "🙈" : "👁️"}
+                            {showCloudflareToken ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                           </button>
                         </div>
                       </div>
@@ -3926,7 +4487,7 @@ function App() {
                       aria-busy={checkingAiHealth}
                       style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                     >
-                      {checkingAiHealth ? <><span className="buttonSpinner" aria-hidden="true" /><span>Probando...</span></> : "🧪 Probar Conexión"}
+                      {checkingAiHealth ? <><span className="buttonSpinner" aria-hidden="true" /><span>Probando...</span></> : <><TestIcon size={14} style={{ marginRight: '6px' }} /> Probar Conexión</>}
                     </button>
                     <button
                       type="button"
@@ -3936,7 +4497,7 @@ function App() {
                       aria-busy={savingAiConfig}
                       style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                     >
-                      {savingAiConfig ? <><span className="buttonSpinner" aria-hidden="true" /><span>Guardando...</span></> : "💾 Guardar IA"}
+                      {savingAiConfig ? <><span className="buttonSpinner" aria-hidden="true" /><span>Guardando...</span></> : <><SaveIcon size={14} style={{ marginRight: '6px' }} /> Guardar IA</>}
                     </button>
                   </div>
 
@@ -3979,7 +4540,7 @@ function App() {
                   e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
                 }}
               >
-                🚪 Cerrar Sesión Activa
+                <LogoutIcon size={16} /> Cerrar Sesión Activa
               </button>
             </div>
           </div>
@@ -4045,7 +4606,8 @@ function App() {
                       timestamp: Math.floor(Date.now() / 1000),
                       unreadCount: 0,
                       isGroup: false,
-                      avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)'
+                      avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)',
+                      avatarUrl: user.avatarUrl || ''
                     };
 
                     setChats(prev => {
@@ -4118,8 +4680,8 @@ function App() {
         </section>
       )}
 
-      {activeStoryIndex !== null && followedStories[activeStoryIndex] && (() => {
-        const story = followedStories[activeStoryIndex];
+      {activeStoryIndex !== null && storyPlayList[activeStoryIndex] && (() => {
+        const story = storyPlayList[activeStoryIndex];
         return (
           <section className="modalOverlay" onClick={() => setActiveStoryIndex(null)} style={{ background: 'rgba(0,0,0,0.85)', zIndex: 1100 }}>
             <div
@@ -4153,7 +4715,7 @@ function App() {
                 gap: '6px',
                 zIndex: 10
               }}>
-                {followedStories.map((s, idx) => {
+                {storyPlayList.map((s, idx) => {
                   let width = '0%';
                   if (idx < activeStoryIndex) width = '100%';
                   else if (idx === activeStoryIndex) width = '100%';
@@ -4190,15 +4752,20 @@ function App() {
                     width: '38px',
                     height: '38px',
                     borderRadius: '50%',
-                    background: getAvatarGradient(story.avatarColor || story.userId),
+                    background: story.avatarUrl ? 'transparent' : getAvatarGradient(story.avatarColor || story.userId),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: '700',
                     color: '#fff',
-                    fontSize: '0.85rem'
+                    fontSize: '0.85rem',
+                    overflow: 'hidden'
                   }}>
-                    {story.username.slice(0, 2).toUpperCase()}
+                    {story.avatarUrl ? (
+                      <img src={story.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      story.username.slice(0, 2).toUpperCase()
+                    )}
                   </div>
                   <div>
                     <div style={{ fontWeight: '600', color: '#fff', fontSize: '0.95rem' }}>{story.username}</div>
@@ -4310,13 +4877,13 @@ function App() {
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  {story.isLiked ? '❤️' : '🤍'}
+                  <HeartIcon size={16} filled={story.isLiked} />
                 </button>
 
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (activeStoryIndex < followedStories.length - 1) {
+                    if (activeStoryIndex < storyPlayList.length - 1) {
                       setActiveStoryIndex(activeStoryIndex + 1);
                     } else {
                       setActiveStoryIndex(null);
@@ -4329,16 +4896,148 @@ function App() {
                     padding: '8px 16px',
                     color: '#fff',
                     cursor: 'pointer',
-                    fontSize: '0.85rem'
+                    fontSize: '0.85rem',
+                    fontWeight: '600'
                   }}
                 >
-                  {activeStoryIndex === followedStories.length - 1 ? 'Cerrar ✕' : 'Siguiente ▶'}
+                  {activeStoryIndex === storyPlayList.length - 1 ? 'Cerrar' : 'Siguiente'}
                 </button>
               </div>
             </div>
           </section>
         );
       })()}
+
+      {showNewStatusModal && (
+        <section className="modalOverlay" onClick={() => setShowNewStatusModal(false)}>
+          <div
+            className="modalCard"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="newStatusModalHeading"
+            style={{ maxWidth: '460px', width: '90%', display: 'flex', flexDirection: 'column', gap: '15px' }}
+          >
+            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+              <h3 id="newStatusModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>⭕ Publicar Nuevo Estado</h3>
+              <button className="secondary" onClick={() => setShowNewStatusModal(false)} style={{ borderRadius: '8px', padding: '6px 12px' }}>Cerrar</button>
+            </div>
+
+            <div>
+              <label htmlFor="personalStatusInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>¿Qué estás pensando?</label>
+              <textarea
+                id="personalStatusInput"
+                value={newStatusBody}
+                onChange={(e) => setNewStatusBody(e.target.value)}
+                placeholder="Escribe algo increíble que tus seguidores verán durante 24 horas..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(0,0,0,0.2)',
+                  color: '#fff',
+                  fontSize: '0.9rem',
+                  outline: 'none',
+                  resize: 'none',
+                  minHeight: '80px'
+                }}
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Elige un Fondo Premium</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                {[
+                  { id: 'landscape1', color: '#6366f1', label: 'Indigo' },
+                  { id: 'landscape2', color: '#ec4899', label: 'Pink' },
+                  { id: 'landscape3', color: '#06b6d4', label: 'Cyan' },
+                  { id: 'landscape4', color: '#f59e0b', label: 'Gold' },
+                  { id: 'landscape5', color: '#10b981', label: 'Emerald' }
+                ].map((theme) => (
+                  <button
+                    key={theme.id}
+                    type="button"
+                    onClick={() => setNewStatusBgTheme(theme.id)}
+                    style={{
+                      height: '45px',
+                      borderRadius: '8px',
+                      background: theme.color,
+                      border: newStatusBgTheme === theme.id ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      transform: newStatusBgTheme === theme.id ? 'scale(1.08)' : 'none',
+                      boxShadow: newStatusBgTheme === theme.id ? '0 0 8px rgba(255,255,255,0.5)' : 'none'
+                    }}
+                    title={theme.label}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Dynamic Real-time Preview Card */}
+            <div style={{ marginTop: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Vista Previa en Vivo:</label>
+              <div style={{
+                height: '110px',
+                borderRadius: '12px',
+                background: newStatusBgTheme === 'landscape1' ? 'url(https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80) center/cover' :
+                            newStatusBgTheme === 'landscape2' ? 'url(https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80) center/cover' :
+                            newStatusBgTheme === 'landscape3' ? 'url(https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80) center/cover' :
+                            newStatusBgTheme === 'landscape4' ? 'url(https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&w=400&q=80) center/cover' :
+                            'url(https://images.unsplash.com/photo-1433832597026-488b418f2bd3?auto=format&fit=crop&w=400&q=80) center/cover',
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '15px',
+                boxShadow: 'inset 0 0 50px rgba(0,0,0,0.6)',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  backdropFilter: 'blur(1px)'
+                }} />
+                <p style={{
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  color: '#fff',
+                  margin: 0,
+                  zIndex: 1,
+                  textAlign: 'center',
+                  wordBreak: 'break-word',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.8)'
+                }}>
+                  {newStatusBody.trim() ? newStatusBody : "Tu mensaje de estado aparecerá aquí..."}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={publishPersonalStatus}
+              disabled={publishingStatus || !newStatusBody.trim()}
+              style={{
+                background: 'linear-gradient(135deg, #00d2ff 0%, #00bcff 100%)',
+                color: '#fff',
+                border: 'none',
+                padding: '11px',
+                borderRadius: '10px',
+                fontWeight: '700',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                marginTop: '5px',
+                boxShadow: '0 4px 12px rgba(0, 210, 255, 0.25)',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {publishingStatus ? 'Publicando...' : '🚀 Publicar Estado'}
+            </button>
+          </div>
+        </section>
+      )}
 
       {toasts.length > 0 && (
         <div className="toast-container" aria-live="polite">

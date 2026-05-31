@@ -328,6 +328,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true, required: true, index: true },
   password: { type: String, required: true },
   avatarColor: { type: String },
+  avatarUrl: { type: String, default: '' },
   bio: { type: String, default: '¡Hola! Estoy usando Tapchat.' },
   status: { type: String, default: 'online' },
   latitude: { type: Number },
@@ -342,6 +343,7 @@ const PublicStatusSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   username: String,
   avatarColor: String,
+  avatarUrl: { type: String, default: '' },
   body: String,
   mediaUrl: String,
   mediaType: { type: String, enum: ['text', 'image', 'video', 'audio'], default: 'text' },
@@ -449,6 +451,7 @@ app.post('/api/auth/register', async (req, res) => {
       provider: 'local',
       accountId: String(user._id),
       conversationId: 'ai_assistant',
+      chatId: 'ai_assistant',
       providerMessageId: `ai-welcome-${user._id}-${Date.now()}`,
       conversationKey: `local:${user._id}:ai_assistant`,
       from: 'ai_assistant',
@@ -466,6 +469,7 @@ app.post('/api/auth/register', async (req, res) => {
         username: user.username,
         email: user.email,
         avatarColor: user.avatarColor,
+        avatarUrl: user.avatarUrl || '',
         bio: user.bio
       }
     });
@@ -530,6 +534,7 @@ app.post('/api/auth/login', async (req, res) => {
         username: user.username,
         email: user.email,
         avatarColor: user.avatarColor,
+        avatarUrl: user.avatarUrl || '',
         bio: user.bio
       }
     });
@@ -555,15 +560,52 @@ app.post('/api/auth/logout', async (req, res) => {
 // Profile Update endpoint
 app.put('/api/auth/profile', async (req, res) => {
   try {
-    const { bio, avatarColor } = req.body;
+    const { username, email, password, bio, avatarColor, avatarUrl } = req.body;
     
     const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado.' });
     }
 
+    if (username !== undefined) {
+      const cleanUsername = String(username).trim().toLowerCase();
+      if (cleanUsername.length < 3) {
+        return res.status(400).json({ error: 'El nombre de usuario debe tener al menos 3 caracteres.' });
+      }
+      if (cleanUsername !== user.username) {
+        const duplicate = await User.findOne({ username: cleanUsername });
+        if (duplicate) {
+          return res.status(400).json({ error: 'El nombre de usuario ya está registrado por otra cuenta.' });
+        }
+        user.username = cleanUsername;
+      }
+    }
+
+    if (email !== undefined) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
+        return res.status(400).json({ error: 'Formato de correo electrónico inválido.' });
+      }
+      if (cleanEmail !== user.email) {
+        const duplicate = await User.findOne({ email: cleanEmail });
+        if (duplicate) {
+          return res.status(400).json({ error: 'El correo electrónico ya está registrado por otra cuenta.' });
+        }
+        user.email = cleanEmail;
+      }
+    }
+
+    if (password !== undefined && password !== '') {
+      const trimmedPass = String(password).trim();
+      if (trimmedPass.length < 4) {
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres.' });
+      }
+      user.password = hashPassword(trimmedPass);
+    }
+
     if (bio !== undefined) user.bio = String(bio).trim();
     if (avatarColor !== undefined) user.avatarColor = String(avatarColor).trim();
+    if (avatarUrl !== undefined) user.avatarUrl = String(avatarUrl).trim();
 
     await user.save();
 
@@ -574,6 +616,7 @@ app.put('/api/auth/profile', async (req, res) => {
         username: user.username,
         email: user.email,
         avatarColor: user.avatarColor,
+        avatarUrl: user.avatarUrl || '',
         bio: user.bio
       }
     });
@@ -601,7 +644,7 @@ app.get('/api/users/search', async (req, res) => {
     }
 
     const users = await User.find(filter)
-      .select('_id username email avatarColor bio status')
+      .select('_id username email avatarColor avatarUrl bio status')
       .limit(20);
 
     res.json(users);
@@ -637,7 +680,7 @@ app.get('/api/users/proximity', async (req, res) => {
     const allUsers = await User.find({
       _id: { $ne: req.user._id },
       username: { $ne: 'admin' }
-    }).select('_id username email avatarColor bio status latitude longitude');
+    }).select('_id username email avatarColor avatarUrl bio status latitude longitude');
 
     const mapped = allUsers.map(u => {
       const lat = u.latitude || (40.4167 + (Math.random() - 0.5) * 0.08);
@@ -648,6 +691,7 @@ app.get('/api/users/proximity', async (req, res) => {
         _id: u._id,
         username: u.username,
         avatarColor: u.avatarColor,
+        avatarUrl: u.avatarUrl || '',
         bio: u.bio,
         status: u.status,
         distanceMeters: distance !== null ? Math.round(distance) : null,
@@ -709,6 +753,7 @@ app.post('/api/public-statuses', async (req, res) => {
       userId: req.user._id,
       username: req.user.username,
       avatarColor: req.user.avatarColor,
+      avatarUrl: req.user.avatarUrl || '',
       body: body || '',
       mediaUrl: mediaUrl || '',
       mediaType: mediaType || 'text',
@@ -835,6 +880,7 @@ app.get('/api/check-auth', (req, res) => {
       username: req.user.username,
       email: req.user.email,
       avatarColor: req.user.avatarColor,
+      avatarUrl: req.user.avatarUrl || '',
       bio: req.user.bio
     }
   });
@@ -1217,7 +1263,8 @@ async function ensureCanonicalProviderFields() {
         { accountId: { $exists: false } },
         { conversationId: { $exists: false } },
         { providerMessageId: { $exists: false } },
-        { conversationKey: { $exists: false } }
+        { conversationKey: { $exists: false } },
+        { chatId: { $exists: false } }
       ]
     },
     [
@@ -1227,6 +1274,7 @@ async function ensureCanonicalProviderFields() {
           accountId: { $ifNull: ['$accountId', DEFAULT_ACCOUNT_ID] },
           conversationId: { $ifNull: ['$conversationId', { $ifNull: ['$chatId', { $toString: '$_id' }] }] },
           providerMessageId: { $ifNull: ['$providerMessageId', { $ifNull: ['$id', { $toString: '$_id' }] }] },
+          chatId: { $ifNull: ['$chatId', { $ifNull: ['$conversationId', { $toString: '$_id' }] }] },
           conversationKey: {
             $concat: [
               { $ifNull: ['$provider', DEFAULT_PROVIDER] },
@@ -2786,6 +2834,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
           provider: 'local',
           accountId: senderId,
           conversationId: 'ai_assistant',
+          chatId: 'ai_assistant',
           providerMessageId: `user-msg-${messageIdBase}`,
           conversationKey: `local:${senderId}:ai_assistant`,
           from: senderId,
@@ -2800,6 +2849,9 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
           { timestamp, lastSyncedAt: new Date() },
           { upsert: true }
         );
+
+        invalidateChatsCache('local', senderId);
+        invalidateMessagesCache('local', senderId, 'ai_assistant');
 
         io.to(senderId).emit('new_message', userMsg);
 
@@ -2842,6 +2894,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
             provider: 'local',
             accountId: senderId,
             conversationId: 'ai_assistant',
+            chatId: 'ai_assistant',
             providerMessageId: `ai-msg-${aiMsgIdBase}`,
             conversationKey: `local:${senderId}:ai_assistant`,
             from: 'ai_assistant',
@@ -2856,6 +2909,9 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
             { timestamp: Math.floor(Date.now() / 1000) }
           );
 
+          invalidateChatsCache('local', senderId);
+          invalidateMessagesCache('local', senderId, 'ai_assistant');
+
           io.to(senderId).emit('new_message', aiMsg);
         } catch (aiErr) {
           console.error('AI Companion error:', aiErr);
@@ -2864,6 +2920,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
             provider: 'local',
             accountId: senderId,
             conversationId: 'ai_assistant',
+            chatId: 'ai_assistant',
             providerMessageId: `ai-err-${errBase}`,
             conversationKey: `local:${senderId}:ai_assistant`,
             from: 'ai_assistant',
@@ -2872,6 +2929,15 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
             fromMe: false,
             timestamp: Math.floor(Date.now() / 1000)
           });
+          
+          await Chat.findOneAndUpdate(
+            { provider: 'local', accountId: senderId, conversationId: 'ai_assistant' },
+            { timestamp: Math.floor(Date.now() / 1000) }
+          );
+
+          invalidateChatsCache('local', senderId);
+          invalidateMessagesCache('local', senderId, 'ai_assistant');
+
           io.to(senderId).emit('new_message', errMsg);
         }
         return;
@@ -2887,6 +2953,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
         provider: 'local',
         accountId: senderId,
         conversationId: receiverId,
+        chatId: receiverId,
         providerMessageId: `local-msg-${messageIdBase}`,
         conversationKey: `local:${senderId}:${receiverId}`,
         from: senderId,
@@ -2906,7 +2973,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
           name: receiver.username,
           timestamp,
           isGroup: false,
-          avatarUrl: '',
+          avatarUrl: receiver.avatarUrl || '',
           lastSyncedAt: new Date()
         },
         { upsert: true, new: true }
@@ -2916,6 +2983,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
         provider: 'local',
         accountId: receiverId,
         conversationId: senderId,
+        chatId: senderId,
         providerMessageId: `local-msg-${messageIdBase}`,
         conversationKey: `local:${receiverId}:${senderId}`,
         from: senderId,
@@ -2935,12 +3003,18 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
           name: req.user.username,
           timestamp,
           isGroup: false,
-          avatarUrl: '',
+          avatarUrl: req.user.avatarUrl || '',
           $inc: { unreadCount: 1 },
           lastSyncedAt: new Date()
         },
         { upsert: true, new: true }
       );
+
+      // Invalidate caches on both sides for real-time reactivity
+      invalidateChatsCache('local', senderId);
+      invalidateChatsCache('local', receiverId);
+      invalidateMessagesCache('local', senderId, receiverId);
+      invalidateMessagesCache('local', receiverId, senderId);
 
       io.to(senderId).emit('new_message', senderMsg);
       io.to(receiverId).emit('new_message', receiverMsg);
