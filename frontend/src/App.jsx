@@ -2487,6 +2487,7 @@ function App() {
           {viewMode !== "statuses" && (
             <button
               type="button"
+              aria-label="Iniciar nuevo chat"
               onClick={() => setShowNewChatModal(true)}
               style={{
                 background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
@@ -2973,6 +2974,7 @@ function App() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
                         <button
                           onClick={() => likePublicStatus(status._id)}
+                          aria-label={status.isLiked ? "Quitar me gusta" : "Me gusta"}
                           style={{
                             background: 'transparent',
                             border: 'none',
@@ -3115,6 +3117,7 @@ function App() {
                     <button
                       type="button"
                       onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+                      aria-label="Eliminar notificación"
                       style={{
                         background: 'transparent',
                         border: 'none',
@@ -3719,6 +3722,7 @@ function App() {
                     <button
                       className="iconButton"
                       onClick={() => setCorrectedDraft("")}
+                      aria-label="Descartar sugerencia"
                       style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem' }}
                       title="Descartar"
                     >
@@ -4783,6 +4787,7 @@ function App() {
                 </div>
                 <button 
                   onClick={() => setActiveStoryIndex(null)}
+                  aria-label="Cerrar historia"
                   style={{
                     background: 'rgba(255,255,255,0.1)',
                     border: 'none',
@@ -4869,6 +4874,7 @@ function App() {
                     e.stopPropagation();
                     likePublicStatus(story._id);
                   }}
+                  aria-label={story.isLiked ? "Quitar me gusta" : "Me gusta"}
                   style={{
                     background: story.isLiked ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.1)',
