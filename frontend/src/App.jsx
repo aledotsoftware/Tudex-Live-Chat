@@ -1047,6 +1047,12 @@ function App() {
     }
     setChats((prev) => {
       const exists = prev.find((chat) => chat.id === msg.chatId);
+      if (!exists) {
+        // Dynamic fetch of the newly created chat to ensure we load its readable metadata (name, avatar)
+        setTimeout(() => {
+          fetchChats(false);
+        }, 100);
+      }
       const next = exists
         ? prev.map((chat) => {
             if (chat.id !== msg.chatId) return chat;
@@ -1241,7 +1247,7 @@ function App() {
       setSessionStatus("disconnected");
       showNotice("La sesión del proveedor se desconectó.", "error");
     });
-    socket.on("new_message", (payload) => {
+    const handleNewMessage = (payload) => {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
       const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
@@ -1250,7 +1256,8 @@ function App() {
         return;
       }
       mergeLiveMessage(payload);
-    });
+    };
+    socket.on("new_message", handleNewMessage);
     socket.on("message_updated", (updated) => {
       const eventProvider = updated?.provider || DEFAULT_PROVIDER;
       const eventAccountId = updated?.accountId || DEFAULT_ACCOUNT_ID;
@@ -1272,7 +1279,7 @@ function App() {
     });
 
     return () => {
-      socket.off("new_message", mergeLiveMessage);
+      socket.off("new_message", handleNewMessage);
       socket.close();
     };
   }, [apiAuthenticated]);
