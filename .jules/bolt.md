@@ -1,0 +1,3 @@
+## 2025-06-01 - User Search Debouncing
+**Learning:** Found an un-debounced search input querying the `/api/users/search` endpoint on every keystroke, which could lead to significant backend thrashing and UI jittering if typed quickly. There is no global debouncing hook or mechanism in place, standard `useRef` + `setTimeout` handles this smoothly without changing architecture.
+**Action:** Always check `onChange` handlers connected to text inputs, especially search bars fetching from APIs, to ensure they're appropriately debounced. Prefer standard React utilities (like `useRef`) instead of bringing in an entire library like Lodash for a single function.

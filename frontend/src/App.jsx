@@ -384,6 +384,7 @@ function App() {
   const lastGrammarCheckAtRef = useRef(0);
   const searchInputRef = useRef(null);
   const draftInputRef = useRef(null);
+  const searchUserDebounceRef = useRef(null);
 
   const [apiAuthenticated, setApiAuthenticated] = useState(false);
   const [inputApiKey, setInputApiKey] = useState(localStorage.getItem("tapchat_api_key") || "");
@@ -4576,7 +4577,16 @@ function App() {
                 onChange={(e) => {
                   const val = e.target.value;
                   setSearchUserQuery(val);
-                  loadDirectoryUsers(val);
+
+                  // ⚡ Bolt Optimization: Debounce user directory search API calls
+                  // Impact: Significantly reduces backend load and frontend UI thrashing while typing
+                  // Measurement: Network tab should show only 1 API call per 300ms pause in typing instead of 1 call per keystroke
+                  if (searchUserDebounceRef.current) {
+                    clearTimeout(searchUserDebounceRef.current);
+                  }
+                  searchUserDebounceRef.current = setTimeout(() => {
+                    loadDirectoryUsers(val);
+                  }, 300);
                 }}
                 placeholder="Buscar por usuario o correo..."
                 style={{
