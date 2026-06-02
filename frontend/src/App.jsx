@@ -2505,6 +2505,7 @@ function App() {
                 flexShrink: 0
               }}
               title="Iniciar nuevo chat"
+              aria-label="Iniciar nuevo chat"
             >
               <PlusIcon size={18} />
             </button>
@@ -3125,6 +3126,7 @@ function App() {
                         display: 'inline-flex'
                       }}
                       title="Eliminar"
+                      aria-label="Eliminar"
                     >
                       ❌
                     </button>
@@ -3721,6 +3723,7 @@ function App() {
                       onClick={() => setCorrectedDraft("")}
                       style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem' }}
                       title="Descartar"
+                      aria-label="Descartar"
                     >
                       ✕
                     </button>
@@ -3830,6 +3833,7 @@ function App() {
                       transform: draft.trim() ? 'scale(1.15)' : 'none'
                     }}
                     title="Mejorar redacción con IA (Ver sugerencia)"
+                    aria-label="Mejorar redacción con IA (Ver sugerencia)"
                   >
                     ✨
                   </button>
@@ -3861,6 +3865,7 @@ function App() {
                     flexShrink: 0
                   }}
                   title="Enviar original"
+                  aria-label="Enviar original"
                 >
                   <SendIcon size={20} />
                 </button>
