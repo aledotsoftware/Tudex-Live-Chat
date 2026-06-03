@@ -53,11 +53,11 @@ const originalFetch = window.fetch;
 window.fetch = async (...args) => {
   let [resource, config] = args;
   const key = localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key");
-  
+
   if (key) {
     config = config || {};
     let headers = config.headers || {};
-    
+
     if (headers instanceof Headers) {
       headers.set("Authorization", `Bearer ${key}`);
       headers.set("X-API-Key", key);
@@ -71,7 +71,7 @@ window.fetch = async (...args) => {
     config.headers = headers;
     args[1] = config;
   }
-  
+
   const response = await originalFetch(...args);
   if (response.status === 401) {
     console.warn("Auth failure for:", resource);
@@ -1004,7 +1004,7 @@ function App() {
   function mergeLiveMessage(msg) {
     if (!msg?.chatId) return;
     const normalized = { ...msg, _uiId: messageId(msg) };
-    
+
     const isCurrentChat = selectedChatIdRef.current === msg.chatId;
     const isAppBackgrounded = document.hidden;
 
@@ -1207,7 +1207,7 @@ function App() {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
       const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
-      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) &&
           !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
@@ -1218,7 +1218,7 @@ function App() {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
       const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
-      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) &&
           !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
@@ -1229,7 +1229,7 @@ function App() {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
       const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
-      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) &&
           !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
@@ -1240,7 +1240,7 @@ function App() {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
       const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
-      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) &&
           !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
@@ -1251,7 +1251,7 @@ function App() {
       const eventProvider = payload?.provider || DEFAULT_PROVIDER;
       const eventAccountId = payload?.accountId || DEFAULT_ACCOUNT_ID;
       const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
-      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) &&
           !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
@@ -1262,7 +1262,7 @@ function App() {
       const eventProvider = updated?.provider || DEFAULT_PROVIDER;
       const eventAccountId = updated?.accountId || DEFAULT_ACCOUNT_ID;
       const validAccountId = currentUserRef.current?.id || DEFAULT_ACCOUNT_ID;
-      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) && 
+      if (!(eventProvider === DEFAULT_PROVIDER && eventAccountId === DEFAULT_ACCOUNT_ID) &&
           !(eventProvider === 'local' && String(eventAccountId) === String(validAccountId))) {
         return;
       }
@@ -2583,7 +2583,7 @@ function App() {
                           (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
                         )}
                       </div>
-                      
+
                       {!hasMyStatus && (
                         <div style={{
                           position: 'absolute',
@@ -3038,15 +3038,15 @@ function App() {
                       let score = 0;
                       positive.forEach(w => { if (text.includes(w)) score += 1; });
                       negative.forEach(w => { if (text.includes(w)) score -= 1; });
-                      
+
                       let sentiment = null;
                       if (score > 0) sentiment = { emoji: "😊", color: "#10b981", label: "Positivo" };
                       else if (score < 0) sentiment = { emoji: "😕", color: "#f43f5e", label: "Negativo" };
-                      
+
                       if (!sentiment) return null;
                       return (
-                        <span 
-                          title={`Análisis de Sentimiento: ${sentiment.label}`} 
+                        <span
+                          title={`Análisis de Sentimiento: ${sentiment.label}`}
                           style={{
                             fontSize: '11px',
                             display: 'inline-flex',
@@ -3126,7 +3126,6 @@ function App() {
                         display: 'inline-flex'
                       }}
                       title="Eliminar"
-                      aria-label="Eliminar"
                     >
                       ❌
                     </button>
@@ -3170,7 +3169,7 @@ function App() {
             <StatusIcon size={18} />
             Estados
           </button>
-          
+
           <button
             type="button"
             onClick={() => setViewMode("chats")}
@@ -3247,7 +3246,7 @@ function App() {
             <MuroIcon size={18} />
             Muro
           </button>
-          
+
           <button
             type="button"
             onClick={() => {
@@ -3723,7 +3722,6 @@ function App() {
                       onClick={() => setCorrectedDraft("")}
                       style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem' }}
                       title="Descartar"
-                      aria-label="Descartar sugerencia"
                     >
                       ✕
                     </button>
@@ -3774,12 +3772,7 @@ function App() {
                   boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)'
                 }}>
                   {/* Emoji Icon inside Pill */}
-                  <span
-                    role="button"
-                    aria-label="Emojis"
-                    style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }}
-                    title="Emojis"
-                  >
+                  <span style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }} title="Emojis">
                     😊
                   </span>
 
@@ -3838,7 +3831,6 @@ function App() {
                       transform: draft.trim() ? 'scale(1.15)' : 'none'
                     }}
                     title="Mejorar redacción con IA (Ver sugerencia)"
-                    aria-label="Mejorar redacción con IA"
                   >
                     ✨
                   </button>
@@ -3870,7 +3862,6 @@ function App() {
                     flexShrink: 0
                   }}
                   title="Enviar original"
-                  aria-label="Enviar original"
                 >
                   <SendIcon size={20} />
                 </button>
@@ -3878,7 +3869,7 @@ function App() {
 
               {/* Progress/Activity state indicators */}
               {(sending || correcting || correctingAndSending) ? (
-                <div 
+                <div
                   className={`activityStateBadge ${correctingAndSending ? "processingAndSending" : correcting ? "processing" : "sending"}`}
                   style={{ marginTop: '12px' }}
                 >
@@ -4306,7 +4297,7 @@ function App() {
                 <summary style={{ cursor: 'pointer', fontWeight: '700', color: '#fff', fontSize: '0.95rem', padding: '6px', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <SettingsIcon size={16} /> Ajustes del Asistente de IA (LM Studio / Cloudflare)
                 </summary>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
                   {loadingAiConfig ? <p className="helper">Cargando configuración...</p> : null}
 
@@ -4604,7 +4595,7 @@ function App() {
 
             <div style={{ marginTop: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
               {searchingUsers && <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Buscando usuarios...</p>}
-              
+
               {!searchingUsers && searchUserResults.length === 0 && (
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                   {searchUserQuery.trim() ? "No se encontraron usuarios." : "No hay otros usuarios registrados en el servidor todavía."}
@@ -4791,7 +4782,7 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setActiveStoryIndex(null)}
                   style={{
                     background: 'rgba(255,255,255,0.1)',

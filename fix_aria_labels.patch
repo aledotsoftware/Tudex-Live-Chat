@@ -1,0 +1,10 @@
+--- frontend/src/App.jsx
++++ frontend/src/App.jsx
+@@ -2505,6 +2505,7 @@
+                 flexShrink: 0
+               }}
+               title="Iniciar nuevo chat"
++              aria-label="Iniciar nuevo chat"
+             >
+               <PlusIcon size={18} />
+             </button>
