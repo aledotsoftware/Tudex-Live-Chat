@@ -2505,6 +2505,7 @@ function App() {
                 flexShrink: 0
               }}
               title="Iniciar nuevo chat"
+              aria-label="Iniciar nuevo chat"
             >
               <PlusIcon size={18} />
             </button>
@@ -3125,6 +3126,7 @@ function App() {
                         display: 'inline-flex'
                       }}
                       title="Eliminar"
+                      aria-label="Eliminar notificación"
                     >
                       ❌
                     </button>
@@ -3721,6 +3723,7 @@ function App() {
                       onClick={() => setCorrectedDraft("")}
                       style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem' }}
                       title="Descartar"
+                      aria-label="Descartar"
                     >
                       ✕
                     </button>
@@ -3771,7 +3774,13 @@ function App() {
                   boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)'
                 }}>
                   {/* Emoji Icon inside Pill */}
-                  <span style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }} title="Emojis">
+                  <span
+                    style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }}
+                    title="Emojis"
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Emojis"
+                  >
                     😊
                   </span>
 
@@ -3830,6 +3839,7 @@ function App() {
                       transform: draft.trim() ? 'scale(1.15)' : 'none'
                     }}
                     title="Mejorar redacción con IA (Ver sugerencia)"
+                    aria-label="Mejorar redacción con IA (Ver sugerencia)"
                   >
                     ✨
                   </button>
@@ -3861,6 +3871,7 @@ function App() {
                     flexShrink: 0
                   }}
                   title="Enviar original"
+                  aria-label="Enviar original"
                 >
                   <SendIcon size={20} />
                 </button>
@@ -4192,6 +4203,7 @@ function App() {
                           e.currentTarget.style.transform = userAvatarColorInput === color ? 'scale(1.2)' : 'none';
                         }}
                         title={color}
+                        aria-label={`Color ${color}`}
                       />
                     ))}
                   </div>
@@ -4978,6 +4990,7 @@ function App() {
                       boxShadow: newStatusBgTheme === theme.id ? '0 0 8px rgba(255,255,255,0.5)' : 'none'
                     }}
                     title={theme.label}
+                    aria-label={`Tema ${theme.label}`}
                   />
                 ))}
               </div>
