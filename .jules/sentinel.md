@@ -1,0 +1,4 @@
+## 2024-12-04 - Unsanitized input in NoSQL Regex search allows Regex Injection/ReDoS
+**Vulnerability:** In `backend/index.js`, user search endpoint `/api/users/search` takes user input `req.query.q` and directly constructs a MongoDB `$regex` condition without escaping. This exposes the application to NoSQL Regex Injection and Regular Expression Denial of Service (ReDoS) by allowing attackers to pass unescaped regular expressions.
+**Learning:** MongoDB's `$regex` operator interprets regular expression metacharacters. Not escaping user-provided input before using it in a `$regex` operation exposes the database engine to complex, time-consuming queries that can lock up the database.
+**Prevention:** Always escape user input before using it in MongoDB `$regex` operations using an established escaping function (e.g., `query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')`).
