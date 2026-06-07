@@ -489,6 +489,7 @@ function App() {
   const [searchUserQuery, setSearchUserQuery] = useState("");
   const [searchUserResults, setSearchUserResults] = useState([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
+  const searchUserDebounceRef = useRef(null);
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userBioInput, setUserBioInput] = useState("");
@@ -4576,7 +4577,14 @@ function App() {
                 onChange={(e) => {
                   const val = e.target.value;
                   setSearchUserQuery(val);
-                  loadDirectoryUsers(val);
+
+                  // ⚡ Bolt: Debounce search input to prevent backend thrashing on every keystroke
+                  if (searchUserDebounceRef.current) {
+                    clearTimeout(searchUserDebounceRef.current);
+                  }
+                  searchUserDebounceRef.current = setTimeout(() => {
+                    loadDirectoryUsers(val);
+                  }, 300);
                 }}
                 placeholder="Buscar por usuario o correo..."
                 style={{
