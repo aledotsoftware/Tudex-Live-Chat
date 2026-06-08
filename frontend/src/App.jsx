@@ -384,6 +384,7 @@ function App() {
   const lastGrammarCheckAtRef = useRef(0);
   const searchInputRef = useRef(null);
   const draftInputRef = useRef(null);
+  const searchUserTimeoutRef = useRef(null); // ⚡ Bolt: Store timeout for debouncing user search
 
   const [apiAuthenticated, setApiAuthenticated] = useState(false);
   const [inputApiKey, setInputApiKey] = useState(localStorage.getItem("tapchat_api_key") || "");
@@ -4576,7 +4577,14 @@ function App() {
                 onChange={(e) => {
                   const val = e.target.value;
                   setSearchUserQuery(val);
-                  loadDirectoryUsers(val);
+
+                  // ⚡ Bolt: Debounce search input to reduce API calls
+                  if (searchUserTimeoutRef.current) {
+                    clearTimeout(searchUserTimeoutRef.current);
+                  }
+                  searchUserTimeoutRef.current = setTimeout(() => {
+                    loadDirectoryUsers(val);
+                  }, 300);
                 }}
                 placeholder="Buscar por usuario o correo..."
                 style={{
