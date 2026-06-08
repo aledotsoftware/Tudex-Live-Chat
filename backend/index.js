@@ -637,9 +637,11 @@ app.get('/api/users/search', async (req, res) => {
     };
 
     if (query) {
+      // 🛡️ Sentinel: Escape user input to prevent NoSQL Regex Injection/ReDoS
+      const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { username: { $regex: query, $options: 'i' } },
-        { email: { $regex: query, $options: 'i' } }
+        { username: { $regex: safeQuery, $options: 'i' } },
+        { email: { $regex: safeQuery, $options: 'i' } }
       ];
     }
 
