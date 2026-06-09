@@ -643,9 +643,12 @@ app.get('/api/users/search', async (req, res) => {
       ];
     }
 
+    // ⚡ Bolt: Using .lean() to bypass Mongoose document instantiation, returning plain JS objects
+    // for significantly lower memory usage and faster read performance.
     const users = await User.find(filter)
       .select('_id username email avatarColor avatarUrl bio status')
-      .limit(20);
+      .limit(20)
+      .lean();
 
     res.json(users);
   } catch (err) {
@@ -677,10 +680,12 @@ app.get('/api/users/proximity', async (req, res) => {
     const userLat = req.user.latitude || 40.4167;
     const userLng = req.user.longitude || -3.7037;
 
+    // ⚡ Bolt: Using .lean() to bypass Mongoose document instantiation, returning plain JS objects
+    // for significantly lower memory usage and faster read performance.
     const allUsers = await User.find({
       _id: { $ne: req.user._id },
       username: { $ne: 'admin' }
-    }).select('_id username email avatarColor avatarUrl bio status latitude longitude');
+    }).select('_id username email avatarColor avatarUrl bio status latitude longitude').lean();
 
     const mapped = allUsers.map(u => {
       const lat = u.latitude || (40.4167 + (Math.random() - 0.5) * 0.08);
