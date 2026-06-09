@@ -183,13 +183,23 @@ const authenticateUser = async (req, res, next) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     token = authHeader.substring(7);
   } else {
-    token = req.headers['x-api-key'] || req.query.api_key;
+    const rawToken = req.headers['x-api-key'] || req.query.api_key;
+    if (rawToken) {
+      token = typeof rawToken === 'string' ? rawToken : String(rawToken);
+    }
   }
 
-  if (!token) {
-    // Legacy support for API_KEY (admin credentials)
-    if (API_KEY && (req.headers['x-api-key'] === API_KEY || req.query.api_key === API_KEY)) {
-      let adminUser = await User.findOne({ username: 'admin' });
+  // 🛡️ Sentinel: Escape user input to prevent Object Type Confusion/NoSQL injection
+  if (!token || token === '[object Object]') {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'Authentication token is required.'
+    });
+  }
+
+  // Legacy support for API_KEY (admin credentials)
+  if (API_KEY && token === API_KEY) {
+    let adminUser = await User.findOne({ username: 'admin' });
       if (!adminUser) {
         try {
           adminUser = await User.create({
@@ -206,11 +216,6 @@ const authenticateUser = async (req, res, next) => {
       }
       req.user = adminUser;
       return next();
-    }
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Authentication token is required.'
-    });
   }
 
   try {
@@ -231,9 +236,15 @@ const authenticateUser = async (req, res, next) => {
 };
 
 io.use(async (socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
+  const rawToken = socket.handshake.auth.token;
+  if (!rawToken) {
     return next(new Error("Authentication token is required"));
+  }
+
+  // 🛡️ Sentinel: Escape user input to prevent Object Type Confusion/NoSQL injection
+  const token = typeof rawToken === 'string' ? rawToken : String(rawToken);
+  if (token === '[object Object]') {
+    return next(new Error("Invalid authentication token"));
   }
 
   if (API_KEY && token === API_KEY) {

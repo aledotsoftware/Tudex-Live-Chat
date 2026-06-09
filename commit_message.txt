@@ -1,1 +1,7 @@
-I confirmed that the codebase already separates sending states and AI states. Modifying correctAndSend as requested was not necessary because it already deactivated correctingAndSending before sending.
+🛡️ Sentinel: [CRITICAL] Fix NoSQL Injection via Object Type Confusion
+
+🚨 Severity: CRITICAL
+💡 Vulnerability: Mongoose `findOne` was vulnerable to Object Type Confusion because `req.query.api_key` (via Express query parser) and `socket.handshake.auth.token` were not validated or cast to strings. This allowed attackers to pass MongoDB query operators like `?api_key[$ne]=null` to bypass authentication.
+🎯 Impact: Attackers could authenticate as arbitrary users (including the `admin` fallback account) by supplying objects that evaluate to truthy condition queries instead of strings, leading to complete account takeover.
+🔧 Fix: Explicitly cast tokens to Strings for both the HTTP API authentication middleware and the Socket.IO connection middleware. The patch guards against plain objects and ensures that fallback checks for `[object Object]` safely reject the invalid token. Added `// 🛡️ Sentinel:` comments.
+✅ Verification: Tested against object queries `api_key[$ne]=null`. The backend `pnpm test` suite passes successfully.
