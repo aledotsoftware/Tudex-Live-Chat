@@ -434,6 +434,8 @@ function App() {
   );
 
   const [chatSearch, setChatSearch] = useState("");
+  const [chatSearchInput, setChatSearchInput] = useState("");
+  const chatSearchDebounceRef = useRef(null);
   const [chats, setChats] = useState([]);
   const [viewMode, setViewMode] = useState("chats");
   const [messagesByChat, setMessagesByChat] = useState({});
@@ -472,6 +474,20 @@ function App() {
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  // Sync chatSearch -> chatSearchInput to handle external resets
+  useEffect(() => {
+    setChatSearchInput(chatSearch);
+  }, [chatSearch]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (chatSearchDebounceRef.current) {
+        clearTimeout(chatSearchDebounceRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     chatsRef.current = chats;
@@ -2480,8 +2496,19 @@ function App() {
             id="chatSearchInput"
             ref={searchInputRef}
             type="text"
-            value={chatSearch}
-            onChange={(e) => setChatSearch(e.target.value)}
+            value={chatSearchInput}
+            onChange={(e) => {
+              const val = e.target.value;
+              setChatSearchInput(val);
+
+              // ⚡ Bolt: Debounce local search input to prevent excessive React re-renders
+              if (chatSearchDebounceRef.current) {
+                clearTimeout(chatSearchDebounceRef.current);
+              }
+              chatSearchDebounceRef.current = setTimeout(() => {
+                setChatSearch(val);
+              }, 300);
+            }}
             placeholder={viewMode === "statuses" ? "Buscar estado..." : "Buscar chat... (Ctrl+K)"}
             style={{ flex: 1, paddingLeft: '36px' }}
           />
