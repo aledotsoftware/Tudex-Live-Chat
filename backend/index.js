@@ -396,9 +396,10 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Formato de correo electrónico inválido.' });
     }
 
+    // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
     const existingUser = await User.findOne({
       $or: [{ username: cleanUsername }, { email: cleanEmail }]
-    });
+    }).lean();
 
     if (existingUser) {
       if (existingUser.username === cleanUsername) {
@@ -498,9 +499,10 @@ app.post('/api/auth/login', async (req, res) => {
 
     const cleanIdentifier = String(identifier).trim().toLowerCase();
 
+    // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only auth check
     const user = await User.findOne({
       $or: [{ username: cleanIdentifier }, { email: cleanIdentifier }]
-    });
+    }).lean();
 
     if (!user || !verifyPassword(password, user.password)) {
       return res.status(401).json({ error: 'Credenciales inválidas. Por favor intenta de nuevo.' });
@@ -582,7 +584,8 @@ app.put('/api/auth/profile', async (req, res) => {
         return res.status(400).json({ error: 'El nombre de usuario debe tener al menos 3 caracteres.' });
       }
       if (cleanUsername !== user.username) {
-        const duplicate = await User.findOne({ username: cleanUsername });
+        // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
+        const duplicate = await User.findOne({ username: cleanUsername }).lean();
         if (duplicate) {
           return res.status(400).json({ error: 'El nombre de usuario ya está registrado por otra cuenta.' });
         }
@@ -596,7 +599,8 @@ app.put('/api/auth/profile', async (req, res) => {
         return res.status(400).json({ error: 'Formato de correo electrónico inválido.' });
       }
       if (cleanEmail !== user.email) {
-        const duplicate = await User.findOne({ email: cleanEmail });
+        // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
+        const duplicate = await User.findOne({ email: cleanEmail }).lean();
         if (duplicate) {
           return res.status(400).json({ error: 'El correo electrónico ya está registrado por otra cuenta.' });
         }
