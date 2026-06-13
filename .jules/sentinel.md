@@ -2,3 +2,8 @@
 **Vulnerability:** The Express middleware `authenticateUser` and Socket.IO `io.use` did not enforce that the auth token from user input (query param, header, or socket auth block) was a string. An attacker could pass a NoSQL payload (e.g., `?api_key[$ne]=1`), resulting in `token` becoming an object, bypassing truthy checks and risking NoSQL injection during `Session.findOne({ token })`.
 **Learning:** In Node.js + MongoDB architectures, always cast unvalidated request properties (like `req.query`, `req.headers`, `socket.handshake`) to a primitive (e.g. String) before passing them to the database driver, to prevent Object Type Confusion/NoSQL injection.
 **Prevention:** Strictly type check or cast the incoming parameters (`String(req.query.api_key)`) as part of a global validation strategy before using them in MongoDB operations.
+
+## 2024-06-03 - [Fix Hardcoded Administrative Credentials]
+**Vulnerability:** The Express authentication and socket.io connection middlewares were using a hardcoded password string (`'admin123'`) to create a default `admin` user if authentication succeeded using a legacy `API_KEY` but the admin user did not exist in the database.
+**Learning:** Default, hardcoded credentials are a major vulnerability that often slip into fallback/bootstrap paths. An attacker who gains access or figures out the legacy access could potentially compromise the system further if the default password is never changed.
+**Prevention:** Never use hardcoded static strings for fallback or administrative account passwords. Always generate secure random passwords (e.g., `crypto.randomBytes(16).toString('hex')`) during user initialization if they are auto-created, requiring manual reset if access is truly needed via the UI.

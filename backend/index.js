@@ -197,10 +197,12 @@ const authenticateUser = async (req, res, next) => {
       let adminUser = await User.findOne({ username: 'admin' });
       if (!adminUser) {
         try {
+          // 🛡️ Sentinel: Secure random password generation instead of hardcoded 'admin123'
+          const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
           adminUser = await User.create({
             username: 'admin',
             email: 'admin@tapchat.local',
-            password: hashPassword('admin123'),
+            password: hashPassword(defaultPassword),
             avatarColor: 'hsl(200, 70%, 40%)',
             bio: 'Administrador del sistema'
           });
@@ -249,10 +251,12 @@ io.use(async (socket, next) => {
     let adminUser = await User.findOne({ username: 'admin' });
     if (!adminUser) {
       try {
+        // 🛡️ Sentinel: Secure random password generation instead of hardcoded 'admin123'
+        const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
         adminUser = await User.create({
           username: 'admin',
           email: 'admin@tapchat.local',
-          password: hashPassword('admin123'),
+          password: hashPassword(defaultPassword),
           avatarColor: 'hsl(200, 70%, 40%)',
           bio: 'Administrador del sistema'
         });
