@@ -4653,6 +4653,15 @@ function App() {
               {searchUserResults.map((user) => (
                 <div
                   key={user._id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Iniciar chat con ${user.username}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.currentTarget.click();
+                    }
+                  }}
                   onClick={() => {
                     const localChat = {
                       id: user._id,
