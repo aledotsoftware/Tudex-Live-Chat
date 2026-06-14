@@ -319,15 +319,19 @@ app.get('/', (req, res) => {
 // Healthcheck/Auth verify endpoint
 // Password hashing helper functions using native crypto module
 function hashPassword(password) {
+  // 🛡️ Sentinel: explicitly cast password to string to prevent Object Type Confusion / DoS
+  const safePassword = String(password || '');
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  const hash = crypto.pbkdf2Sync(safePassword, salt, 1000, 64, 'sha512').toString('hex');
   return `${salt}:${hash}`;
 }
 
 function verifyPassword(password, storedPassword) {
   if (!storedPassword || !storedPassword.includes(':')) return false;
+  // 🛡️ Sentinel: explicitly cast password to string to prevent Object Type Confusion / DoS
+  const safePassword = String(password || '');
   const [salt, hash] = storedPassword.split(':');
-  const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  const checkHash = crypto.pbkdf2Sync(safePassword, salt, 1000, 64, 'sha512').toString('hex');
   return hash === checkHash;
 }
 
