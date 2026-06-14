@@ -221,7 +221,8 @@ const authenticateUser = async (req, res, next) => {
   }
 
   try {
-    const session = await Session.findOne({ token }).populate('userId');
+    // ⚡ Bolt: Using .lean() to reduce memory and CPU overhead for read-only session lookups.
+    const session = await Session.findOne({ token }).populate('userId').lean();
     if (!session || session.expiresAt < new Date()) {
       return res.status(401).json({
         error: 'Unauthorized',
@@ -269,7 +270,8 @@ io.use(async (socket, next) => {
   }
 
   try {
-    const session = await Session.findOne({ token });
+    // ⚡ Bolt: Using .lean() to reduce memory and CPU overhead for read-only session lookups.
+    const session = await Session.findOne({ token }).lean();
     if (!session || session.expiresAt < new Date()) {
       return next(new Error("Invalid or expired session"));
     }
