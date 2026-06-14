@@ -325,6 +325,10 @@ app.get('/', (req, res) => {
 // Healthcheck/Auth verify endpoint
 // Password hashing helper functions using native crypto module
 function hashPassword(password) {
+  // 🛡️ Sentinel: Enforce string type to prevent Object Type Confusion/DoS crashes in crypto module
+  if (typeof password !== 'string') {
+    throw new Error('Password must be a string');
+  }
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
   return `${salt}:${hash}`;
@@ -332,6 +336,8 @@ function hashPassword(password) {
 
 function verifyPassword(password, storedPassword) {
   if (!storedPassword || !storedPassword.includes(':')) return false;
+  // 🛡️ Sentinel: Enforce string type to prevent Object Type Confusion/DoS crashes in crypto module
+  if (typeof password !== 'string') return false;
   const [salt, hash] = storedPassword.split(':');
   const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
   return hash === checkHash;
