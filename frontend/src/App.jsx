@@ -1337,6 +1337,9 @@ function App() {
         if (showResources) setShowResources(false);
         if (showProfileMenu) setShowProfileMenu(false);
         if (replyTarget) setReplyTarget(null);
+        if (showNewChatModal) setShowNewChatModal(false);
+        if (showNewStatusModal) setShowNewStatusModal(false);
+        if (activeStoryIndex !== null) setActiveStoryIndex(null);
         return; // Don't prevent default, just handle our local logic
       }
 
@@ -1370,7 +1373,7 @@ function App() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [filteredChats, selectedChatId]);
+  }, [filteredChats, selectedChatId, showResources, showProfileMenu, replyTarget, showNewChatModal, showNewStatusModal, activeStoryIndex]);
 
   useEffect(() => {
     localStorage.setItem("tapchat_drafts", JSON.stringify(draftsByChat));
