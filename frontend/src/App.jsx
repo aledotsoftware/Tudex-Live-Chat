@@ -357,10 +357,10 @@ function UserIcon({ size = 20, className = "" }) {
 }
 
 function AckIcon({ status }) {
-  if (status === 3) return <span className="ackDoubleBlue">✓✓</span>;
-  if (status === 2) return <span className="ackDouble">✓✓</span>;
-  if (status === 1) return <span className="ackSingle">✓</span>;
-  if (status === 'sending') return <span className="ackClock">⏲</span>;
+  if (status === 3) return <span role="status" aria-label="Leído" className="ackDoubleBlue" aria-hidden="false"><span aria-hidden="true">✓✓</span></span>;
+  if (status === 2) return <span role="status" aria-label="Entregado" className="ackDouble" aria-hidden="false"><span aria-hidden="true">✓✓</span></span>;
+  if (status === 1) return <span role="status" aria-label="Enviado" className="ackSingle" aria-hidden="false"><span aria-hidden="true">✓</span></span>;
+  if (status === 'sending') return <span role="status" aria-label="Enviando" className="ackClock" aria-hidden="false"><span aria-hidden="true">⏲</span></span>;
   return null;
 }
 
@@ -2914,6 +2914,7 @@ function App() {
                   value={newPublicStatusBody}
                   onChange={(e) => setNewPublicStatusBody(e.target.value)}
                   placeholder="Comparte algo efímero con el mundo... (Dura 24 horas)"
+                  aria-label="Publicar estado en el muro"
                   style={{
                     width: '100%',
                     background: 'rgba(0,0,0,0.15)',
@@ -3023,6 +3024,7 @@ function App() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
                         <button
                           onClick={() => likePublicStatus(status._id)}
+                          aria-label={status.isLiked ? "Ya no me gusta" : "Me gusta"}
                           style={{
                             background: 'transparent',
                             border: 'none',
@@ -4294,7 +4296,6 @@ function App() {
                           e.currentTarget.style.transform = userAvatarColorInput === color ? 'scale(1.2)' : 'none';
                         }}
                         title={color}
-                        aria-label={`Color de avatar ${color}`}
                       />
                     ))}
                   </div>
@@ -4676,6 +4677,7 @@ function App() {
               <input
                 type="text"
                 value={searchUserQuery}
+                aria-label="Buscar usuario"
                 onChange={(e) => {
                   const val = e.target.value;
                   setSearchUserQuery(val);
@@ -5091,7 +5093,7 @@ function App() {
                     key={theme.id}
                     type="button"
                     onClick={() => setNewStatusBgTheme(theme.id)}
-                    aria-label={"Seleccionar fondo " + theme.label}
+                    aria-label={`Fondo ${theme.label}`}
                     style={{
                       height: '45px',
                       borderRadius: '8px',
@@ -5103,7 +5105,6 @@ function App() {
                       boxShadow: newStatusBgTheme === theme.id ? '0 0 8px rgba(255,255,255,0.5)' : 'none'
                     }}
                     title={theme.label}
-                    aria-label={`Fondo ${theme.label}`}
                   />
                 ))}
               </div>
