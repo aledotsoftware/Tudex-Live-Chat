@@ -3195,8 +3195,9 @@ app.get(['/api/status-archive', '/api/status-archive/:channelCode'], async (req,
       query.statusOwnerId = ownerId;
     }
 
+    // ⚡ Bolt: Removed unindexed tie-breaker 'createdAt: -1' from sort to allow MongoDB to use the existing compound index { provider: 1, accountId: 1, timestamp: -1 } and avoid a slow, memory-intensive in-memory sort.
     const items = await StatusArchive.find(query)
-      .sort({ timestamp: -1, createdAt: -1 })
+      .sort({ timestamp: -1 })
       .limit(limit)
       .lean();
 
