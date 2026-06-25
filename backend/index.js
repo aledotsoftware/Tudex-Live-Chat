@@ -1019,6 +1019,8 @@ StatusArchiveSchema.index(
   { unique: true }
 );
 StatusArchiveSchema.index({ provider: 1, accountId: 1, timestamp: -1 });
+// ⚡ Bolt: Add missing compound index for fast lookup and sorting of statuses by owner/chat without an in-memory sort
+StatusArchiveSchema.index({ provider: 1, accountId: 1, statusOwnerId: 1, timestamp: -1 });
 
 const StatusArchive = mongoose.model('StatusArchive', StatusArchiveSchema);
 
@@ -3195,8 +3197,9 @@ app.get(['/api/status-archive', '/api/status-archive/:channelCode'], async (req,
       query.statusOwnerId = ownerId;
     }
 
+    // ⚡ Bolt: Removed createdAt: -1 from sort to utilize the {provider: 1, accountId: 1, timestamp: -1} compound index perfectly and avoid a slow in-memory sort
     const items = await StatusArchive.find(query)
-      .sort({ timestamp: -1, createdAt: -1 })
+      .sort({ timestamp: -1 })
       .limit(limit)
       .lean();
 
