@@ -3664,6 +3664,7 @@ function App() {
                     } ${msg.isRevoked ? "isRevoked" : ""}`}
                     tabIndex={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? 0 : undefined}
                     role={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "button" : undefined}
+                    aria-label={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "Mensaje con errores gramaticales. Presionar para responder con corrección." : undefined}
                     onClick={
                       !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
                         ? () => prepareGrammarReply(msg)
