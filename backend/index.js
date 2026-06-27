@@ -388,6 +388,7 @@ const PublicStatusSchema = new mongoose.Schema({
 
 // Ephemeral index (TTL 24 hours = 86400 seconds)
 PublicStatusSchema.index({ createdAt: 1 }, { expireAfterSeconds: 86400 });
+// ⚡ Bolt: Add compound index for $in filter combined with .sort() to prevent slow in-memory sorts
 // ⚡ Bolt: Added compound index for userId and createdAt to prevent slow in-memory sorts during followed-statuses queries
 // ⚡ Bolt: Add compound index for followed stories query combining $in filter and sort
 PublicStatusSchema.index({ userId: 1, createdAt: -1 });
