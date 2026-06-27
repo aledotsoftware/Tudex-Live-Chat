@@ -470,6 +470,7 @@ app.post('/api/auth/register', async (req, res) => {
         conversationId: 'ai_assistant'
       },
       {
+        id: 'ai_assistant',
         provider: 'local',
         accountId: String(user._id),
         conversationId: 'ai_assistant',
@@ -551,6 +552,7 @@ app.post('/api/auth/login', async (req, res) => {
         conversationId: 'ai_assistant'
       },
       {
+        id: 'ai_assistant',
         provider: 'local',
         accountId: String(user._id),
         conversationId: 'ai_assistant',
@@ -1278,6 +1280,8 @@ async function ensureCanonicalProviderFields() {
   const chatResult = await Chat.updateMany(
     {
       $or: [
+        { id: { $exists: false } },
+        { id: null },
         { provider: { $exists: false } },
         { accountId: { $exists: false } },
         { conversationId: { $exists: false } },
@@ -1287,6 +1291,7 @@ async function ensureCanonicalProviderFields() {
     [
       {
         $set: {
+          id: { $ifNull: ['$id', { $ifNull: ['$conversationId', { $toString: '$_id' }] }] },
           provider: { $ifNull: ['$provider', DEFAULT_PROVIDER] },
           accountId: { $ifNull: ['$accountId', DEFAULT_ACCOUNT_ID] },
           conversationId: { $ifNull: ['$conversationId', { $ifNull: ['$id', { $toString: '$_id' }] }] },
@@ -1307,6 +1312,8 @@ async function ensureCanonicalProviderFields() {
   const messageResult = await Message.updateMany(
     {
       $or: [
+        { id: { $exists: false } },
+        { id: null },
         { provider: { $exists: false } },
         { accountId: { $exists: false } },
         { conversationId: { $exists: false } },
@@ -1318,6 +1325,7 @@ async function ensureCanonicalProviderFields() {
     [
       {
         $set: {
+          id: { $ifNull: ['$id', { $ifNull: ['$providerMessageId', { $toString: '$_id' }] }] },
           provider: { $ifNull: ['$provider', DEFAULT_PROVIDER] },
           accountId: { $ifNull: ['$accountId', DEFAULT_ACCOUNT_ID] },
           conversationId: { $ifNull: ['$conversationId', { $ifNull: ['$chatId', { $toString: '$_id' }] }] },
@@ -2894,7 +2902,18 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
 
         await Chat.findOneAndUpdate(
           { provider: 'local', accountId: senderId, conversationId: 'ai_assistant' },
-          { timestamp, lastSyncedAt: new Date() },
+          {
+            id: 'ai_assistant',
+            provider: 'local',
+            accountId: senderId,
+            conversationId: 'ai_assistant',
+            conversationKey: `local:${senderId}:ai_assistant`,
+            name: 'AI Companion',
+            timestamp,
+            isGroup: false,
+            avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&q=80',
+            lastSyncedAt: new Date()
+          },
           { upsert: true }
         );
 
@@ -3014,6 +3033,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
       await Chat.findOneAndUpdate(
         { provider: 'local', accountId: senderId, conversationId: receiverId },
         {
+          id: receiverId,
           provider: 'local',
           accountId: senderId,
           conversationId: receiverId,
@@ -3044,6 +3064,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
       await Chat.findOneAndUpdate(
         { provider: 'local', accountId: receiverId, conversationId: senderId },
         {
+          id: senderId,
           provider: 'local',
           accountId: receiverId,
           conversationId: senderId,

@@ -119,3 +119,21 @@ export async function setCachedMessages(provider, accountId, conversationId, mes
   const key = getStorageKey(MESSAGES_PREFIX, provider, accountId, conversationId);
   try { await writeEntry(key, limitedMessages); } catch (e) {}
 }
+
+const OFFLINE_QUEUE_PREFIX = "offline_queue";
+
+export async function getOfflineQueue(provider, accountId) {
+  try {
+    const key = getStorageKey(OFFLINE_QUEUE_PREFIX, provider, accountId);
+    const entry = await readEntry(key);
+    return Array.isArray(entry?.value) ? entry.value : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+export async function setOfflineQueue(provider, accountId, queue) {
+  if (!Array.isArray(queue)) return;
+  const key = getStorageKey(OFFLINE_QUEUE_PREFIX, provider, accountId);
+  try { await writeEntry(key, queue); } catch (e) {}
+}
