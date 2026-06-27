@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import QRCode from "react-qr-code";
 import {
@@ -363,6 +363,42 @@ function AckIcon({ status }) {
   if (status === 'sending') return <span role="status" aria-label="Enviando" className="ackClock" aria-hidden="false"><span aria-hidden="true">⏲</span></span>;
   return null;
 }
+
+const ChatSentiment = React.memo(function ChatSentiment({ lastMsg }) {
+  if (!lastMsg) return null;
+  const text = String(lastMsg.body || '').toLowerCase();
+  const positive = ['bien', 'feliz', 'buen', 'genial', 'excelente', 'gracias', 'jaja', 'súper', 'super', ':)'];
+  const negative = ['mal', 'triste', 'enojado', 'problema', 'tarde', 'perdón', 'perdon', 'fallo', 'error', ':('];
+  let score = 0;
+  positive.forEach(w => { if (text.includes(w)) score += 1; });
+  negative.forEach(w => { if (text.includes(w)) score -= 1; });
+
+  let sentiment = null;
+  if (score > 0) sentiment = { emoji: "😊", color: "#10b981", label: "Positivo" };
+  else if (score < 0) sentiment = { emoji: "😕", color: "#f43f5e", label: "Negativo" };
+
+  if (!sentiment) return null;
+  return (
+    <span
+      title={`Análisis de Sentimiento: ${sentiment.label}`}
+      style={{
+        fontSize: '11px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '18px',
+        height: '18px',
+        borderRadius: '50%',
+        background: `${sentiment.color}20`,
+        border: `1px solid ${sentiment.color}`,
+        color: sentiment.color,
+        marginLeft: '4px'
+      }}
+    >
+      {sentiment.emoji}
+    </span>
+  );
+});
 
 function App() {
   const socketRef = useRef(null);
@@ -3095,40 +3131,7 @@ function App() {
                     {chat.isGroup ? <span className="chatKindBadge">Grupo</span> : null}
                     {(() => {
                       const chatMsgs = messagesByChat[chat.id] || [];
-                      const lastMsg = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null;
-                      if (!lastMsg) return null;
-                      const text = String(lastMsg.body || '').toLowerCase();
-                      const positive = ['bien', 'feliz', 'buen', 'genial', 'excelente', 'gracias', 'jaja', 'súper', 'super', ':)'];
-                      const negative = ['mal', 'triste', 'enojado', 'problema', 'tarde', 'perdón', 'perdon', 'fallo', 'error', ':('];
-                      let score = 0;
-                      positive.forEach(w => { if (text.includes(w)) score += 1; });
-                      negative.forEach(w => { if (text.includes(w)) score -= 1; });
-                      
-                      let sentiment = null;
-                      if (score > 0) sentiment = { emoji: "😊", color: "#10b981", label: "Positivo" };
-                      else if (score < 0) sentiment = { emoji: "😕", color: "#f43f5e", label: "Negativo" };
-                      
-                      if (!sentiment) return null;
-                      return (
-                        <span 
-                          title={`Análisis de Sentimiento: ${sentiment.label}`} 
-                          style={{
-                            fontSize: '11px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '18px',
-                            height: '18px',
-                            borderRadius: '50%',
-                            background: `${sentiment.color}20`,
-                            border: `1px solid ${sentiment.color}`,
-                            color: sentiment.color,
-                            marginLeft: '4px'
-                          }}
-                        >
-                          {sentiment.emoji}
-                        </span>
-                      );
+                      return <ChatSentiment lastMsg={chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null} />;
                     })()}
                     {chat.unreadCount > 0 ? (
                       <span className="unreadBadge">{chat.unreadCount}</span>
@@ -3661,6 +3664,7 @@ function App() {
                     } ${msg.isRevoked ? "isRevoked" : ""}`}
                     tabIndex={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? 0 : undefined}
                     role={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "button" : undefined}
+                    aria-label={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "Mensaje con errores gramaticales. Presionar para responder con corrección." : undefined}
                     onClick={
                       !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
                         ? () => prepareGrammarReply(msg)
