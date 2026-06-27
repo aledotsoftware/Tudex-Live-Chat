@@ -4077,7 +4077,7 @@ function App() {
       ) : null}
 
       {showProfileMenu && (
-        <section className="modalOverlay" onClick={() => setShowProfileMenu(false)}>
+        <section className="modalOverlay fullscreenSettingsOverlay" onClick={() => setShowProfileMenu(false)}>
           <div
             className="modalCard profileSettingsModal fullscreen"
             onClick={(e) => e.stopPropagation()}
@@ -4663,7 +4663,7 @@ function App() {
                     style={{
                       width: '40px',
                       height: '40px',
-                      borderRadius: '12px',
+                      borderRadius: '50%',
                       background: getAvatarGradient(user.avatarColor || user._id),
                       display: 'flex',
                       alignItems: 'center',

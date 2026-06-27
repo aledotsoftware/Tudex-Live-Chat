@@ -475,7 +475,7 @@ button, textarea, input, select {
 .chatAvatar {
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: 50%;
   background: var(--accent-gradient);
   color: white;
   display: grid;
@@ -615,7 +615,7 @@ button, textarea, input, select {
 .chatHeaderAvatar {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: 50%;
   color: white;
   display: grid;
   place-items: center;
@@ -2126,6 +2126,11 @@ select {
 }
 .onboarding-wizard p:last-child {
   margin-bottom: 0;
+}
+
+.modalOverlay.fullscreenSettingsOverlay {
+  padding: 0;
+  background: #1e1f22;
 }
 
 /* Discord-like Full-Screen Settings Page */
