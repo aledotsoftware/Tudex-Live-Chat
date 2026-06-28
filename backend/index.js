@@ -351,6 +351,15 @@ io.on('connection', (socket) => {
         avatarUrl
       });
 
+      // Notify target user / group about the call start
+      if (roomPeers.size === 1) {
+        socket.to(roomId).emit('incoming-voice-call', {
+          roomId,
+          hostId: socket.userId,
+          hostName: username
+        });
+      }
+
       // Send the list of current peers to the newly joined client
       const peerList = [];
       for (const [sId, peerInfo] of roomPeers.entries()) {
