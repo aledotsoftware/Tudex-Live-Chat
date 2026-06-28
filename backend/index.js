@@ -404,6 +404,17 @@ io.on('connection', (socket) => {
     console.log(`🎙️ Socket ${socket.id} left voice room: ${roomId}`);
   });
 
+  socket.on('reject-voice-call', ({ roomId, hostId }) => {
+    if (hostId) {
+      io.to(hostId).emit('voice-call-rejected', { roomId, rejecterId: socket.userId });
+    }
+    socket.to(`voice_${roomId}`).emit('voice-call-rejected', { roomId, rejecterId: socket.userId });
+  });
+
+  socket.on('cancel-voice-call', ({ roomId }) => {
+    socket.to(roomId).emit('voice-call-cancelled', { roomId });
+  });
+
   socket.on('send-voice-signal', ({ to, signal }) => {
     io.to(to).emit('voice-signal', {
       from: socket.id,

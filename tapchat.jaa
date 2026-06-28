@@ -15,6 +15,14 @@
 * **Pulsing Skeleton screens**: Implemented CSS classes `.skeleton-msg` inside `App.css` (which were rendered but never styled). Added alternate sent/received positions and shimmer effects to smooth the layout shift on chat load.
 * **Message Delivery Status (Acks) Styles**: Styled `.ackSingle`, `.ackDouble`, `.ackDoubleBlue`, and `.ackClock` inside `App.css` (which were rendered in `App.jsx` but completely unstyled). This displays clear, WhatsApp-style ticks for sent, delivered, read, and sending states.
 * **Consecutive message grouping**: Integrated custom `.consecutive` bubble row overrides in `App.css`. Reduced margin-top spacing to `2px` and sharpened corners dynamically (top-right for outgoing, top-left for incoming consecutive messages) to match modern group message layouts.
+* **VoIP Call System Overhaul (First-Class standard)**:
+  * Implemented an AudioContext-based local ringtone synthesizer for zero-dependency offline calling audio feedback (with distinct rhythms for incoming vs. outgoing calls).
+  * Built beautiful full-screen overlay modals for both outgoing ("Llamando...") and incoming ("Llamada de voz entrante...") states.
+  * Added socket events for `reject-voice-call` and `cancel-voice-call` to allow users to decline incoming calls or cancel outgoing calls before connection.
+* **Robust Connection Loss & Volume Control**:
+  * Added local connection loss handler to auto-disconnect users from calls (`leaveVoiceRoom`) and cleanup WebRTC states during network cuts.
+  * Integrated an `oniceconnectionstatechange` handler inside peer connections to automatically alert users and drop participants whose connection states fail/disconnect.
+  * Integrated a premium inline **Volume Slider** in the voice call dashboard to dynamically scale peer `<audio>` output gain from `0%` to `100%`.
 
 ## 3. Technical Debt & Warnings
 * **ICE Server Constraints**: Currently uses public Google STUN servers (`stun:stun.l.google.com:19302`). For reliable deployment across symmetric NATs, a TURN server (e.g. Coturn) must be configured in `App.jsx` iceServers.

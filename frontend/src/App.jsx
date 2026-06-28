@@ -589,10 +589,74 @@ function App() {
   const [voiceRoomId, setVoiceRoomId] = useState(null);
   const [voicePeers, setVoicePeers] = useState([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [activeCallState, setActiveCallState] = useState("idle"); // "idle", "calling", "incoming", "connected"
+  const [incomingCallInfo, setIncomingCallInfo] = useState(null);
+  const [outgoingCallInfo, setOutgoingCallInfo] = useState(null);
+  const [callVolume, setCallVolume] = useState(80);
+
+  useEffect(() => {
+    if (isOffline && inVoiceCall) {
+      showNotice("⚠️ Conexión perdida. Saliendo de la llamada...", "warning");
+      leaveVoiceRoom();
+    }
+  }, [isOffline, inVoiceCall]);
 
   const peerConnectionsRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
+  const callRingtoneIntervalRef = useRef(null);
+  const callAudioCtxRef = useRef(null);
+
+  const startRingtone = (isIncoming) => {
+    try {
+      if (callAudioCtxRef.current) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      callAudioCtxRef.current = new AudioCtx();
+      
+      const playBeep = () => {
+        if (!callAudioCtxRef.current || callAudioCtxRef.current.state === 'suspended') return;
+        const osc1 = callAudioCtxRef.current.createOscillator();
+        const osc2 = callAudioCtxRef.current.createOscillator();
+        const gainNode = callAudioCtxRef.current.createGain();
+        
+        osc1.frequency.value = isIncoming ? 400 : 440;
+        osc2.frequency.value = isIncoming ? 450 : 480;
+        
+        gainNode.gain.setValueAtTime(0, callAudioCtxRef.current.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.15, callAudioCtxRef.current.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.15, callAudioCtxRef.current.currentTime + (isIncoming ? 1.5 : 1.2));
+        gainNode.gain.linearRampToValueAtTime(0, callAudioCtxRef.current.currentTime + (isIncoming ? 1.7 : 1.4));
+        
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(callAudioCtxRef.current.destination);
+        
+        osc1.start();
+        osc2.start();
+        osc1.stop(callAudioCtxRef.current.currentTime + 2.0);
+        osc2.stop(callAudioCtxRef.current.currentTime + 2.0);
+      };
+      
+      playBeep();
+      callRingtoneIntervalRef.current = setInterval(playBeep, isIncoming ? 3000 : 4000);
+    } catch (e) {
+      console.warn("AudioContext ringtone failed to start:", e);
+    }
+  };
+
+  const stopRingtone = () => {
+    if (callRingtoneIntervalRef.current) {
+      clearInterval(callRingtoneIntervalRef.current);
+      callRingtoneIntervalRef.current = null;
+    }
+    if (callAudioCtxRef.current) {
+      try {
+        callAudioCtxRef.current.close();
+      } catch (e) {}
+      callAudioCtxRef.current = null;
+    }
+  };
   const candidateQueueRef = useRef(new Map()); // socketId -> Array of ICE candidates
 
   useEffect(() => {
@@ -646,6 +710,13 @@ function App() {
       }
     };
 
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        showNotice(`⚠️ Se cortó la conexión con ${peerInfo.username || "un participante"}.`, "warning");
+        setVoicePeers(prev => prev.filter(p => p.socketId !== peerSocketId));
+      }
+    };
+
     pc.ontrack = (event) => {
       const remoteStream = event.streams[0];
       setVoicePeers(prev => prev.map(p => {
@@ -670,7 +741,7 @@ function App() {
     return pc;
   }
 
-  async function joinVoiceRoom(roomId) {
+  async function joinVoiceRoom(roomId, isAccepting = false) {
     if (!roomId) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -680,15 +751,32 @@ function App() {
       socketRef.current.emit('join-voice-room', { roomId });
       setInVoiceCall(true);
       setVoiceRoomId(roomId);
-      showNotice("🎙️ Te has unido al canal de voz.", "success");
+      
+      if (isAccepting) {
+        stopRingtone();
+        setActiveCallState("connected");
+        setIncomingCallInfo(null);
+      } else {
+        setActiveCallState("calling");
+        setOutgoingCallInfo({ roomId, recipientName: selectedChat?.name || "Usuario" });
+        startRingtone(false);
+      }
+      
+      showNotice("🎙️ Canal de voz iniciado.", "success");
     } catch (e) {
       console.error("Error joining voice room:", e);
       showNotice("No se pudo acceder al micrófono para la llamada.", "error");
+      stopRingtone();
+      setActiveCallState("idle");
     }
   }
 
   function leaveVoiceRoom() {
+    stopRingtone();
     if (socketRef.current) {
+      if (activeCallState === "calling" && voiceRoomId) {
+        socketRef.current.emit('cancel-voice-call', { roomId: voiceRoomId });
+      }
       socketRef.current.emit('leave-voice-room');
     }
     if (localStreamRef.current) {
@@ -708,6 +796,9 @@ function App() {
     setVoiceRoomId(null);
     setVoicePeers([]);
     setIsMuted(false);
+    setActiveCallState("idle");
+    setIncomingCallInfo(null);
+    setOutgoingCallInfo(null);
     showNotice("🚪 Has abandonado la llamada.", "info");
   }
 
@@ -1693,6 +1784,8 @@ function App() {
     });
 
     socket.on("voice-peer-joined", (peer) => {
+      stopRingtone();
+      setActiveCallState("connected");
       setVoicePeers(prev => {
         if (prev.some(p => p.socketId === peer.socketId)) return prev;
         return [...prev, { ...peer, stream: null }];
@@ -1714,7 +1807,6 @@ function App() {
       if (!pc) return;
       if (signal.sdp) {
         pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(() => {
-          // Process queued candidates for this peer
           const queue = candidateQueueRef.current.get(from) || [];
           queue.forEach(candidate => {
             pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error("Error adding queued ICE candidate:", e));
@@ -1745,13 +1837,16 @@ function App() {
       }
     });
 
-    socket.on("incoming-voice-call", ({ roomId, hostName, hostId }) => {
-      showNotice(`📞 Llamada de voz iniciada por ${hostName}. ¡Haz clic en Llamar para unirte!`, "info");
+    socket.on("incoming-voice-call", ({ roomId, hostName, hostId, hostSocketId }) => {
+      setActiveCallState("incoming");
+      setIncomingCallInfo({ roomId, hostName, hostId, hostSocketId: hostSocketId || hostId });
+      startRingtone(true);
+      showNotice(`📞 Llamada de voz entrante de ${hostName}.`, "info");
       
       if (document.hidden && "Notification" in window && Notification.permission === "granted") {
         try {
           new Notification(`Llamada entrante - Tapchat`, {
-            body: `${hostName} ha iniciado una llamada de voz.`,
+            body: `${hostName} te está llamando de voz.`,
             icon: '/pwa-192x192.png',
             tag: roomId
           });
@@ -1771,6 +1866,19 @@ function App() {
       ]);
     });
 
+    socket.on("voice-call-rejected", ({ roomId, rejecterId }) => {
+      stopRingtone();
+      leaveVoiceRoom();
+      showNotice("❌ La llamada fue rechazada.", "error");
+    });
+
+    socket.on("voice-call-cancelled", ({ roomId }) => {
+      stopRingtone();
+      setActiveCallState("idle");
+      setIncomingCallInfo(null);
+      showNotice("📞 La llamada fue cancelada.", "info");
+    });
+
     return () => {
       socket.off("new_message", handleNewMessage);
       socket.off("voice-room-peers");
@@ -1778,6 +1886,8 @@ function App() {
       socket.off("voice-peer-left");
       socket.off("voice-signal");
       socket.off("incoming-voice-call");
+      socket.off("voice-call-rejected");
+      socket.off("voice-call-cancelled");
       socket.close();
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -1785,6 +1895,7 @@ function App() {
       }
       peerConnectionsRef.current.forEach(pc => pc.close());
       peerConnectionsRef.current.clear();
+      stopRingtone();
     };
   }, [apiAuthenticated]);
 
@@ -4445,6 +4556,26 @@ function App() {
                     >
                       🖥️
                     </button>
+                    
+                    {/* Volume Slider Control */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.06)', padding: '4px 10px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <span style={{ fontSize: '0.8rem', color: '#ccc' }}>🔊</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={callVolume}
+                        onChange={(e) => setCallVolume(parseInt(e.target.value))}
+                        style={{
+                          width: '70px',
+                          height: '4px',
+                          accentColor: '#ff6f24',
+                          cursor: 'pointer'
+                        }}
+                        title={`Volumen de llamada: ${callVolume}%`}
+                      />
+                    </div>
+
                     <button
                       onClick={leaveVoiceRoom}
                       style={{
@@ -4521,6 +4652,9 @@ function App() {
                         ref={el => {
                           if (el && el.srcObject !== peer.stream) {
                             el.srcObject = peer.stream;
+                          }
+                          if (el) {
+                            el.volume = callVolume / 100;
                           }
                         }}
                       />
@@ -5986,6 +6120,170 @@ function App() {
             </button>
           </div>
         </section>
+      )}
+
+      {/* 📞 Outgoing Call Screen Overlay */}
+      {activeCallState === "calling" && outgoingCallInfo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(11, 15, 26, 0.95)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          color: '#fff',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '120px',
+            height: '120px',
+            borderRadius: '50%',
+            background: getAvatarGradient(selectedChatId),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '3rem',
+            fontWeight: 'bold',
+            boxShadow: '0 0 30px var(--accent-glow)',
+            marginBottom: '20px',
+            animation: 'pulse 2s infinite',
+            overflow: 'hidden'
+          }}>
+            {selectedChat?.avatarUrl ? (
+              <img src={selectedChat.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              (outgoingCallInfo.recipientName || "U").slice(0, 2).toUpperCase()
+            )}
+          </div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: '700', margin: '10px 0' }}>{outgoingCallInfo.recipientName}</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '40px' }}>
+            Llamando...
+          </p>
+          <button
+            onClick={leaveVoiceRoom}
+            style={{
+              background: '#ef4444',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '50%',
+              width: '60px',
+              height: '60px',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)',
+              transition: 'all 0.2s'
+            }}
+            title="Cancelar llamada"
+          >
+            🔇
+          </button>
+        </div>
+      )}
+
+      {/* 📞 Incoming Call Screen Overlay */}
+      {activeCallState === "incoming" && incomingCallInfo && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(11, 15, 26, 0.95)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          color: '#fff',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '120px',
+            height: '120px',
+            borderRadius: '50%',
+            background: getAvatarGradient(incomingCallInfo.hostId),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '3rem',
+            fontWeight: 'bold',
+            boxShadow: '0 0 30px rgba(0, 230, 118, 0.3)',
+            marginBottom: '20px',
+            animation: 'pulse 1.8s infinite',
+            overflow: 'hidden'
+          }}>
+            <span style={{ fontSize: '3rem' }}>📞</span>
+          </div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: '700', margin: '10px 0' }}>{incomingCallInfo.hostName}</h2>
+          <p style={{ color: '#00e676', fontSize: '1.05rem', fontWeight: '600', marginBottom: '40px' }}>
+            Llamada de voz entrante
+          </p>
+          
+          <div style={{ display: 'flex', gap: '30px' }}>
+            {/* Accept Button */}
+            <button
+              onClick={() => {
+                setSelectedChatId(incomingCallInfo.roomId);
+                joinVoiceRoom(incomingCallInfo.roomId, true);
+              }}
+              style={{
+                background: '#00e676',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '60px',
+                height: '60px',
+                fontSize: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 8px 24px rgba(0, 230, 118, 0.4)',
+                transition: 'all 0.2s'
+              }}
+              title="Aceptar llamada"
+            >
+              📞
+            </button>
+            
+            {/* Decline Button */}
+            <button
+              onClick={() => {
+                stopRingtone();
+                if (socketRef.current) {
+                  socketRef.current.emit("reject-voice-call", {
+                    roomId: incomingCallInfo.roomId,
+                    hostId: incomingCallInfo.hostSocketId
+                  });
+                }
+                setActiveCallState("idle");
+                setIncomingCallInfo(null);
+              }}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '60px',
+                height: '60px',
+                fontSize: '1.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 8px 24px rgba(239, 68, 68, 0.4)',
+                transition: 'all 0.2s'
+              }}
+              title="Rechazar llamada"
+            >
+              ❌
+            </button>
+          </div>
+        </div>
       )}
 
       {toasts.length > 0 && (
