@@ -423,6 +423,8 @@ function App() {
   const lastGrammarCheckAtRef = useRef(0);
   const searchInputRef = useRef(null);
   const draftInputRef = useRef(null);
+  const syncRetryTimeoutRef = useRef(null);
+  const syncAttemptsRef = useRef(0);
 
   const [apiAuthenticated, setApiAuthenticated] = useState(false);
   const [inputApiKey, setInputApiKey] = useState(localStorage.getItem("tapchat_api_key") || "");
@@ -1345,6 +1347,7 @@ function App() {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("tapchat_token", key);
+        localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
         setCurrentUser(data.user);
         setApiAuthenticated(true);
       } else {
@@ -1352,11 +1355,25 @@ function App() {
         setAuthError("Sesión inválida. Por favor, iniciá sesión.");
         localStorage.removeItem("tapchat_token");
         localStorage.removeItem("tapchat_api_key");
+        localStorage.removeItem("tapchat_cached_user");
         clearCache().catch(() => {});
       }
     } catch (e) {
-      setApiAuthenticated(false);
-      setAuthError("Error de conexión al verificar credenciales.");
+      const cachedUserStr = localStorage.getItem("tapchat_cached_user");
+      if (cachedUserStr) {
+        try {
+          const cachedUser = JSON.parse(cachedUserStr);
+          setCurrentUser(cachedUser);
+          setApiAuthenticated(true);
+          showNotice("📶 Modo sin conexión activado. Usando sesión guardada.", "info");
+        } catch (_) {
+          setApiAuthenticated(false);
+          setAuthError("Error de conexión al verificar credenciales.");
+        }
+      } else {
+        setApiAuthenticated(false);
+        setAuthError("Error de conexión al verificar credenciales.");
+      }
     }
     setAuthChecking(false);
   };
@@ -1607,18 +1624,18 @@ function App() {
   }, [draft, selectedChatId]);
 
   useEffect(() => {
-    if (sessionStatus !== "authenticated") return;
+    if (!apiAuthenticated) return;
     fetchChats(true);
-  }, [sessionStatus]);
+  }, [apiAuthenticated]);
 
   useEffect(() => {
-    if (!selectedChatId || sessionStatus !== "authenticated") return;
+    if (!selectedChatId || !apiAuthenticated) return;
     const intervalMs = syncingChat ? 3000 : 15000;
     const timer = setInterval(() => {
       fetchMessages(selectedChatId, { withLoader: false, background: true });
     }, intervalMs);
     return () => clearInterval(timer);
-  }, [selectedChatId, sessionStatus, syncingChat]);
+  }, [selectedChatId, apiAuthenticated, syncingChat]);
 
   useEffect(() => {
     const container = messagesAreaRef.current;
@@ -1714,11 +1731,15 @@ function App() {
     if (offlineQueueRef.current.length === 0) return;
     if (!navigator.onLine || isOffline) return;
 
+    if (syncRetryTimeoutRef.current) clearTimeout(syncRetryTimeoutRef.current);
+
     const provider = "local";
     const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
     const queue = [...offlineQueueRef.current];
 
-    showNotice("🔄 Reconectado. Sincronizando acciones pendientes...", "info");
+    if (syncAttemptsRef.current === 0) {
+      showNotice("🔄 Sincronizando acciones pendientes...", "info");
+    }
 
     for (const action of queue) {
       try {
@@ -1767,7 +1788,8 @@ function App() {
           });
         }
 
-        if (res && res.ok) {
+        if (res && (res.ok || res.status < 500)) {
+          syncAttemptsRef.current = 0;
           setOfflineQueueState(prev => {
             const next = prev.filter(item => item._uiId !== action._uiId);
             setOfflineQueue(provider, accountId, next);
@@ -1783,9 +1805,16 @@ function App() {
             loadProximityUsers();
             loadFollowedStories();
           }
+        } else {
+          throw new Error(`Server returned error status ${res?.status}`);
         }
       } catch (err) {
         console.error("Error processing queued offline action:", err);
+        syncAttemptsRef.current += 1;
+        const delay = Math.min(30000, Math.pow(2, syncAttemptsRef.current) * 1000 + Math.random() * 1000);
+        showNotice(`⚠️ Error de red. Reintentando sincronización en ${Math.round(delay/1000)}s...`, "warning");
+        syncRetryTimeoutRef.current = setTimeout(processOfflineQueue, delay);
+        break;
       }
     }
   }
@@ -2502,6 +2531,7 @@ function App() {
                   const data = await res.json();
                   if (res.ok) {
                     localStorage.setItem("tapchat_token", data.token);
+                    localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
                     setCurrentUser(data.user);
                     setApiAuthenticated(true);
                     showNotice("¡Bienvenido a Tapchat!", "success");
@@ -2522,6 +2552,7 @@ function App() {
                   const data = await res.json();
                   if (res.ok) {
                     localStorage.setItem("tapchat_token", data.token);
+                    localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
                     setCurrentUser(data.user);
                     setApiAuthenticated(true);
                     showNotice("Cuenta creada con éxito.", "success");
@@ -3769,31 +3800,38 @@ function App() {
                 >
                   {loadingStatusArchive ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
                 </button>
-                <button
-                  type="button"
-                  onClick={toggleProfileMenu}
-                  aria-label="Perfil y configuraciones"
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
-                    color: '#fff',
-                    fontWeight: '700',
-                    border: '2px solid #fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.85rem',
-                    boxShadow: '0 0 8px rgba(255,255,255,0.4)',
-                    transition: 'all 0.2s ease',
-                    padding: 0,
-                    flexShrink: 0
-                  }}
-                >
-                  {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
-                </button>
+                {isMobileLayout && (
+                  <button
+                    type="button"
+                    onClick={toggleProfileMenu}
+                    aria-label="Perfil y configuraciones"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: currentUser?.avatarUrl ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                      color: '#fff',
+                      fontWeight: '700',
+                      border: '2px solid #fff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem',
+                      boxShadow: '0 0 8px rgba(255,255,255,0.4)',
+                      transition: 'all 0.2s ease',
+                      padding: 0,
+                      flexShrink: 0,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {currentUser?.avatarUrl ? (
+                      <img src={currentUser.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+                    )}
+                  </button>
+                )}
               </div>
             </header>
 
@@ -3936,31 +3974,38 @@ function App() {
                 >
                   {loadingMessages[selectedChatId] ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : <ReloadIcon size={16} />}
                 </button>
-                <button
-                  type="button"
-                  onClick={toggleProfileMenu}
-                  aria-label="Perfil y configuraciones"
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
-                    color: '#fff',
-                    fontWeight: '700',
-                    border: '2px solid #fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.85rem',
-                    boxShadow: '0 0 8px rgba(255,255,255,0.4)',
-                    transition: 'all 0.2s ease',
-                    padding: 0,
-                    flexShrink: 0
-                  }}
-                >
-                  {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
-                </button>
+                {isMobileLayout && (
+                  <button
+                    type="button"
+                    onClick={toggleProfileMenu}
+                    aria-label="Perfil y configuraciones"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: currentUser?.avatarUrl ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                      color: '#fff',
+                      fontWeight: '700',
+                      border: '2px solid #fff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem',
+                      boxShadow: '0 0 8px rgba(255,255,255,0.4)',
+                      transition: 'all 0.2s ease',
+                      padding: 0,
+                      flexShrink: 0,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {currentUser?.avatarUrl ? (
+                      <img src={currentUser.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+                    )}
+                  </button>
+                )}
               </div>
             </header>
 
