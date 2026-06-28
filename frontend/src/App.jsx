@@ -127,6 +127,14 @@ function getAvatarGradient(id) {
   return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
 }
 
+function PhoneCallIcon({ size = 16, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </svg>
+  );
+}
+
 function ChatIcon({ size = 20, className = "" }) {
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
@@ -569,6 +577,16 @@ function App() {
   const [publishingStatus, setPublishingStatus] = useState(false);
   const [activeStoryIndex, setActiveStoryIndex] = useState(null);
 
+  // States for Discord-style WebRTC Voice Calls
+  const [localStream, setLocalStream] = useState(null);
+  const [inVoiceCall, setInVoiceCall] = useState(false);
+  const [voiceRoomId, setVoiceRoomId] = useState(null);
+  const [voicePeers, setVoicePeers] = useState([]);
+  const [isMuted, setIsMuted] = useState(false);
+
+  const peerConnectionsRef = useRef(new Map());
+  const localStreamRef = useRef(null);
+
   useEffect(() => {
     if (activeStoryIndex === null) return;
     const timer = setTimeout(() => {
@@ -597,6 +615,99 @@ function App() {
       setUserAvatarUrlInput(currentUser.avatarUrl || "");
     }
   }, [currentUser]);
+
+  function createPeerConnection(peerSocketId, peerInfo, isOfferOriginator) {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    peerConnectionsRef.current.set(peerSocketId, pc);
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        pc.addTrack(track, localStreamRef.current);
+      });
+    }
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && socketRef.current) {
+        socketRef.current.emit('send-voice-signal', {
+          to: peerSocketId,
+          signal: { candidate: event.candidate }
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      const remoteStream = event.streams[0];
+      setVoicePeers(prev => prev.map(p => {
+        if (p.socketId === peerSocketId) {
+          return { ...p, stream: remoteStream };
+        }
+        return p;
+      }));
+    };
+
+    if (isOfferOriginator) {
+      pc.createOffer().then(offer => {
+        return pc.setLocalDescription(offer);
+      }).then(() => {
+        socketRef.current.emit('send-voice-signal', {
+          to: peerSocketId,
+          signal: { sdp: pc.localDescription }
+        });
+      }).catch(e => console.error("Error creating WebRTC offer:", e));
+    }
+
+    return pc;
+  }
+
+  async function joinVoiceRoom(roomId) {
+    if (!roomId) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      
+      socketRef.current.emit('join-voice-room', { roomId });
+      setInVoiceCall(true);
+      setVoiceRoomId(roomId);
+      showNotice("🎙️ Te has unido al canal de voz.", "success");
+    } catch (e) {
+      console.error("Error joining voice room:", e);
+      showNotice("No se pudo acceder al micrófono para la llamada.", "error");
+    }
+  }
+
+  function leaveVoiceRoom() {
+    if (socketRef.current) {
+      socketRef.current.emit('leave-voice-room');
+    }
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+    setLocalStream(null);
+    peerConnectionsRef.current.forEach(pc => pc.close());
+    peerConnectionsRef.current.clear();
+    setInVoiceCall(false);
+    setVoiceRoomId(null);
+    setVoicePeers([]);
+    setIsMuted(false);
+    showNotice("🚪 Has abandonado la llamada.", "info");
+  }
+
+  const toggleMute = () => {
+    if (localStreamRef.current) {
+      const audioTracks = localStreamRef.current.getAudioTracks();
+      const nextMute = !isMuted;
+      audioTracks.forEach(track => {
+        track.enabled = !nextMute;
+      });
+      setIsMuted(nextMute);
+      showNotice(nextMute ? "🎤 Micrófono silenciado" : "🎤 Micrófono activo", "info");
+    }
+  };
 
   async function saveUserProfile() {
     const profilePayload = {
@@ -1514,9 +1625,66 @@ function App() {
       });
     });
 
+    // 🎙️ Voice Calls Socket Listeners
+    socket.on("voice-room-peers", ({ peers }) => {
+      setVoicePeers(peers.map(p => ({ ...p, stream: null })));
+      peers.forEach(peer => {
+        createPeerConnection(peer.socketId, peer, true);
+      });
+    });
+
+    socket.on("voice-peer-joined", (peer) => {
+      setVoicePeers(prev => {
+        if (prev.some(p => p.socketId === peer.socketId)) return prev;
+        return [...prev, { ...peer, stream: null }];
+      });
+      createPeerConnection(peer.socketId, peer, false);
+    });
+
+    socket.on("voice-peer-left", ({ socketId }) => {
+      setVoicePeers(prev => prev.filter(p => p.socketId !== socketId));
+      const pc = peerConnectionsRef.current.get(socketId);
+      if (pc) {
+        pc.close();
+        peerConnectionsRef.current.delete(socketId);
+      }
+    });
+
+    socket.on("voice-signal", ({ from, signal }) => {
+      const pc = peerConnectionsRef.current.get(from);
+      if (!pc) return;
+      if (signal.sdp) {
+        pc.setRemoteDescription(new RTCSessionDescription(signal.sdp)).then(() => {
+          if (signal.sdp.type === 'offer') {
+            return pc.createAnswer().then(answer => {
+              return pc.setLocalDescription(answer);
+            }).then(() => {
+              socket.emit('send-voice-signal', {
+                to: from,
+                signal: { sdp: pc.localDescription }
+              });
+            });
+          }
+        }).catch(e => console.error("Error setting remote SDP:", e));
+      }
+      if (signal.candidate) {
+        pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(e => console.error("Error adding ICE candidate:", e));
+      }
+    });
+
     return () => {
       socket.off("new_message", handleNewMessage);
+      socket.off("voice-room-peers");
+      socket.off("voice-peer-joined");
+      socket.off("voice-peer-left");
+      socket.off("voice-signal");
       socket.close();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+        localStreamRef.current = null;
+      }
+      peerConnectionsRef.current.forEach(pc => pc.close());
+      peerConnectionsRef.current.clear();
     };
   }, [apiAuthenticated]);
 
@@ -3951,6 +4119,31 @@ function App() {
               </div>
               <div className="chatHeaderActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
+                  className={inVoiceCall && voiceRoomId === selectedChatId ? "primary" : "secondary"}
+                  aria-label={inVoiceCall && voiceRoomId === selectedChatId ? "Salir de llamada de voz" : "Iniciar llamada de voz"}
+                  onClick={() => {
+                    if (inVoiceCall) {
+                      leaveVoiceRoom();
+                    } else {
+                      joinVoiceRoom(selectedChatId);
+                    }
+                  }}
+                  disabled={!selectedChatId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: inVoiceCall && voiceRoomId === selectedChatId ? '#ef4444' : undefined,
+                    color: inVoiceCall && voiceRoomId === selectedChatId ? '#fff' : undefined,
+                    border: inVoiceCall && voiceRoomId === selectedChatId ? 'none' : undefined,
+                  }}
+                >
+                  <PhoneCallIcon size={16} />
+                  <span className="hideOnMobile">
+                    {inVoiceCall && voiceRoomId === selectedChatId ? "Salir" : "Llamar"}
+                  </span>
+                </button>
+                <button
                   className="secondary"
                   aria-label="Ver recursos del contacto"
                   onClick={fetchResources}
@@ -4012,6 +4205,139 @@ function App() {
                 )}
               </div>
             </header>
+
+            {inVoiceCall && voiceRoomId === selectedChatId && (
+              <div style={{
+                background: 'rgba(15, 23, 42, 0.95)',
+                backdropFilter: 'blur(10px)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                padding: '12px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '15px',
+                zIndex: 10
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: '#16a34a',
+                      boxShadow: '0 0 10px #16a34a',
+                      display: 'inline-block'
+                    }} />
+                    <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: '600' }}>Llamada de Voz Activa</span>
+                  </div>
+                  
+                  {/* Participant Avatars */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '10px' }}>
+                    {/* Local User */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        background: currentUser?.avatarUrl ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.65rem',
+                        fontWeight: '700',
+                        color: '#fff',
+                        overflow: 'hidden'
+                      }}>
+                        {currentUser?.avatarUrl ? <img src={currentUser.avatarUrl} alt="Yo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: '#eee' }}>Tú {isMuted ? '🔇' : '🎙️'}</span>
+                    </div>
+
+                    {/* Remote Peers */}
+                    {voicePeers.map(peer => (
+                      <div key={peer.socketId} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: peer.avatarUrl ? 'transparent' : getAvatarGradient(peer.avatarColor || peer.userId),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.65rem',
+                          fontWeight: '700',
+                          color: '#fff',
+                          overflow: 'hidden'
+                        }}>
+                          {peer.avatarUrl ? <img src={peer.avatarUrl} alt={peer.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : peer.username.slice(0, 2).toUpperCase()}
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#eee' }}>{peer.username}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    onClick={toggleMute}
+                    style={{
+                      background: isMuted ? '#ef4444' : 'rgba(255,255,255,0.1)',
+                      border: 'none',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      width: '36px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '1rem',
+                      transition: 'all 0.2s',
+                      padding: 0
+                    }}
+                    title={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
+                  >
+                    {isMuted ? "🔇" : "🎙️"}
+                  </button>
+                  <button
+                    onClick={leaveVoiceRoom}
+                    style={{
+                      background: '#ef4444',
+                      border: 'none',
+                      color: '#fff',
+                      borderRadius: '8px',
+                      padding: '8px 14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    Desconectar
+                  </button>
+                </div>
+                
+                {/* Audio tags to play peer audio streams */}
+                <div style={{ display: 'none' }}>
+                  {voicePeers.map(peer => {
+                    if (!peer.stream) return null;
+                    return (
+                      <audio
+                        key={peer.socketId}
+                        autoPlay
+                        ref={el => {
+                          if (el && el.srcObject !== peer.stream) {
+                            el.srcObject = peer.stream;
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div
               className="messagesArea"

@@ -96,6 +96,7 @@ function getProviderState(provider) {
   }
   return providerStates.get(key);
 }
+const voiceRooms = new Map();
 let modelsCache = { provider: '', expiresAt: 0, data: [] };
 const avatarCache = new Map();
 const l1ChatsCache = new Map();
@@ -306,6 +307,118 @@ io.on('connection', (socket) => {
         senderId: socket.userId
       });
     }
+  });
+
+  // 🎙️ Voice Signaling & Call Rooms (Discord style WebRTC mesh)
+  socket.on('join-voice-room', async ({ roomId }) => {
+    if (!roomId) return;
+    try {
+      let username = 'Usuario';
+      let avatarColor = 'hsl(200, 70%, 40%)';
+      let avatarUrl = '';
+      if (socket.userId) {
+        const userObj = await User.findById(socket.userId).lean();
+        if (userObj) {
+          username = userObj.username;
+          avatarColor = userObj.avatarColor;
+          avatarUrl = userObj.avatarUrl;
+        }
+      }
+
+      socket.join(`voice_${roomId}`);
+      socket.voiceRoomId = roomId;
+
+      if (!voiceRooms.has(roomId)) {
+        voiceRooms.set(roomId, new Map());
+      }
+      
+      const roomPeers = voiceRooms.get(roomId);
+      
+      // Notify other peers in this room
+      socket.to(`voice_${roomId}`).emit('voice-peer-joined', {
+        socketId: socket.id,
+        userId: socket.userId,
+        username,
+        avatarColor,
+        avatarUrl
+      });
+      
+      // Add current socket to room
+      roomPeers.set(socket.id, {
+        userId: socket.userId,
+        username,
+        avatarColor,
+        avatarUrl
+      });
+
+      // Send the list of current peers to the newly joined client
+      const peerList = [];
+      for (const [sId, peerInfo] of roomPeers.entries()) {
+        if (sId !== socket.id) {
+          peerList.push({
+            socketId: sId,
+            userId: peerInfo.userId,
+            username: peerInfo.username,
+            avatarColor: peerInfo.avatarColor,
+            avatarUrl: peerInfo.avatarUrl
+          });
+        }
+      }
+      socket.emit('voice-room-peers', { peers: peerList });
+      
+      console.log(`🎙️ Socket ${socket.id} (User: ${username}) joined voice room: ${roomId}`);
+    } catch (err) {
+      console.error('Error in join-voice-room:', err);
+    }
+  });
+
+  socket.on('leave-voice-room', () => {
+    const roomId = socket.voiceRoomId;
+    if (!roomId) return;
+    
+    socket.leave(`voice_${roomId}`);
+    socket.voiceRoomId = null;
+    
+    const roomPeers = voiceRooms.get(roomId);
+    if (roomPeers) {
+      roomPeers.delete(socket.id);
+      if (roomPeers.size === 0) {
+        voiceRooms.delete(roomId);
+      }
+    }
+    
+    socket.to(`voice_${roomId}`).emit('voice-peer-left', {
+      socketId: socket.id,
+      userId: socket.userId
+    });
+    
+    console.log(`🎙️ Socket ${socket.id} left voice room: ${roomId}`);
+  });
+
+  socket.on('send-voice-signal', ({ to, signal }) => {
+    io.to(to).emit('voice-signal', {
+      from: socket.id,
+      signal
+    });
+  });
+
+  socket.on('disconnect', () => {
+    const roomId = socket.voiceRoomId;
+    if (roomId) {
+      const roomPeers = voiceRooms.get(roomId);
+      if (roomPeers) {
+        roomPeers.delete(socket.id);
+        if (roomPeers.size === 0) {
+          voiceRooms.delete(roomId);
+        }
+      }
+      socket.to(`voice_${roomId}`).emit('voice-peer-left', {
+        socketId: socket.id,
+        userId: socket.userId
+      });
+      console.log(`🎙️ Socket ${socket.id} disconnected, left voice room: ${roomId}`);
+    }
+    console.log(`🔌 Client disconnected from socket: ${socket.userId}`);
   });
 });
 
