@@ -4207,8 +4207,14 @@ function App() {
                 <div className="chatHeaderInfo">
                   <h3>{selectedChat?.name || "Seleccioná un chat"}</h3>
                   <p>
-                    {selectedChat?.id || "Sin chat seleccionado"}
-                    {selectedChat?.isGroup ? " · Grupo" : ""}
+                    {typingStates[selectedChatId] ? (
+                      <span style={{ color: '#16a34a', fontWeight: '600' }}>Escribiendo...</span>
+                    ) : (
+                      <>
+                        {selectedChat?.id || "Sin chat seleccionado"}
+                        {selectedChat?.isGroup ? " · Grupo" : ""}
+                      </>
+                    )}
                   </p>
                 </div>
               </div>

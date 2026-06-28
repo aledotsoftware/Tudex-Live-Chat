@@ -63,7 +63,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT:-8080}:5173"
+      - "${FRONTEND_PORT:-8080}:4173"
 
 volumes:
   mongo_data:
