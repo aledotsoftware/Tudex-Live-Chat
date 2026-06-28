@@ -2357,3 +2357,16 @@ select {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Grouped / Consecutive Chat Bubbles */
+.bubbleRow.consecutive {
+  margin-top: 2px !important;
+}
+
+.bubbleRow.mine.consecutive .bubble {
+  border-top-right-radius: 4px !important;
+}
+
+.bubbleRow.theirs.consecutive .bubble {
+  border-top-left-radius: 4px !important;
+}
