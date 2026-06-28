@@ -67,12 +67,17 @@ window.fetch = async (...args) => {
   return response;
 };
 
+// ⚡ Bolt: Cache Intl.DateTimeFormat instances to avoid expensive instantiation on every render for large lists
+const timeFormatter = new Intl.DateTimeFormat([], { hour: "2-digit", minute: "2-digit" });
+const dateFormatter = new Intl.DateTimeFormat([], { day: "2-digit", month: "2-digit" });
+const dateTimeFormatter = new Intl.DateTimeFormat([], {
+  year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit"
+});
+
 function formatTime(unixTs) {
   const value = Number(unixTs) || Math.floor(Date.now() / 1000);
-  return new Date(value * 1000).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return timeFormatter.format(value * 1000);
 }
 
 function formatChatTime(unixTs) {
@@ -85,19 +90,13 @@ function formatChatTime(unixTs) {
     date.getMonth() === now.getMonth() &&
     date.getFullYear() === now.getFullYear();
   if (sameDay) return formatTime(value);
-  return date.toLocaleDateString([], { day: "2-digit", month: "2-digit" });
+  return dateFormatter.format(value * 1000);
 }
 
 function formatStatusDate(unixTs) {
   const value = Number(unixTs);
   if (!value) return "";
-  return new Date(value * 1000).toLocaleString([], {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return dateTimeFormatter.format(value * 1000);
 }
 
 function messageId(msg) {

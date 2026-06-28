@@ -18,3 +18,6 @@
 ## 2026-06-26 - [React Memoization for Inline Computations]
 **Learning:** Heavy inline computations (like text sentiment analysis) inside mapped arrays of a frequently re-rendering component cause severe main thread blocking and typing lag. In this app, typing in the draft input re-rendered the entire `App` component, re-running O(chats * words) operations on every keystroke.
 **Action:** Extract expensive inline computations rendered inside lists into separate components wrapped in `React.memo`, passing only the necessary primitive or memoized props to prevent recalculation on unrelated state updates.
+## 2024-06-26 - [Intl.DateTimeFormat Instantiation Optimization]
+**Learning:** Using `Date.prototype.toLocaleDateString` or `toLocaleString` inside loops or React render methods (like when mapping over thousands of chat messages) causes severe main thread blocking. This is because these methods silently instantiate a new `Intl.DateTimeFormat` object under the hood on every call, which is an extremely expensive operation in V8.
+**Action:** Always extract and cache `Intl.DateTimeFormat` instances at the module level and reuse their `.format()` method when rendering lists of dates to achieve >100x speedups.
