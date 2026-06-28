@@ -1235,7 +1235,18 @@ function buildConversationKey(provider, accountId, conversationId) {
 
 function parseProviderContext(req = {}) {
   const provider = normalizeProvider(req.query?.provider || req.body?.provider || DEFAULT_PROVIDER);
-  const accountId = normalizeAccountId(req.query?.accountId || req.body?.accountId || (req.user ? String(req.user._id) : '') || DEFAULT_ACCOUNT_ID);
+  let accountId = normalizeAccountId(req.query?.accountId || req.body?.accountId || (req.user ? String(req.user._id) : '') || DEFAULT_ACCOUNT_ID);
+
+  // 🛡️ Sentinel: Fix IDOR by ensuring non-admin users can only access their own accountId or the shared default account
+  if (req.user && req.user.username !== 'admin') {
+    const userId = String(req.user._id);
+    if (provider === 'local') {
+      accountId = userId;
+    } else if (accountId !== userId && accountId !== DEFAULT_ACCOUNT_ID) {
+      accountId = userId;
+    }
+  }
+
   return { provider, accountId };
 }
 
