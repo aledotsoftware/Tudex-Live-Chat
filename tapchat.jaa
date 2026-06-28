@@ -1,0 +1,23 @@
+# TAPCHAT STATE MEMORY (.jaa)
+
+## 1. System State
+* **Frontend**: Production React + Vite bundle previewing at port `8080` (internally port `4173` inside the container). Includes installable PWA with Service Worker Workbox caching.
+* **Backend**: Node/Express server running on port `3005`, reverse-proxied under Vite on port `8080/api` and `8080/socket.io`.
+* **Database**: MongoDB running on standard docker network.
+* **WebRTC Calling & Screen Share**: Mesh architecture with socket signaling. Screen sharing fully implemented with direct track swapping, inline viewport rendering, and candidate queueing to prevent race conditions.
+
+## 2. Key Architectural Decisions
+* **Production Serving in Dev Containers**: Changed the frontend container from `npm run dev` to `npm run build && npm run preview` to enable Service Worker offline loading (as Vite dev servers inject dynamic dependencies that break offline caching).
+* **WebRTC Candidate Queueing**: Implemented `candidateQueueRef` to delay adding ICE candidates until `remoteDescription` is resolved, solving standard WebRTC handshake failures.
+* **Inline Screen Sharing Viewports**: Multi-user screen sharing uses direct WebRTC video tracks rendered inline above the message pane, keeping UX compact and aligned with Discord rooms.
+* **Local Persistence of Composer Drafts**: Hooked the drafts engine to `localStorage` to prevent chat switching or page refresh from wiping out partially written messages.
+* **Heartbeat Presence/Sync indicators**: Transformed background sync feedback from a discrete text indicator to a premium infinite linear progress line (`tapchat-sync-shimmer`) directly on the chatHeader.
+* **Pulsing Skeleton screens**: Implemented CSS classes `.skeleton-msg` inside `App.css` (which were rendered but never styled). Added alternate sent/received positions and shimmer effects to smooth the layout shift on chat load.
+
+## 3. Technical Debt & Warnings
+* **ICE Server Constraints**: Currently uses public Google STUN servers (`stun:stun.l.google.com:19302`). For reliable deployment across symmetric NATs, a TURN server (e.g. Coturn) must be configured in `App.jsx` iceServers.
+* **IndexedDB/API Sync Frequency**: Offline-written messages are queued and sent when reconnecting, but there's a risk of out-of-order execution if the socket reconnects while a HTTP request is pending.
+
+## 4. Next Step Logical Tasks
+1. Audit LM Studio/Cloudflare AI integration timeouts under slow network connections.
+2. Implement virtual scrolling (`react-window` or virtualized list) for very long chat message histories to optimize DOM load.

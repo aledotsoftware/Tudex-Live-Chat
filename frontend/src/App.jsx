@@ -496,7 +496,13 @@ function App() {
   const [loadingStatusArchive, setLoadingStatusArchive] = useState(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [pendingIncomingCount, setPendingIncomingCount] = useState(0);
-  const [draftsByChat, setDraftsByChat] = useState(() => { try { return JSON.parse(localStorage.getItem("tapchat_drafts") || "{}"); } catch (e) { return {}; } }); const draft = draftsByChat[selectedChatId] || ""; const setDraft = (val) => setDraftsByChat(prev => ({ ...prev, [selectedChatId]: val }));
+  const [draftsByChat, setDraftsByChat] = useState(() => { try { return JSON.parse(localStorage.getItem("tapchat_drafts") || "{}"); } catch (e) { return {}; } });
+  const draft = draftsByChat[selectedChatId] || "";
+  const setDraft = (val) => setDraftsByChat(prev => ({ ...prev, [selectedChatId]: val }));
+
+  useEffect(() => {
+    localStorage.setItem("tapchat_drafts", JSON.stringify(draftsByChat));
+  }, [draftsByChat]);
   const [correctedDraft, setCorrectedDraft] = useState("");
   const debouncedDraftRef = useRef(null);
   const [replyTarget, setReplyTarget] = useState(null);
@@ -4178,7 +4184,26 @@ function App() {
           </div>
         ) : (
           <>
-            <header className="chatHeader">
+            <header className="chatHeader" style={{ position: 'relative' }}>
+              <style>{`
+                @keyframes tapchat-sync-shimmer {
+                  0% { background-position: -200% 0; }
+                  100% { background-position: 200% 0; }
+                }
+              `}</style>
+              {syncingChat && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '3px',
+                  background: 'linear-gradient(90deg, #ff6f24 25%, #ff8c42 50%, #ff6f24 75%)',
+                  backgroundSize: '200% 100%',
+                  animation: 'tapchat-sync-shimmer 1.5s infinite linear',
+                  zIndex: 20
+                }} />
+              )}
               <div className="chatHeaderLeft">
                 <button
                   className="secondary mobileBackBtn"
