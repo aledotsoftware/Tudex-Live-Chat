@@ -2034,8 +2034,9 @@ select {
 /* Toasts */
 .toast-container {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
+  bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2375,4 +2376,9 @@ select {
   0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 111, 36, 0.45); }
   70% { transform: scale(1.06); box-shadow: 0 0 0 20px rgba(255, 111, 36, 0); }
   100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 111, 36, 0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }

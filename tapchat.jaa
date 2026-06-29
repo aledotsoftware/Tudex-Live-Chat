@@ -23,6 +23,12 @@
   * Added local connection loss handler to auto-disconnect users from calls (`leaveVoiceRoom`) and cleanup WebRTC states during network cuts.
   * Integrated an `oniceconnectionstatechange` handler inside peer connections to automatically alert users and drop participants whose connection states fail/disconnect.
   * Integrated a premium inline **Volume Slider** in the voice call dashboard to dynamically scale peer `<audio>` output gain from `0%` to `100%`.
+* **PIP Global Minimizable VoIP Calling**:
+  * Integrated `isCallMinimized` state to shrink active call tray controls into a clean, floating, draggable PIP-like widget in the bottom-right corner.
+  * Allows users to navigate to other chats/menus or minimize the call window to continue typing, while keeping global mic mute/unmute, maximization, and hang up controls fully accessible.
+* **PWA Native OS Notification Integration & Layout Corrections**:
+  * Repositioned in-app `.toast-container` to the top-right corner (`top: 24px; right: 24px; bottom: auto`) to prevent notifications from overlapping and blocking the message composer input field.
+  * Configured `showNotice` to automatically broadcast native Operating System notifications through the Service Worker (`showNotification`) with automatic fallback to standard native browser notification APIs if permission is granted, enabling real background/PWA alerts.
 
 ## 3. Technical Debt & Warnings
 * **ICE Server Constraints**: Currently uses public Google STUN servers (`stun:stun.l.google.com:19302`). For reliable deployment across symmetric NATs, a TURN server (e.g. Coturn) must be configured in `App.jsx` iceServers.

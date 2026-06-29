@@ -441,6 +441,30 @@ function App() {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 4500);
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification("Tapchat", {
+            body: text,
+            icon: "/favicon.ico",
+            badge: "/favicon.ico",
+            tag: "tapchat-notice",
+            renotify: true
+          });
+        }).catch(() => {
+          new Notification("Tapchat", {
+            body: text,
+            icon: "/favicon.ico"
+          });
+        });
+      } catch (e) {
+        new Notification("Tapchat", {
+          body: text,
+          icon: "/favicon.ico"
+        });
+      }
+    }
   }
 
   const [loadingChats, setLoadingChats] = useState(false);
@@ -593,6 +617,7 @@ function App() {
   const [incomingCallInfo, setIncomingCallInfo] = useState(null);
   const [outgoingCallInfo, setOutgoingCallInfo] = useState(null);
   const [callVolume, setCallVolume] = useState(80);
+  const [isCallMinimized, setIsCallMinimized] = useState(false);
 
   useEffect(() => {
     if (isOffline && inVoiceCall) {
@@ -751,6 +776,7 @@ function App() {
       socketRef.current.emit('join-voice-room', { roomId });
       setInVoiceCall(true);
       setVoiceRoomId(roomId);
+      setIsCallMinimized(false);
       
       if (isAccepting) {
         stopRingtone();
@@ -799,6 +825,7 @@ function App() {
     setActiveCallState("idle");
     setIncomingCallInfo(null);
     setOutgoingCallInfo(null);
+    setIsCallMinimized(false);
     showNotice("🚪 Has abandonado la llamada.", "info");
   }
 
@@ -4442,7 +4469,7 @@ function App() {
               </div>
             </header>
 
-            {inVoiceCall && voiceRoomId === selectedChatId && (
+            {inVoiceCall && voiceRoomId === selectedChatId && !isCallMinimized && (
               <div style={{ display: 'flex', flexDirection: 'column', width: '100%', zIndex: 10 }}>
                 <div style={{
                   background: 'rgba(15, 23, 42, 0.95)',
@@ -4576,6 +4603,24 @@ function App() {
                       />
                     </div>
 
+                    <button
+                      onClick={() => setIsCallMinimized(true)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: 'none',
+                        color: '#fff',
+                        borderRadius: '8px',
+                        padding: '8px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: '600'
+                      }}
+                    >
+                      🗕 Minimizar
+                    </button>
                     <button
                       onClick={leaveVoiceRoom}
                       style={{
@@ -6281,6 +6326,109 @@ function App() {
               title="Rechazar llamada"
             >
               ❌
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 📞 Floating Call Widget (PIP) */}
+      {inVoiceCall && (isCallMinimized || voiceRoomId !== selectedChatId) && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          background: 'rgba(15, 23, 42, 0.95)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '16px',
+          padding: '12px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '15px',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+          zIndex: 9999,
+          color: '#fff',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} /> En llamada
+            </span>
+            <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>
+              {voicePeers.length > 0 ? `${voicePeers.length + 1} participantes` : "Esperando..."}
+            </span>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {/* Quick Mute */}
+            <button
+              onClick={toggleMute}
+              style={{
+                background: isMuted ? '#ef4444' : 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: '#fff',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                padding: 0
+              }}
+            >
+              {isMuted ? "🔇" : "🎙️"}
+            </button>
+            
+            {/* Maximizar */}
+            <button
+              onClick={() => {
+                if (voiceRoomId) {
+                  setSelectedChatId(voiceRoomId);
+                  setViewMode("chats");
+                }
+                setIsCallMinimized(false);
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: '#fff',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                padding: 0
+              }}
+              title="Maximizar"
+            >
+              🗖
+            </button>
+
+            {/* Hang Up */}
+            <button
+              onClick={leaveVoiceRoom}
+              style={{
+                background: '#ef4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                padding: 0
+              }}
+              title="Desconectar"
+            >
+              📞
             </button>
           </div>
         </div>
