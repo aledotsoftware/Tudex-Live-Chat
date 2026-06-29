@@ -4559,6 +4559,7 @@ function App() {
                         padding: 0
                       }}
                       title={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
+                      aria-label={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
                     >
                       {isMuted ? "🔇" : "🎙️"}
                     </button>
@@ -4580,6 +4581,7 @@ function App() {
                         padding: 0
                       }}
                       title={screenStream ? "Dejar de compartir pantalla" : "Compartir pantalla"}
+                      aria-label={screenStream ? "Dejar de compartir pantalla" : "Compartir pantalla"}
                     >
                       🖥️
                     </button>
@@ -4600,6 +4602,7 @@ function App() {
                           cursor: 'pointer'
                         }}
                         title={`Volumen de llamada: ${callVolume}%`}
+                        aria-label={`Volumen de llamada: ${callVolume}%`}
                       />
                     </div>
 
@@ -6225,6 +6228,7 @@ function App() {
               transition: 'all 0.2s'
             }}
             title="Cancelar llamada"
+            aria-label="Cancelar llamada"
           >
             🔇
           </button>
@@ -6291,6 +6295,7 @@ function App() {
                 transition: 'all 0.2s'
               }}
               title="Aceptar llamada"
+              aria-label="Aceptar llamada"
             >
               📞
             </button>
@@ -6324,6 +6329,7 @@ function App() {
                 transition: 'all 0.2s'
               }}
               title="Rechazar llamada"
+              aria-label="Rechazar llamada"
             >
               ❌
             </button>
@@ -6405,6 +6411,7 @@ function App() {
                 padding: 0
               }}
               title="Maximizar"
+              aria-label="Maximizar"
             >
               🗖
             </button>
@@ -6427,6 +6434,7 @@ function App() {
                 padding: 0
               }}
               title="Desconectar"
+              aria-label="Desconectar"
             >
               📞
             </button>
