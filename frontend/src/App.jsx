@@ -4185,8 +4185,9 @@ function App() {
                 <div className="chatHeaderInfo">
                   <h3>Estados archivados</h3>
                   <p>
+                    {/* ⚡ Bolt: Using cached timeFormatter instead of toLocaleTimeString to prevent instantiation overhead */}
                     {backendStatus.statusArchive?.lastRunAt
-                      ? `Última revisión ${new Date(backendStatus.statusArchive.lastRunAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                      ? `Última revisión ${timeFormatter.format(new Date(backendStatus.statusArchive.lastRunAt))}`
                       : "Escaneo automático cada minuto"}
                   </p>
                 </div>

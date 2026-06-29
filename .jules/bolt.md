@@ -21,3 +21,6 @@
 ## 2024-06-26 - [Intl.DateTimeFormat Instantiation Optimization]
 **Learning:** Using `Date.prototype.toLocaleDateString` or `toLocaleString` inside loops or React render methods (like when mapping over thousands of chat messages) causes severe main thread blocking. This is because these methods silently instantiate a new `Intl.DateTimeFormat` object under the hood on every call, which is an extremely expensive operation in V8.
 **Action:** Always extract and cache `Intl.DateTimeFormat` instances at the module level and reuse their `.format()` method when rendering lists of dates to achieve >100x speedups.
+## $(date +%Y-%m-%d) - [Intl.DateTimeFormat Instantiation Optimization]
+**Learning:** Using `Date.prototype.toLocaleTimeString` inside React render methods causes severe main thread blocking. This is because these methods silently instantiate a new `Intl.DateTimeFormat` object under the hood on every call, which is an extremely expensive operation in V8.
+**Action:** Always extract and cache `Intl.DateTimeFormat` instances at the module level and reuse their `.format()` method when rendering dates/times.
