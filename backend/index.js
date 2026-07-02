@@ -2743,15 +2743,25 @@ app.post('/api/correct', async (req, res) => {
   }
 });
 
-app.get('/api/ai/config', async (_req, res) => {
+app.get('/api/ai/config', async (req, res) => {
   try {
     const configResponse = {
       ...aiConfig,
       provider: getAiProvider(aiConfig),
       aiBaseUrl: getAiBaseUrl(aiConfig)
     };
-    if (configResponse.cloudflareApiToken) {
-      configResponse.cloudflareApiToken = '********';
+
+    // 🛡️ Sentinel: Redact sensitive internal URLs and API tokens for non-admins to prevent info leakage
+    if (!req.user || req.user.username !== 'admin') {
+      if (configResponse.cloudflareApiToken) configResponse.cloudflareApiToken = '********';
+      if (configResponse.cloudflareAccountId) configResponse.cloudflareAccountId = '********';
+      if (configResponse.lmStudioBaseUrl) configResponse.lmStudioBaseUrl = '********';
+      if (configResponse.cloudflareBaseUrl) configResponse.cloudflareBaseUrl = '********';
+      if (configResponse.aiBaseUrl) configResponse.aiBaseUrl = '********';
+    } else {
+      if (configResponse.cloudflareApiToken) {
+        configResponse.cloudflareApiToken = '********';
+      }
     }
     res.json(configResponse);
   } catch (error) {
@@ -2841,9 +2851,9 @@ app.put('/api/ai/config', async (req, res) => {
   }
 });
 
-app.get('/api/ai/health', async (_req, res) => {
+app.get('/api/ai/health', async (req, res) => {
   try {
-    const models = await getAvailableModels(_req.query.refresh === '1');
+    const models = await getAvailableModels(req.query.refresh === '1');
     const provider = getAiProvider(aiConfig);
     const payload = {
       ok: true,
@@ -2853,7 +2863,12 @@ app.get('/api/ai/health', async (_req, res) => {
       models
     };
 
-    const shouldProbe = _req.query.probe === '1';
+    // 🛡️ Sentinel: Redact sensitive internal URLs for non-admins to prevent info leakage
+    if (!req.user || req.user.username !== 'admin') {
+      if (payload.aiBaseUrl) payload.aiBaseUrl = '********';
+    }
+
+    const shouldProbe = req.query.probe === '1';
     if (shouldProbe) {
       try {
         const probe = await axios.post(getAiChatCompletionsUrl(aiConfig), {
