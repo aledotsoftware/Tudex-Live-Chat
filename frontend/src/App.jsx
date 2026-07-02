@@ -4332,7 +4332,7 @@ function App() {
                             }}
                             title="Reaccionar"
                           >
-                            React
+                            +
                           </button>
                         )}
 
