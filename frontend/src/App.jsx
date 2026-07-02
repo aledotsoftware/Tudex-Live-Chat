@@ -4365,6 +4365,7 @@ function App() {
                               setActiveReactionPicker(activeReactionPicker === msg._uiId ? null : msg._uiId);
                             }}
                             title="Reaccionar"
+                            aria-label="Reaccionar"
                           >
                             +
                           </button>
@@ -4378,6 +4379,7 @@ function App() {
                                 key={emoji}
                                 type="button"
                                 className="reaction-emoji-btn"
+                                aria-label={`Reaccionar con ${emoji}`}
                                 onClick={() => {
                                   sendReaction(msg.providerMessageId, emoji);
                                   setActiveReactionPicker(null);
