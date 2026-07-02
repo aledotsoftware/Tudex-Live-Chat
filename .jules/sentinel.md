@@ -22,3 +22,8 @@
 **Vulnerability:** The `PUT /api/ai/config` endpoint lacked admin authorization checks. Any authenticated user could modify global AI configuration settings, including base URLs and prompts, introducing Broken Access Control and Server-Side Request Forgery (SSRF) risks.
 **Learning:** Global configuration endpoints must explicitly verify the user's role (e.g., `req.user.username === 'admin'`) rather than just relying on generic authentication middleware, to prevent unauthorized system-wide tampering.
 **Prevention:** Always enforce role-based access control (RBAC) on endpoints that mutate global state or configure external integrations.
+
+## 2024-07-02 - Redact sensitive internal URLs for non-admins
+**Vulnerability:** Information leakage where internal AI service URLs (e.g., lmStudioBaseUrl) were exposed to non-admin users via read endpoints.
+**Learning:** API read endpoints (`GET`) needed by the frontend often expose configuration data that must be explicitly filtered or redacted based on user roles, since non-admins need access to the endpoint but shouldn't see sensitive internal routing.
+**Prevention:** Ensure the authorization condition fails closed for unauthenticated requests (e.g., `if (!req.user || req.user.username !== "admin")`) and explicitly overwrite sensitive properties with placeholder values (e.g., `********`) before returning the response payload.

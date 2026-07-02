@@ -99,6 +99,7 @@ export function VoiceCallOverlay({
               margin: '0 auto'
             }}
             title="Cancelar llamada"
+            aria-label="Cancelar llamada"
           >
             Muted
           </button>
@@ -168,6 +169,7 @@ export function VoiceCallOverlay({
               transition: 'all 0.2s'
             }}
             title="Aceptar llamada"
+            aria-label="Aceptar llamada"
           >
             Call
           </button>
@@ -191,6 +193,7 @@ export function VoiceCallOverlay({
               transition: 'all 0.2s'
             }}
             title="Rechazar llamada"
+            aria-label="Rechazar llamada"
           >
             Close
           </button>
@@ -246,6 +249,7 @@ export function VoiceCallOverlay({
               fontSize: '0.9rem',
               padding: 0
             }}
+            aria-label={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
           >
             {isMuted ? "Muted" : "Mic"}
           </button>
@@ -274,6 +278,7 @@ export function VoiceCallOverlay({
               padding: 0
             }}
             title="Maximizar"
+            aria-label="Maximizar"
           >
             
           </button>
@@ -296,6 +301,7 @@ export function VoiceCallOverlay({
               padding: 0
             }}
             title="Desconectar"
+            aria-label="Desconectar"
           >
             Call
           </button>
@@ -658,6 +664,7 @@ export function VoiceCallOverlay({
               boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
             }}
             title={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
+            aria-label={isMuted ? "Activar micrófono" : "Silenciar micrófono"}
           >
             {isMuted ? "Muted" : "Mic"}
           </button>
@@ -681,6 +688,7 @@ export function VoiceCallOverlay({
               boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
             }}
             title={screenStream ? "Dejar de compartir pantalla" : "Compartir pantalla"}
+            aria-label={screenStream ? "Dejar de compartir pantalla" : "Compartir pantalla"}
           >
             Screen
           </button>
@@ -709,6 +717,7 @@ export function VoiceCallOverlay({
                 cursor: 'pointer'
               }}
               title={`Volumen: ${callVolume}%`}
+              aria-label={`Volumen: ${callVolume}%`}
             />
           </div>
           
