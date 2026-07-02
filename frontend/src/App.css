@@ -1586,10 +1586,13 @@ button.fullWidth {
   }
 
   .headerActions button {
-    flex: 1;
-    padding: 8px 12px;
-    min-height: 48px;
-    min-width: 48px;
+    flex: none;
+    padding: 0;
+    min-height: 36px;
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
   }
 
   .waApp {
@@ -2441,6 +2444,7 @@ select {
   transition: all 0.2s;
   color: #ccc;
   user-select: none;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
 }
 .reaction-badge:hover {
   background: rgba(255, 255, 255, 0.12);
@@ -2469,6 +2473,7 @@ select {
   z-index: 5;
   font-size: 0.75rem;
   color: #ccc;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
 }
 .bubbleRow:hover .reaction-picker-trigger {
   opacity: 1;
@@ -2476,8 +2481,6 @@ select {
 .reaction-picker-menu {
   position: absolute;
   top: -36px;
-  left: 50%;
-  transform: translateX(-50%);
   background: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 18px;
@@ -2488,6 +2491,16 @@ select {
   z-index: 20;
   animation: slideIn 0.12s ease-out;
 }
+.bubbleRow.mine .reaction-picker-menu {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+.bubbleRow:not(.mine) .reaction-picker-menu {
+  left: 0;
+  right: auto;
+  transform: none;
+}
 .reaction-emoji-btn {
   background: transparent;
   border: none;
@@ -2495,6 +2508,7 @@ select {
   cursor: pointer;
   padding: 2px;
   transition: transform 0.15s;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
 }
 .reaction-emoji-btn:hover {
   transform: scale(1.25);

@@ -1171,8 +1171,9 @@ function App() {
 
   const filteredChats = useMemo(() => {
     const needle = chatSearch.trim().toLowerCase();
-    if (!needle) return chats;
-    return chats.filter((chat) => {
+    const activeChats = chats.filter(c => c.id !== 'ai_assistant');
+    if (!needle) return activeChats;
+    return activeChats.filter((chat) => {
       const label = `${chat.name || ""} ${chat.id || ""}`.toLowerCase();
       return label.includes(needle);
     });
@@ -4338,7 +4339,7 @@ function App() {
                         {/* Reaction Picker Popup Menu */}
                         {activeReactionPicker === msg._uiId && (
                           <div className="reaction-picker-menu" onClick={(e) => e.stopPropagation()}>
-                            {['Like', 'Love', 'Haha', 'Wow', 'Sad', 'Pray'].map(emoji => (
+                            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
                               <button
                                 key={emoji}
                                 type="button"
@@ -4509,51 +4510,7 @@ function App() {
               ) : null}
 
               {/* Suggestions displayed above the input pill exactly like a preview card */}
-              {correctedDraft ? (
-                <div className="correctedPreview" style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  marginBottom: '12px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
-                }}>
-                  <div className="correctedHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <p className="correctedLabel" style={{ margin: 0, fontWeight: '700', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>AI Versión sugerida por IA</p>
-                    <button
-                      className="iconButton"
-                      onClick={() => setCorrectedDraft("")}
-                      style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem' }}
-                      title="Descartar"
-                      aria-label="Descartar versión sugerida"
-                    >
-                      
-                    </button>
-                  </div>
-                  <p className="correctedText" style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: '#f8fafc', lineHeight: '1.4' }}>{correctedDraft}</p>
 
-                  <div className="correctedActions" style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      className="primary sendCorrectedBtn"
-                      onClick={() => sendMessage(correctedDraft, "corrected")}
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', fontWeight: '600' }}
-                    >
-                      Send Enviar versión IA
-                    </button>
-                    <button
-                      className="secondary useCorrectedBtn"
-                      onClick={() => {
-                        setDraft(correctedDraft);
-                        setCorrectedDraft("");
-                      }}
-                      style={{ padding: '8px 12px', borderRadius: '10px' }}
-                    >
-                      Edit Usar y editar
-                    </button>
-                  </div>
-                </div>
-              ) : null}
 
               {/* WhatsApp-style Composer Row */}
               <div className="whatsappComposerRow" style={{
@@ -4611,7 +4568,7 @@ function App() {
                       }
                     }}
                     onKeyDown={handleDraftKeyDown}
-                    placeholder={correctedDraft ? "Escribe un mensaje... (Enter: enviar versión IA)" : "Escribe un mensaje... (Enter: enviar original | botón AI para mejorar)"}
+                    placeholder="Escribe un mensaje..."
                     rows={1}
                     style={{
                       flex: 1,
@@ -4629,30 +4586,6 @@ function App() {
                     }}
                     disabled={sending || correcting || correctingAndSending}
                   />
-
-                  {/* IA Magic button inside Pill */}
-                  <button
-                    type="button"
-                    onClick={correctDraft}
-                    disabled={!draft.trim() || correcting || correctingAndSending}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: draft.trim() ? 'var(--accent-primary)' : '#64748b',
-                      fontSize: '1.25rem',
-                      cursor: draft.trim() ? 'pointer' : 'not-allowed',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px',
-                      transition: 'all 0.2s ease',
-                      transform: draft.trim() ? 'scale(1.15)' : 'none'
-                    }}
-                    title="Mejorar redacción con IA (Ver sugerencia)"
-                    aria-label="Mejorar redacción con IA"
-                  >
-                    AI
-                  </button>
                 </div>
 
                 {/* Circular Send Button */}
@@ -4795,13 +4728,7 @@ function App() {
               >
                  Mi Cuenta
               </button>
-              <button
-                type="button"
-                className={`settingsSidebarTab ${activeSettingsTab === 'ai' ? 'active' : ''}`}
-                onClick={() => setActiveSettingsTab('ai')}
-              >
-                AI Asistente de IA
-              </button>
+
               <button
                 type="button"
                 className={`settingsSidebarTab ${activeSettingsTab === 'shortcuts' ? 'active' : ''}`}
@@ -5069,178 +4996,7 @@ function App() {
                   </>
                 )}
 
-                {/* Tab Content: AI Settings */}
-                {activeSettingsTab === 'ai' && (
-                  <>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fff', marginBottom: '4px' }}>Ajustes del Asistente de IA</h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Configure la conexión con su servidor LM Studio local o cuenta de Cloudflare AI.</p>
 
-                    <div>
-                      <label htmlFor="aiProvider">Proveedor de IA</label>
-                      <select
-                        id="aiProvider"
-                        value={aiConfig.provider}
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, provider: e.target.value }))}
-                      >
-                        <option value="lmstudio">LM Studio (Local)</option>
-                        <option value="cloudflare">Cloudflare AI</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label htmlFor="aiEndpoint">Endpoint Activo</label>
-                      <input id="aiEndpoint" value={aiConfig.aiBaseUrl} readOnly style={{ opacity: 0.6 }} />
-                    </div>
-
-                    {aiConfig.provider === "lmstudio" ? (
-                      <div>
-                        <label htmlFor="lmStudioBaseUrl">URL de LM Studio</label>
-                        <input
-                          id="lmStudioBaseUrl"
-                          value={aiConfig.lmStudioBaseUrl}
-                          onChange={(e) => setAiConfig((prev) => ({ ...prev, lmStudioBaseUrl: e.target.value }))}
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <label htmlFor="cfAccountId">Cloudflare Account ID</label>
-                          <input
-                            id="cfAccountId"
-                            value={aiConfig.cloudflareAccountId}
-                            onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareAccountId: e.target.value }))}
-                          />
-                        </div>
-
-                        <div>
-                          <label htmlFor="cfApiToken">Cloudflare API Token</label>
-                          <div className="passwordInputWrapper" style={{ position: 'relative' }}>
-                            <input
-                              id="cfApiToken"
-                              type={showCloudflareToken ? "text" : "password"}
-                              value={aiConfig.cloudflareApiToken}
-                              onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareApiToken: e.target.value }))}
-                              style={{ paddingRight: '40px' }}
-                            />
-                            <button
-                              type="button"
-                              className="passwordToggleBtn"
-                              onClick={() => setShowCloudflareToken(!showCloudflareToken)}
-                              aria-label={showCloudflareToken ? "Ocultar Token" : "Mostrar Token"}
-                              style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'rgba(255,255,255,0.6)', minWidth: '40px', minHeight: '40px' }}
-                            >
-                              {showCloudflareToken ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label htmlFor="cfBaseUrl">Cloudflare Base URL (Opcional)</label>
-                          <input
-                            id="cfBaseUrl"
-                            value={aiConfig.cloudflareBaseUrl}
-                            onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareBaseUrl: e.target.value }))}
-                            placeholder="https://api.cloudflare.com/client/v4/accounts/{account_id}/ai"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    <div>
-                      <label htmlFor="aiModel">Modelo de Lenguaje</label>
-                      <select
-                        id="aiModel"
-                        value={aiConfig.modelName}
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
-                        style={{ marginBottom: '8px' }}
-                      >
-                        <option value="">Seleccionar modelo detectado...</option>
-                        {aiModels.map((model) => (
-                          <option key={model} value={model}>{model}</option>
-                        ))}
-                      </select>
-                      <input
-                        id="aiModelInput"
-                        value={aiConfig.modelName}
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
-                        placeholder="O escriba el nombre del modelo manualmente..."
-                      />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label htmlFor="aiTemperature">Temperatura</label>
-                        <input
-                          id="aiTemperature"
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="2"
-                          value={aiConfig.temperature}
-                          onChange={(e) => setAiConfig((prev) => ({ ...prev, temperature: Number(e.target.value) }))}
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="aiTimeoutMs">Timeout IA (ms)</label>
-                        <input
-                          id="aiTimeoutMs"
-                          type="number"
-                          min="5000"
-                          step="1000"
-                          value={aiConfig.timeoutMs}
-                          onChange={(e) => setAiConfig((prev) => ({ ...prev, timeoutMs: Number(e.target.value) }))}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="aiMaxTokens">Máximo de Tokens</label>
-                      <input
-                        id="aiMaxTokens"
-                        type="number"
-                        min="32"
-                        value={aiConfig.maxTokens}
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, maxTokens: Number(e.target.value) }))}
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="aiSystemPrompt">Prompt de Sistema (Instrucciones)</label>
-                      <textarea
-                        id="aiSystemPrompt"
-                        rows={3}
-                        value={aiConfig.systemPrompt}
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, systemPrompt: e.target.value }))}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                      <button
-                        type="button"
-                        className="secondary"
-                        onClick={checkAiHealth}
-                        disabled={checkingAiHealth}
-                        style={{ flex: 1 }}
-                      >
-                        {checkingAiHealth ? <span className="spinner" /> : <><TestIcon size={14} /> Probar Conexión</>}
-                      </button>
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={saveAiConfig}
-                        disabled={savingAiConfig}
-                        style={{ flex: 1 }}
-                      >
-                        {savingAiConfig ? <span className="spinner" /> : <><SaveIcon size={14} /> Guardar Ajustes</>}
-                      </button>
-                    </div>
-
-                    {aiHealth && (
-                      <p className={`notice ${aiHealth.ok ? "success" : "error"}`} style={{ marginTop: '12px' }}>{aiHealth.message}</p>
-                    )}
-                  </>
-                )}
 
                 {/* Tab Content: Shortcuts */}
                 {activeSettingsTab === 'shortcuts' && (
