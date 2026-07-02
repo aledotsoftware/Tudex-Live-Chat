@@ -436,6 +436,41 @@ function App() {
   // Media caching, Reactions, and Typing indicator upgrades
   const [resolvedMediaUrls, setResolvedMediaUrls] = useState({});
   const [activeReactionPicker, setActiveReactionPicker] = useState(null); // messageId or null
+  const attachmentInputRef = useRef(null);
+
+  const handleAttachmentChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Data = reader.result.split(',')[1];
+      try {
+        showNotice("Subiendo archivo...", "info");
+        const res = await fetch(`${API_URL}/api/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileData: base64Data,
+            fileName: file.name,
+            mimeType: file.type
+          })
+        });
+        
+        if (!res.ok) throw new Error("Error al subir archivo");
+        const data = await res.json();
+        
+        if (data.success && data.publicUrl) {
+          sendMessage(`[Archivo: ${file.name}]`, "original", data.publicUrl, data.mediaType);
+          showNotice("Archivo enviado con éxito.", "success");
+        }
+      } catch (err) {
+        console.error("Upload failed:", err);
+        showNotice("Error al subir el archivo adjunto.", "error");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const lastTypingSignalRef = useRef(0);
   const typingTimerRef = useRef(null);
 
@@ -2416,7 +2451,9 @@ function App() {
           chatId: selectedChatId,
           text: finalBody,
           originalText: payload?.originalText || text,
-          replyToMessageId: payload?.replyToMessageId || ""
+          replyToMessageId: payload?.replyToMessageId || "",
+          mediaUrl: payload?.mediaUrl || null,
+          mediaType: payload?.mediaType || null
         })
       });
       if (!res.ok) throw new Error("No se pudo enviar el mensaje.");
@@ -2427,7 +2464,7 @@ function App() {
     }
   }
 
-  async function sendMessage(textToSend, type = "original") {
+  async function sendMessage(textToSend, type = "original", mediaUrl = null, mediaType = null) {
     if (!String(textToSend || "").trim()) return;
     if (!navigator.onLine || isOffline) {
       const offlineId = `offline-${Date.now()}`;
@@ -2439,7 +2476,9 @@ function App() {
         timestamp: Math.floor(Date.now() / 1000),
         status: 'offline_pending',
         originalText: draftsByChat[selectedChatId] || textToSend,
-        replyToMessageId: replyTarget?.id || ""
+        replyToMessageId: replyTarget?.id || "",
+        mediaUrl,
+        mediaType
       };
       setMessages(prev => [...prev, optimisticMsg]);
       setMessagesByChat(prev => {
@@ -2463,7 +2502,9 @@ function App() {
       body: textToSend,
       fromMe: true,
       timestamp: Math.floor(Date.now() / 1000),
-      status: 'sending'
+      status: 'sending',
+      mediaUrl,
+      mediaType
     };
     setMessages(prev => [...prev, optimisticMsg]);
     setSending(true);
@@ -2472,7 +2513,9 @@ function App() {
       const ok = await postSendMessage({
         text: textToSend,
         originalText: draftsByChat[selectedChatId] || textToSend,
-        replyToMessageId: replyTarget?.id || ""
+        replyToMessageId: replyTarget?.id || "",
+        mediaUrl,
+        mediaType
       });
       if (!ok) {
         setMessages(prev => prev.filter(m => m._uiId !== optimisticMsg._uiId));
@@ -2495,17 +2538,8 @@ function App() {
   function handleDraftKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!sending && !correcting && !correctingAndSending && (draft.trim() || correctedDraft)) {
-        if (event.ctrlKey || event.metaKey) {
-          // Force send original
-          sendMessage(draft, "original");
-        } else {
-          if (correctedDraft) {
-            sendMessage(correctedDraft, "corrected");
-          } else if (draft.trim()) {
-            correctAndSend();
-          }
-        }
+      if (!sending && draft.trim()) {
+        sendMessage(draft, "original");
       }
     }
   }
@@ -4549,6 +4583,24 @@ function App() {
                   >
                     Smile
                   </span>
+
+                  {/* Attachment Icon inside Pill */}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Adjuntar archivo"
+                    title="Adjuntar archivo"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    style={{ fontSize: '1rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', marginLeft: '8px', marginRight: '4px', fontWeight: '700' }}
+                  >
+                    Clip
+                  </span>
+                  <input
+                    type="file"
+                    ref={attachmentInputRef}
+                    onChange={handleAttachmentChange}
+                    style={{ display: 'none' }}
+                  />
 
                   {/* Textarea inside Pill */}
                   <textarea

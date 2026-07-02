@@ -3178,6 +3178,32 @@ app.get('/api/link-preview', async (req, res) => {
   }
 });
 
+// Upload file endpoint
+app.post('/api/upload', express.json({ limit: '50mb' }), async (req, res) => {
+  try {
+    const { fileData, fileName, mimeType } = req.body;
+    if (!fileData || !fileName || !mimeType) {
+      return res.status(400).json({ error: 'fileData, fileName y mimeType son obligatorios.' });
+    }
+
+    const mediaSha256 = crypto.createHash('sha256').update(fileData).digest('hex');
+    const extension = path.extname(fileName) || '.png';
+    const archivedFileName = `media-${Date.now()}-${mediaSha256.slice(0, 16)}${extension}`;
+    const filePath = path.join(MEDIA_ARCHIVE_DIR, archivedFileName);
+
+    fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+
+    res.json({
+      success: true,
+      publicUrl: `/media-archive/${encodeURIComponent(archivedFileName)}`,
+      mediaType: mimeType.split('/')[0] // 'image', 'video', 'audio', etc.
+    });
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).json({ error: 'No se pudo subir el archivo.' });
+  }
+});
+
 // Send message / API Publish
 // Accepts chatId via: route param, query string, or JSON body
 app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
@@ -3340,7 +3366,9 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
         to: receiverId,
         body: text,
         fromMe: true,
-        timestamp
+        timestamp,
+        mediaUrl: req.body?.mediaUrl || null,
+        mediaType: req.body?.mediaType || null
       });
 
       await Chat.findOneAndUpdate(
@@ -3371,7 +3399,9 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
         to: receiverId,
         body: text,
         fromMe: false,
-        timestamp
+        timestamp,
+        mediaUrl: req.body?.mediaUrl || null,
+        mediaType: req.body?.mediaType || null
       });
 
       await Chat.findOneAndUpdate(

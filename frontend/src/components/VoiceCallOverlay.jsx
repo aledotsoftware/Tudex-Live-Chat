@@ -200,7 +200,7 @@ export function VoiceCallOverlay({
   }
 
   // 3. Floating Call Widget (PIP)
-  if (inVoiceCall && (isCallMinimized || voiceRoomId !== selectedChatId)) {
+  if (mode === "overlay" && inVoiceCall && (isCallMinimized || voiceRoomId !== selectedChatId)) {
     return (
       <div style={{
         position: 'fixed',
@@ -302,6 +302,10 @@ export function VoiceCallOverlay({
         </div>
       </div>
     );
+  }
+
+  if (mode === "overlay") {
+    return null;
   }
 
   // 4. Standard Call Overlay (Maximized inside Chat layout)
