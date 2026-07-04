@@ -53,12 +53,13 @@ export function VirtualMessageList({
   // If there are few messages, bypass virtualization to prevent any minor layout shifts
   const shouldVirtualize = messages.length > 100;
 
-  const { visibleMessages, topPadding, bottomPadding } = useMemo(() => {
+  const { visibleMessages, topPadding, bottomPadding, startIndex } = useMemo(() => {
     if (!shouldVirtualize) {
       return {
         visibleMessages: messages,
         topPadding: 0,
-        bottomPadding: 0
+        bottomPadding: 0,
+        startIndex: 0
       };
     }
 
@@ -79,7 +80,8 @@ export function VirtualMessageList({
     return {
       visibleMessages: visible,
       topPadding: top,
-      bottomPadding: bottom
+      bottomPadding: bottom,
+      startIndex
     };
   }, [messages, scrollTop, clientHeight, shouldVirtualize]);
 
@@ -99,8 +101,9 @@ export function VirtualMessageList({
       {topPadding > 0 && <div style={{ height: `${topPadding}px`, flexShrink: 0 }} />}
 
       {/* Rendered visible messages */}
-      {visibleMessages.map((msg) => {
-        const originalIndex = messages.indexOf(msg);
+      {/*  Bolt: Replace O(n) indexOf lookup with O(1) index calculation to prevent main thread blocking during scroll */}
+      {visibleMessages.map((msg, idx) => {
+        const originalIndex = startIndex + idx;
         return renderMessage(msg, originalIndex);
       })}
 

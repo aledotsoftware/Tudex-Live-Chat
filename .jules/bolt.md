@@ -24,3 +24,6 @@
 ## $(date +%Y-%m-%d) - [Intl.DateTimeFormat Instantiation Optimization]
 **Learning:** Using `Date.prototype.toLocaleTimeString` inside React render methods causes severe main thread blocking. This is because these methods silently instantiate a new `Intl.DateTimeFormat` object under the hood on every call, which is an extremely expensive operation in V8.
 **Action:** Always extract and cache `Intl.DateTimeFormat` instances at the module level and reuse their `.format()` method when rendering dates/times.
+## 2026-07-04 - [O(n) Array.indexOf Optimization in React Render]
+**Learning:** Using `Array.prototype.indexOf` inside a `.map` function during React renders (like calculating original indices in a virtualized list) causes O(n^2) operations and severe main thread blocking for large arrays.
+**Action:** Always replace O(n) lookups inside render loops with O(1) mathematical calculations based on the slice `startIndex` and map `idx` to prevent scroll jank.
