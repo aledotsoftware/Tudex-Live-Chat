@@ -383,8 +383,8 @@ const ChatSentiment = React.memo(function ChatSentiment({ lastMsg }) {
   negative.forEach(w => { if (text.includes(w)) score -= 1; });
 
   let sentiment = null;
-  if (score > 0) sentiment = { emoji: "Smile", color: "#10b981", label: "Positivo" };
-  else if (score < 0) sentiment = { emoji: "", color: "#f43f5e", label: "Negativo" };
+  if (score > 0) sentiment = { emoji: <HappyIcon size={12} />, color: "#10b981", label: "Positivo" };
+  else if (score < 0) sentiment = { emoji: <SadIcon size={12} />, color: "#f43f5e", label: "Negativo" };
 
   if (!sentiment) return null;
   return (
@@ -4352,7 +4352,7 @@ function App() {
                           <span className="pingBadge">Ping</span>
                         ) : null}
                         {msg.isRevoked ? (
-                          <div className="revokedNotice">Deleted Mensaje eliminado</div>
+                          <div className="revokedNotice"><WarningIcon size={14} style={{ marginRight: '4px' }} /> Mensaje eliminado</div>
                         ) : null}
                         
                         {/* Reaction Picker Trigger Button */}
@@ -4581,9 +4581,11 @@ function App() {
                         e.currentTarget.click();
                       }
                     }}
-                    style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center' }}
+                    aria-label="Insertar emoji"
+                    title="Insertar emoji"
                   >
-                    Smile
+                    <HappyIcon size={20} />
                   </span>
 
                   {/* Attachment Icon inside Pill */}
@@ -4599,9 +4601,9 @@ function App() {
                         e.currentTarget.click();
                       }
                     }}
-                    style={{ fontSize: '1rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', marginLeft: '8px', marginRight: '4px', fontWeight: '700' }}
+                    style={{ fontSize: '1rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', marginLeft: '8px', marginRight: '4px', fontWeight: '700', display: 'flex', alignItems: 'center' }}
                   >
-                    Clip
+                    <AttachmentIcon size={18} />
                   </span>
                   <input
                     type="file"
@@ -5604,7 +5606,7 @@ function App() {
                 transition: 'all 0.2s ease'
               }}
             >
-              {publishingStatus ? 'Publicando...' : 'Send Publicar Estado'}
+              {publishingStatus ? 'Publicando...' : <><SendIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Publicar Estado</>}
             </button>
           </div>
         </section>
