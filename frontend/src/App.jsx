@@ -764,6 +764,27 @@ function App() {
   const [publishingStatus, setPublishingStatus] = useState(false);
   const [activeStoryIndex, setActiveStoryIndex] = useState(null);
 
+  // Initialize profile settings fields when the profile menu is opened
+  useEffect(() => {
+    if (showProfileMenu && currentUser) {
+      setUserUsernameInput(currentUser.username || "");
+      setUserEmailInput(currentUser.email || "");
+      setUserBioInput(currentUser.bio || "");
+      setUserAvatarColorInput(currentUser.avatarColor || "");
+      setUserAvatarUrlInput(currentUser.avatarUrl || "");
+      setUserPasswordInput("");
+    }
+  }, [showProfileMenu, currentUser]);
+
+  // Autofocus back to draft input when composer is re-enabled or chat changes
+  useEffect(() => {
+    if (!sending && !correcting && !correctingAndSending && selectedChatId) {
+      const timer = setTimeout(() => {
+        draftInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [sending, correcting, correctingAndSending, selectedChatId]);
 
   async function saveUserProfile() {
     const profilePayload = {
@@ -816,8 +837,14 @@ function App() {
         showNotice("Perfil actualizado correctamente.", "success");
         setShowProfileMenu(false);
       } else {
-        const errorData = await res.json();
-        showNotice(errorData.error || "No se pudo actualizar el perfil.", "error");
+        let errorMsg = "No se pudo actualizar el perfil.";
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (jsonErr) {
+          errorMsg = `Error (${res.status}): ${res.statusText || "Respuesta inválida del servidor"}`;
+        }
+        showNotice(errorMsg, "error");
       }
     } catch (err) {
       showNotice("Error de conexión al guardar el perfil.", "error");
@@ -2548,7 +2575,7 @@ function App() {
     const replyBody = (msg.body || "").trim();
     setReplyTarget({
       id: msg.id || msg._uiId,
-      text: replyBody || (msg.mediaType === "image" ? "[Imagen]" : "[Mensaje vacío]"),
+      text: replyBody || (msg.mediaType === "image" ? "[Imagen]" : msg.mediaType === "video" ? "[Video]" : msg.mediaType === "audio" ? "[Audio]" : "[Mensaje vacío]"),
       fromMe: Boolean(msg.fromMe)
     });
   }
@@ -4400,7 +4427,9 @@ function App() {
                         {msg.mediaType === "audio" && msg.mediaUrl ? (
                           <audio className="msgAudio" src={resolvedMediaUrls[msg.mediaUrl] || `${API_URL}${msg.mediaUrl}`} controls />
                         ) : null}
-                        <p className={msg.isRevoked ? "revokedText" : ""}>{msg.body || "[mensaje vacío]"}</p>
+                        {!msg.isRevoked && (msg.body || (!msg.mediaUrl && !msg.imageDataUrl)) ? (
+                          <p className="">{msg.body || "[mensaje vacío]"}</p>
+                        ) : null}
 
                         {/* Reactions Badges */}
                         {Array.isArray(msg.reactions) && msg.reactions.length > 0 && (
@@ -4573,8 +4602,8 @@ function App() {
                   <span
                     role="button"
                     tabIndex={0}
-                    aria-label="Emojis"
-                    title="Emojis"
+                    aria-label="Insertar emoji"
+                    title="Insertar emoji"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
@@ -4582,8 +4611,6 @@ function App() {
                       }
                     }}
                     style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center' }}
-                    aria-label="Insertar emoji"
-                    title="Insertar emoji"
                   >
                     <HappyIcon size={20} />
                   </span>
@@ -4837,7 +4864,9 @@ function App() {
                   title="Cerrar (Esc)"
                   aria-label="Cerrar configuración"
                 >
-                  <div className="settingsCloseButtonCircle"></div>
+                  <div className="settingsCloseButtonCircle">
+                    <CloseIcon size={16} />
+                  </div>
                   <span className="settingsCloseButtonText">Esc</span>
                 </button>
 
