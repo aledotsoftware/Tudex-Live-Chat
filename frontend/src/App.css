@@ -710,7 +710,7 @@ button, textarea, input, select {
 
 .bubble {
   max-width: min(72%, 640px);
-  padding: 10px 14px 8px;
+  padding: 8px 12px 6px;
   border-radius: 18px 18px 18px 8px;
   position: relative;
   font-size: 16px;
@@ -761,7 +761,7 @@ button, textarea, input, select {
   justify-content: flex-end;
   gap: 6px;
   width: 100%;
-  margin-top: 7px;
+  margin-top: 4px;
 }
 
 .ackSingle,
@@ -776,43 +776,39 @@ button, textarea, input, select {
   color: #7ad6ff;
 }
 
-.bubbleActions {
-  margin-top: 8px;
-  display: flex;
-  justify-content: flex-end;
+.bubbleReplyBtn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 2px;
+  cursor: pointer;
   opacity: 0;
-  transform: translateY(2px);
-  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  border-radius: 50%;
   transition: opacity 0.16s ease, transform 0.16s ease;
+  vertical-align: middle;
 }
 
 @media (hover: hover) {
-  .bubble:hover .bubbleActions {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
+  .bubble:hover .bubbleReplyBtn {
+    opacity: 0.65;
   }
-}
-@media (hover: none) {
-  .bubbleActions {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
+  .bubbleReplyBtn:hover {
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.15);
   }
-}
-.bubble:focus-within .bubbleActions {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 
-.replyBtn {
-  padding: 4px 10px;
-  font-size: 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
+@media (hover: none) {
+  .bubbleReplyBtn {
+    opacity: 0.75;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 4px;
+    margin-left: 8px;
+  }
 }
 
 .msgImage {
@@ -2019,9 +2015,9 @@ button.fullWidth {
     min-width: 48px;
   }
 
-  button.replyBtn {
-    min-height: 48px;
-    min-width: 48px;
+  button.bubbleReplyBtn {
+    min-height: 32px;
+    min-width: 32px;
   }
 
   .logoutBtn,

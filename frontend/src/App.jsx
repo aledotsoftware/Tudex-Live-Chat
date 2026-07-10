@@ -502,6 +502,16 @@ function App() {
   const [initialAuthChecked, setInitialAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
 
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (message, type = "info") => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
   const [sessionStatus, setSessionStatus] = useState("connecting");
   const [socketConnected, setSocketConnected] = useState(false);
   const [qr, setQr] = useState("");
@@ -512,7 +522,10 @@ function App() {
   });
 
   function showNotice(text, type = "info") {
-    // Only trigger native system notifications for critical user events, and completely avoid showing visual banners in-app.
+    // Show in-app visual toast banner
+    addToast(text, type);
+
+    // Only trigger native system notifications for critical user events
     const isCritical = text.toLowerCase().includes("llamando") || 
                        text.toLowerCase().includes("entrante") || 
                        text.toLowerCase().includes("desconect") || 
@@ -4523,6 +4536,7 @@ function App() {
                         tabIndex={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? 0 : undefined}
                         role={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "button" : undefined}
                         aria-label={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "Mensaje con errores gramaticales. Presionar para responder con corrección." : undefined}
+                        onDoubleClick={() => startReply(msg)}
                         onClick={
                           !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
                             ? () => prepareGrammarReply(msg)
@@ -4637,18 +4651,22 @@ function App() {
                         <div className="bubbleMeta">
                           <time>{formatTime(msg.timestamp)}</time>
                           {msg.fromMe && <AckIcon status={msg.status || msg.ack} />}
-                        </div>
-                        <div className="bubbleActions">
-                          <button
-                            className="replyBtn"
-                            aria-label="Responder a este mensaje"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startReply(msg);
-                            }}
-                          >
-                            Responder
-                          </button>
+                          {!msg.isRevoked && (
+                            <button
+                              className="bubbleReplyBtn"
+                              aria-label="Responder a este mensaje"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startReply(msg);
+                              }}
+                              title="Responder"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+                                <polyline points="9 17 4 12 9 7" />
+                                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </article>
                     </div>
@@ -5814,7 +5832,6 @@ function App() {
         </section>
       )}
 
-      {/* Voice call overlays (incoming, outgoing, minimized floating widget) */}
       <VoiceCallOverlay
         mode="overlay"
         inVoiceCall={inVoiceCall}
@@ -5845,6 +5862,13 @@ function App() {
         setIncomingCallInfo={setIncomingCallInfo}
       />
 
+      <div className="toast-container" aria-live="polite">
+        {toasts.map(t => (
+          <div key={t.id} className={`toast ${t.type}`} role="status">
+            {t.message}
+          </div>
+        ))}
+      </div>
 
       </main>
     </>
