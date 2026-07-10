@@ -11,6 +11,21 @@ const updateSW = registerSW({
   onOfflineReady() {
     console.log("Aplicación lista para trabajar sin conexión");
   },
+  onRegisteredSW(swUrl, r) {
+    if (r) {
+      // Verificar actualizaciones cada 60 segundos
+      setInterval(() => {
+        r.update();
+      }, 60 * 1000);
+
+      // Verificar actualizaciones cuando la pestaña/app vuelve a estar visible
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          r.update();
+        }
+      });
+    }
+  },
 });
 
 createRoot(document.getElementById("root")).render(

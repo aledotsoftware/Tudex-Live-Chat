@@ -350,11 +350,19 @@ export function useVoiceCall({
       
       if (document.hidden && "Notification" in window && Notification.permission === "granted") {
         try {
-          new Notification(`Llamada entrante - Tapchat`, {
+          const title = `Llamada entrante - Tapchat`;
+          const options = {
             body: `${hostName} te está llamando de voz.`,
             icon: '/pwa-192x192.png',
             tag: roomId
-          });
+          };
+          if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+            navigator.serviceWorker.ready.then(registration => {
+              registration.showNotification(title, options);
+            });
+          } else {
+            new Notification(title, options);
+          }
         } catch (e) {
           console.error("Error creating call notification:", e);
         }

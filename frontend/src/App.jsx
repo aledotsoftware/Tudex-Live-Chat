@@ -562,6 +562,7 @@ function App() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [offlineQueue, setOfflineQueueState] = useState([]);
   const [pwaUpdateAvailable, setPwaUpdateAvailable] = useState(null);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState(() =>
     typeof window !== "undefined"
       ? window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`).matches
@@ -1601,14 +1602,33 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (apiAuthenticated && "Notification" in window && Notification.permission === "default") {
+    if (
+      apiAuthenticated &&
+      "Notification" in window &&
+      Notification.permission === "default" &&
+      !localStorage.getItem("tapchat_notifications_dismissed")
+    ) {
+      setShowNotificationPrompt(true);
+    }
+  }, [apiAuthenticated]);
+
+  const requestNotificationPermission = () => {
+    if ("Notification" in window) {
       Notification.requestPermission().then(permission => {
+        setShowNotificationPrompt(false);
         if (permission === "granted") {
           showNotice("Alert ¡Notificaciones nativas del sistema activadas!", "success");
+        } else {
+          showNotice("No se pudieron activar las notificaciones. Por favor revise los permisos del navegador.", "error");
         }
       });
     }
-  }, [apiAuthenticated]);
+  };
+
+  const dismissNotificationPrompt = () => {
+    localStorage.setItem("tapchat_notifications_dismissed", "true");
+    setShowNotificationPrompt(false);
+  };
 
 
   const checkAuth = async (key) => {
@@ -3111,6 +3131,13 @@ function App() {
           <InfoIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Hay una nueva versión de Tapchat disponible.
           <button className="primary" onClick={() => pwaUpdateAvailable(true)}>Actualizar ahora</button>
           <button className="secondary" onClick={() => setPwaUpdateAvailable(null)}>Ignorar</button>
+        </div>
+      )}
+      {showNotificationPrompt && (
+        <div className="notificationBanner" role="alert" aria-live="assertive">
+          <AlertIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Para recibir alertas de nuevos mensajes, activa las notificaciones del sistema.
+          <button className="primary" onClick={requestNotificationPermission}>Activar</button>
+          <button className="secondary" onClick={dismissNotificationPrompt}>Ignorar</button>
         </div>
       )}
       {isOffline && (
