@@ -499,6 +499,7 @@ function App() {
   const [inputApiKey, setInputApiKey] = useState(localStorage.getItem("tapchat_api_key") || "");
   const [showApiKey, setShowApiKey] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [initialAuthChecked, setInitialAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
 
   const [sessionStatus, setSessionStatus] = useState("connecting");
@@ -1670,12 +1671,17 @@ function App() {
       }
     }
     setAuthChecking(false);
+    setInitialAuthChecked(true);
   };
 
   useEffect(() => {
     const savedKey = localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key");
-    if (savedKey) checkAuth(savedKey);
-    else setAuthChecking(false);
+    if (savedKey) {
+      checkAuth(savedKey);
+    } else {
+      setAuthChecking(false);
+      setInitialAuthChecked(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -1696,6 +1702,115 @@ function App() {
     mediaQuery.addListener(handleChange);
     return () => mediaQuery.removeListener(handleChange);
   }, []);
+
+  const isHandlingPopstateRef = useRef(false);
+
+  const getTargetHashAndState = () => {
+    if (activeStoryIndex !== null) {
+      return { hash: '#story', state: { type: 'story', index: activeStoryIndex } };
+    }
+    if (showNewStatusModal) {
+      return { hash: '#new-status', state: { type: 'new-status' } };
+    }
+    if (showNewChatModal) {
+      return { hash: '#new-chat', state: { type: 'new-chat' } };
+    }
+    if (showProfileMenu) {
+      return { hash: '#settings', state: { type: 'settings' } };
+    }
+    if (selectedChatId) {
+      return { hash: `#chat-${selectedChatId}`, state: { type: 'chat', id: selectedChatId } };
+    }
+    return { hash: '', state: null };
+  };
+
+  useEffect(() => {
+    const handlePopstate = (event) => {
+      isHandlingPopstateRef.current = true;
+      const state = event.state;
+
+      // Reset the flag after React has finished processing state updates
+      setTimeout(() => {
+        isHandlingPopstateRef.current = false;
+      }, 0);
+
+      if (!state) {
+        // Back to root
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+        return;
+      }
+
+      if (state.type === 'chat') {
+        setSelectedChatId(state.id);
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'settings') {
+        setShowProfileMenu(true);
+        setSelectedChatId("");
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'new-chat') {
+        setShowNewChatModal(true);
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'new-status') {
+        setShowNewStatusModal(true);
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'story') {
+        setActiveStoryIndex(state.index ?? 0);
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopstate);
+    return () => {
+      window.removeEventListener('popstate', handlePopstate);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isHandlingPopstateRef.current) return;
+    if (!apiAuthenticated) return;
+
+    const { hash, state } = getTargetHashAndState();
+    const currentHash = window.location.hash;
+
+    if (hash) {
+      if (currentHash === hash) {
+        // Update state metadata if changed
+        window.history.replaceState(state, '', hash);
+      } else {
+        // Transitioning to a new view
+        // If currentHash is already a sub-view, we replaceState so we don't pile up chat history
+        const isCurrentSubView = currentHash && currentHash !== '#' && currentHash !== '';
+        if (isCurrentSubView) {
+          window.history.replaceState(state, '', hash);
+        } else {
+          window.history.pushState(state, '', hash);
+        }
+      }
+    } else {
+      // Transitioning back to root
+      if (currentHash && currentHash !== '#' && currentHash !== '') {
+        window.history.back();
+      }
+    }
+  }, [selectedChatId, showProfileMenu, showNewChatModal, showNewStatusModal, activeStoryIndex, apiAuthenticated]);
 
   useEffect(() => {
     if (!apiAuthenticated) {
@@ -2791,6 +2906,37 @@ function App() {
     } finally {
       setCheckingAiHealth(false);
     }
+  }
+
+  if (!initialAuthChecked) {
+    return (
+      <>
+        <div className="bg-blob-container" aria-hidden="true">
+          <div className="bg-blob blob-1"></div>
+          <div className="bg-blob blob-2"></div>
+        </div>
+        <main className="authScreen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+            width: '80px',
+            height: '80px',
+            borderRadius: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
+            marginBottom: '20px'
+          }}>
+            <span style={{ fontSize: '32px', color: '#fff', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>TC</span>
+          </div>
+          <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-heading)' }}>Tapchat</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', color: '#a855f7' }} aria-hidden="true" />
+            Cargando la aplicación...
+          </p>
+        </main>
+      </>
+    );
   }
 
   if (!apiAuthenticated) {
