@@ -2877,6 +2877,7 @@ function App() {
                       </button>
                       <button
                         onClick={() => toggleFollowUser(user._id, user.isFollowed)}
+                        aria-label={user.isFollowed ? `Dejar de seguir a ${user.username}` : `Seguir a ${user.username}`}
                         style={{
                           flex: 1,
                           padding: '6px',
@@ -3023,6 +3024,7 @@ function App() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
                         <button
                           onClick={() => likePublicStatus(status._id)}
+                          aria-label={status.isLiked ? "Ya no me gusta este estado" : "Me gusta este estado"}
                           style={{
                             background: 'transparent',
                             border: 'none',
