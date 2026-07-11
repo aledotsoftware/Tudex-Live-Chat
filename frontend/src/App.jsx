@@ -3612,6 +3612,7 @@ function App() {
         }}>
           <button
             type="button"
+            aria-current={viewMode === "statuses" ? "page" : undefined}
             onClick={() => {
               setViewMode("statuses");
               setSelectedChatId("");
@@ -3639,6 +3640,7 @@ function App() {
           
           <button
             type="button"
+            aria-current={viewMode === "chats" ? "page" : undefined}
             onClick={() => setViewMode("chats")}
             style={{
               flex: 1,
@@ -3662,6 +3664,7 @@ function App() {
 
           <button
             type="button"
+            aria-current={viewMode === "discover" ? "page" : undefined}
             onClick={() => {
               setViewMode("discover");
               setSelectedChatId("");
@@ -3689,6 +3692,7 @@ function App() {
 
           <button
             type="button"
+            aria-current={viewMode === "muro" ? "page" : undefined}
             onClick={() => {
               setViewMode("muro");
               setSelectedChatId("");
@@ -3716,6 +3720,7 @@ function App() {
           
           <button
             type="button"
+            aria-current={viewMode === "notifications" ? "page" : undefined}
             onClick={() => {
               setViewMode("notifications");
               setSelectedChatId("");
