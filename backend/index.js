@@ -1095,7 +1095,12 @@ function buildConversationKey(provider, accountId, conversationId) {
 
 function parseProviderContext(req = {}) {
   const provider = normalizeProvider(req.query?.provider || req.body?.provider || DEFAULT_PROVIDER);
-  const accountId = normalizeAccountId(req.query?.accountId || req.body?.accountId || (req.user ? String(req.user._id) : '') || DEFAULT_ACCOUNT_ID);
+  // 🛡️ Sentinel: Prevent IDOR by forcing 'local' provider queries to use the authenticated user's ID.
+  let accountId = normalizeAccountId(req.query?.accountId || req.body?.accountId || (req.user ? String(req.user._id) : '') || DEFAULT_ACCOUNT_ID);
+
+  if (provider === 'local' && req.user && req.user.username !== 'admin') {
+    accountId = String(req.user._id);
+  }
   return { provider, accountId };
 }
 
