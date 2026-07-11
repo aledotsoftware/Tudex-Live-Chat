@@ -364,6 +364,84 @@ function AckIcon({ status }) {
   return null;
 }
 
+const MessageItem = React.memo(({
+  msg,
+  isConsecutive,
+  grammarInsight,
+  prepareGrammarReply,
+  API_URL,
+  formatTime,
+  startReply
+}) => {
+  return (
+    <div className={`bubbleRow ${msg.fromMe ? "mine" : "theirs"} ${isConsecutive ? "consecutive" : ""} ${msg.isRevoked ? "revokedRow" : ""}`}>
+      <article
+        className={`bubble ${
+          !msg.fromMe && grammarInsight?.hasErrors ? "incomingGrammarError" : ""
+        } ${msg.isRevoked ? "isRevoked" : ""}`}
+        tabIndex={!msg.fromMe && grammarInsight?.hasErrors ? 0 : undefined}
+        role={!msg.fromMe && grammarInsight?.hasErrors ? "button" : undefined}
+        onClick={
+          !msg.fromMe && grammarInsight?.hasErrors
+            ? () => prepareGrammarReply(msg)
+            : undefined
+        }
+        onKeyDown={
+          !msg.fromMe && grammarInsight?.hasErrors
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  prepareGrammarReply(msg);
+                }
+              }
+            : undefined
+        }
+      >
+        {msg.replyToText ? (
+          <div className="replyPreview">
+            <span className="replyLabel">Respuesta a</span>
+            <p>{msg.replyToText}</p>
+          </div>
+        ) : null}
+        {!msg.fromMe && grammarInsight?.hasErrors ? (
+          <span className="grammarErrorBadge">Posibles errores gramaticales · Presionar para responder</span>
+        ) : null}
+        {!msg.fromMe && Array.isArray(msg.mentionedIds) && msg.mentionedIds.length > 0 ? (
+          <span className="pingBadge">Ping</span>
+        ) : null}
+        {msg.isRevoked ? (
+          <div className="revokedNotice">🗑️ Mensaje eliminado</div>
+        ) : null}
+        {msg.mediaType === "image" && (msg.imageDataUrl || msg.mediaUrl) ? (
+          <img className="msgImage" src={msg.mediaUrl ? `${API_URL}${msg.mediaUrl}` : msg.imageDataUrl} alt="Imagen del chat" loading="lazy" />
+        ) : null}
+        {msg.mediaType === "video" && msg.mediaUrl ? (
+          <video className="msgVideo" src={`${API_URL}${msg.mediaUrl}`} controls />
+        ) : null}
+        {msg.mediaType === "audio" && msg.mediaUrl ? (
+          <audio className="msgAudio" src={`${API_URL}${msg.mediaUrl}`} controls />
+        ) : null}
+        <p className={msg.isRevoked ? "revokedText" : ""}>{msg.body || "[mensaje vacío]"}</p>
+        <div className="bubbleMeta">
+          <time>{formatTime(msg.timestamp)}</time>
+          {msg.fromMe && <AckIcon status={msg.status || msg.ack} />}
+        </div>
+        <div className="bubbleActions">
+          <button
+            className="replyBtn"
+            aria-label="Responder a este mensaje"
+            onClick={(e) => {
+              e.stopPropagation();
+              startReply(msg);
+            }}
+          >
+            Responder
+          </button>
+        </div>
+      </article>
+    </div>
+  );
+});
 function App() {
   const socketRef = useRef(null);
   const selectedChatIdRef = useRef("");
@@ -3638,73 +3716,18 @@ function App() {
                 const prevMsg = messages[idx - 1];
                 const isConsecutive = prevMsg && prevMsg.fromMe === msg.fromMe;
                 return (
-                <div key={msg._uiId} className={`bubbleRow ${msg.fromMe ? "mine" : "theirs"} ${isConsecutive ? "consecutive" : ""} ${msg.isRevoked ? "revokedRow" : ""}`}>
-                  <article
-                    className={`bubble ${
-                      !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "incomingGrammarError" : ""
-                    } ${msg.isRevoked ? "isRevoked" : ""}`}
-                    tabIndex={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? 0 : undefined}
-                    role={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "button" : undefined}
-                    onClick={
-                      !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
-                        ? () => prepareGrammarReply(msg)
-                        : undefined
-                    }
-                    onKeyDown={
-                      !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              prepareGrammarReply(msg);
-                            }
-                          }
-                        : undefined
-                    }
-                  >
-                    {msg.replyToText ? (
-                      <div className="replyPreview">
-                        <span className="replyLabel">Respuesta a</span>
-                        <p>{msg.replyToText}</p>
-                      </div>
-                    ) : null}
-                    {!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? (
-                      <span className="grammarErrorBadge">Posibles errores gramaticales · Presionar para responder</span>
-                    ) : null}
-                    {!msg.fromMe && Array.isArray(msg.mentionedIds) && msg.mentionedIds.length > 0 ? (
-                      <span className="pingBadge">Ping</span>
-                    ) : null}
-                    {msg.isRevoked ? (
-                      <div className="revokedNotice">🗑️ Mensaje eliminado</div>
-                    ) : null}
-                    {msg.mediaType === "image" && (msg.imageDataUrl || msg.mediaUrl) ? (
-                      <img className="msgImage" src={msg.mediaUrl ? `${API_URL}${msg.mediaUrl}` : msg.imageDataUrl} alt="Imagen del chat" />
-                    ) : null}
-                    {msg.mediaType === "video" && msg.mediaUrl ? (
-                      <video className="msgVideo" src={`${API_URL}${msg.mediaUrl}`} controls />
-                    ) : null}
-                    {msg.mediaType === "audio" && msg.mediaUrl ? (
-                      <audio className="msgAudio" src={`${API_URL}${msg.mediaUrl}`} controls />
-                    ) : null}
-                    <p className={msg.isRevoked ? "revokedText" : ""}>{msg.body || "[mensaje vacío]"}</p>
-                    <div className="bubbleMeta">
-                      <time>{formatTime(msg.timestamp)}</time>
-                      {msg.fromMe && <AckIcon status={msg.status || msg.ack} />}
-                    </div>
-                    <div className="bubbleActions">
-                      <button
-                        className="replyBtn"
-                        aria-label="Responder a este mensaje"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startReply(msg);
-                        }}
-                      >
-                        Responder
-                      </button>
-                    </div>
-                  </article>
-                </div>
-              );})}
+                  <MessageItem
+                    key={msg._uiId}
+                    msg={msg}
+                    isConsecutive={isConsecutive}
+                    grammarInsight={grammarInsights[msg._uiId]}
+                    prepareGrammarReply={prepareGrammarReply}
+                    API_URL={API_URL}
+                    formatTime={formatTime}
+                    startReply={startReply}
+                  />
+                );
+              })}
               {showJumpToLatest ? (
                 <button
                   className="jumpToLatest"
