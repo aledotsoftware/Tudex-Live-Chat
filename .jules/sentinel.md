@@ -12,3 +12,8 @@
 **Vulnerability:** The unvalidated `password` property from user input (e.g., `req.body.password`) was passed directly into the native Node.js `crypto.pbkdf2Sync` method. An attacker could pass a NoSQL payload object instead of a string, causing a `TypeError` in the native module and crashing the node process, resulting in a Denial of Service (DoS).
 **Learning:** Native Node.js modules like `crypto` often lack the graceful error handling or implicit casting found in some higher-level frameworks. Feeding them unexpected object types (especially from unvalidated Express request payloads) can cause synchronous crashes that take down the entire server.
 **Prevention:** Always explicitly cast unvalidated user input properties to primitives (e.g., `String(password)`) before passing them to native Node.js methods like `crypto`.
+
+## 2024-06-21 - [Fix Error Message Leakage]
+**Vulnerability:** Several backend API endpoints (e.g., `/api/chats/:chatId/messages`, `/api/correct`) were catching internal errors and explicitly returning the `error.message` or `upstreamDetail` (which can contain stack traces or detailed HTTP response errors) to the client within the `detail` property of a 500 Server Error response.
+**Learning:** Exposing internal error messages to the frontend can provide an attacker with reconnaissance data about the application's internals, database structures, or upstream configuration paths.
+**Prevention:** Fail securely by logging the detailed error on the server side (`console.error` or custom logger) but returning only safe, generic HTTP 500 JSON responses (e.g., `{ error: 'Internal Server Error' }`) to the client.

@@ -2476,8 +2476,7 @@ app.post('/api/correct', async (req, res) => {
     logAiError(error, 'api/correct');
     const upstreamDetail = extractUpstreamAiError(error);
     res.status(500).json({
-      error: 'AI server error',
-      detail: upstreamDetail || error.message
+      error: 'AI server error'
     });
   }
 });
@@ -2748,8 +2747,7 @@ app.get(['/api/chats/:chatId/messages', '/api/chats/:chatId/messages/:channelCod
   } catch (error) {
     console.error('❌ Fetch messages error details:', error);
     res.status(500).json({ 
-      error: 'Failed to fetch messages', 
-      detail: error.message 
+      error: 'Failed to fetch messages'
     });
   }
 });
@@ -2804,7 +2802,7 @@ app.get(['/api/chats/:chatId/resources', '/api/chats/:chatId/resources/:channelC
     });
   } catch (error) {
     console.error('❌ Fetch resources error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch resources', detail: error.message });
+    res.status(500).json({ error: 'Failed to fetch resources' });
   }
 });
 
@@ -3212,7 +3210,7 @@ app.get(['/api/status-archive', '/api/status-archive/:channelCode'], async (req,
     });
   } catch (error) {
     console.error('❌ Fetch status archive error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch status archive', detail: error.message });
+    res.status(500).json({ error: 'Failed to fetch status archive' });
   }
 });
 
@@ -3223,7 +3221,7 @@ app.post(['/api/status-archive/sweep', '/api/status-archive/sweep/:channelCode']
     const stats = await runStatusArchiveSweep('poll', { provider, accountId });
     res.json({ success: true, stats });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to sweep status archive', detail: error.message });
+    res.status(500).json({ error: 'Failed to sweep status archive' });
   }
 });
 
@@ -3274,7 +3272,7 @@ app.get(['/api/sync/state', '/api/sync/state/:channelCode'], async (req, res) =>
       persisted: persisted || null
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch sync state', detail: error.message });
+    res.status(500).json({ error: 'Failed to fetch sync state' });
   }
 });
 
