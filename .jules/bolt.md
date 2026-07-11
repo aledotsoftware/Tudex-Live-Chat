@@ -24,3 +24,6 @@
 ## $(date +%Y-%m-%d) - [Intl.DateTimeFormat Instantiation Optimization]
 **Learning:** Using `Date.prototype.toLocaleTimeString` inside React render methods causes severe main thread blocking. This is because these methods silently instantiate a new `Intl.DateTimeFormat` object under the hood on every call, which is an extremely expensive operation in V8.
 **Action:** Always extract and cache `Intl.DateTimeFormat` instances at the module level and reuse their `.format()` method when rendering dates/times.
+## 2026-06-26 - [React List Virtualization and Memoization]
+**Learning:** Rendering complex React elements (like `ChatListItem`s) inline inside an array `.map()` in a parent component (like `App.jsx`) that frequently re-renders (e.g. on every keystroke of an input draft) causes severe main thread blocking and typing lag. The parent component forces a re-render of every item in the list even if their specific props did not change.
+**Action:** Extract list items into separate components wrapped in `React.memo()`. This ensures they only re-render when their individual props change, drastically improving O(N) re-render performance of the parent component.

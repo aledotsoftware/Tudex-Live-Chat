@@ -373,6 +373,62 @@ function AckIcon({ status }) {
   return null;
 }
 
+// ⚡ Bolt: Extract chat item into React.memo to prevent O(n) re-renders of the sidebar when typing in the draft input
+const ChatListItem = React.memo(function ChatListItem({ chat, selectedChatId, setSelectedChatId, messagesByChat }) {
+  const chatMsgs = messagesByChat[chat.id] || [];
+  const lastMsg = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null;
+
+  return (
+    <button
+      aria-label={`Chat con ${chat.name || chat.id}`}
+      className={`chatItem ${chat.id === selectedChatId ? "active" : ""}`}
+      onClick={() => setSelectedChatId(chat.id)}
+      aria-current={chat.id === selectedChatId ? "page" : undefined}
+    >
+      <div
+        className="chatAvatar"
+        style={!chat.avatarUrl ? { background: getAvatarGradient(chat.id) } : {}}
+        aria-hidden="true"
+      >
+        {chat.avatarUrl ? (
+          <img
+            className="chatAvatarImg"
+            src={chat.avatarUrl}
+            alt={`Foto de ${chat.name || chat.id}`}
+            loading="lazy"
+          />
+        ) : (
+          initialsForChat(chat)
+        )}
+      </div>
+      <div className="chatText">
+        <div className="chatNameRow">
+          <div className="chatName">{chat.name || chat.id}</div>
+          <div className="chatTopMeta">
+            {chat.timestamp ? <time className="chatTime">{formatChatTime(chat.timestamp)}</time> : null}
+            {chat.isGroup ? <span className="chatKindBadge">Grupo</span> : null}
+            <ChatSentiment lastMsg={lastMsg} />
+            {chat.unreadCount > 0 ? (
+              <span className="unreadBadge">{chat.unreadCount}</span>
+            ) : null}
+          </div>
+        </div>
+        <div className="chatMeta" style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          {(() => {
+            if (lastMsg) {
+              const prefix = lastMsg.fromMe ? "Tú: " : "";
+              return `${prefix}${lastMsg.body || (lastMsg.mediaType === "image" ? " Imagen" : "Archivo")}`;
+            }
+            return chat.unreadCount
+              ? `${chat.isGroup ? "Grupo" : "Directo"} · Sin contestar`
+              : `${chat.isGroup ? "Grupo" : "Directo"} · Sin notificaciones`;
+          })()}
+        </div>
+      </div>
+    </button>
+  );
+});
+
 const ChatSentiment = React.memo(function ChatSentiment({ lastMsg }) {
   if (!lastMsg) return null;
   const text = String(lastMsg.body || '').toLowerCase();
@@ -3717,59 +3773,13 @@ function App() {
           )}
 
           {viewMode === "chats" && filteredChats.map((chat) => (
-            <button
+            <ChatListItem
               key={chat.id}
-              aria-label={`Chat con ${chat.name || chat.id}`}
-              className={`chatItem ${chat.id === selectedChatId ? "active" : ""}`}
-              onClick={() => setSelectedChatId(chat.id)}
-              aria-current={chat.id === selectedChatId ? "page" : undefined}
-            >
-              <div
-                className="chatAvatar"
-                style={!chat.avatarUrl ? { background: getAvatarGradient(chat.id) } : {}}
-                aria-hidden="true"
-              >
-                {chat.avatarUrl ? (
-                  <img
-                    className="chatAvatarImg"
-                    src={chat.avatarUrl}
-                    alt={`Foto de ${chat.name || chat.id}`}
-                    loading="lazy"
-                  />
-                ) : (
-                  initialsForChat(chat)
-                )}
-              </div>
-              <div className="chatText">
-                <div className="chatNameRow">
-                  <div className="chatName">{chat.name || chat.id}</div>
-                  <div className="chatTopMeta">
-                    {chat.timestamp ? <time className="chatTime">{formatChatTime(chat.timestamp)}</time> : null}
-                    {chat.isGroup ? <span className="chatKindBadge">Grupo</span> : null}
-                    {(() => {
-                      const chatMsgs = messagesByChat[chat.id] || [];
-                      return <ChatSentiment lastMsg={chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null} />;
-                    })()}
-                    {chat.unreadCount > 0 ? (
-                      <span className="unreadBadge">{chat.unreadCount}</span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="chatMeta" style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {(() => {
-                    const chatMsgs = messagesByChat[chat.id] || [];
-                    const lastMsg = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null;
-                    if (lastMsg) {
-                      const prefix = lastMsg.fromMe ? "Tú: " : "";
-                      return `${prefix}${lastMsg.body || (lastMsg.mediaType === "image" ? " Imagen" : "Archivo")}`;
-                    }
-                    return chat.unreadCount
-                      ? `${chat.isGroup ? "Grupo" : "Directo"} · Sin contestar`
-                      : `${chat.isGroup ? "Grupo" : "Directo"} · Sin notificaciones`;
-                  })()}
-                </div>
-              </div>
-            </button>
+              chat={chat}
+              selectedChatId={selectedChatId}
+              setSelectedChatId={setSelectedChatId}
+              messagesByChat={messagesByChat}
+            />
           ))}
 
           {viewMode === "statuses" && filteredStatusArchive.length === 0 ? (
