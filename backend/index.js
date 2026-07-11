@@ -200,7 +200,7 @@ const authenticateUser = async (req, res, next) => {
           adminUser = await User.create({
             username: 'admin',
             email: 'admin@tapchat.local',
-            password: hashPassword('admin123'),
+            password: await hashPassword('admin123'),
             avatarColor: 'hsl(200, 70%, 40%)',
             bio: 'Administrador del sistema'
           });
@@ -252,7 +252,7 @@ io.use(async (socket, next) => {
         adminUser = await User.create({
           username: 'admin',
           email: 'admin@tapchat.local',
-          password: hashPassword('admin123'),
+          password: await hashPassword('admin123'),
           avatarColor: 'hsl(200, 70%, 40%)',
           bio: 'Administrador del sistema'
         });
@@ -318,17 +318,44 @@ app.get('/', (req, res) => {
 
 // Healthcheck/Auth verify endpoint
 // Password hashing helper functions using native crypto module
+// 🛡️ Sentinel: Refactored to async to prevent blocking the event loop (DoS) with 600k iterations
 function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
+  return new Promise((resolve, reject) => {
+    // 🛡️ Sentinel: Upgrade PBKDF2 iterations to 600,000 for stronger password security
+    const iterations = 600000;
+    const salt = crypto.randomBytes(16).toString('hex');
+    crypto.pbkdf2(password, salt, iterations, 64, 'sha512', (err, derivedKey) => {
+      if (err) return reject(err);
+      resolve(`${iterations}:${salt}:${derivedKey.toString('hex')}`);
+    });
+  });
 }
 
 function verifyPassword(password, storedPassword) {
-  if (!storedPassword || !storedPassword.includes(':')) return false;
-  const [salt, hash] = storedPassword.split(':');
-  const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return hash === checkHash;
+  return new Promise((resolve, reject) => {
+    if (!storedPassword || !storedPassword.includes(':')) return resolve(false);
+    const parts = storedPassword.split(':');
+    let iterations = 1000; // Fallback for legacy hashes
+    let salt, hash;
+
+    // 🛡️ Sentinel: Maintain backward compatibility with old 1000 iteration hashes (format: salt:hash)
+    // New secure format is: iterations:salt:hash
+    if (parts.length === 3) {
+      iterations = parseInt(parts[0], 10);
+      salt = parts[1];
+      hash = parts[2];
+    } else if (parts.length === 2) {
+      salt = parts[0];
+      hash = parts[1];
+    } else {
+      return resolve(false);
+    }
+
+    crypto.pbkdf2(password, salt, iterations, 64, 'sha512', (err, derivedKey) => {
+      if (err) return reject(err);
+      resolve(hash === derivedKey.toString('hex'));
+    });
+  });
 }
 
 // User Schema
@@ -407,7 +434,7 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'El correo electrónico ya está registrado.' });
     }
 
-    const hashedPassword = hashPassword(password);
+    const hashedPassword = await hashPassword(password);
     const hue = Math.floor(Math.random() * 360);
     const avatarColor = `hsl(${hue}, 70%, 40%)`;
 
@@ -502,7 +529,7 @@ app.post('/api/auth/login', async (req, res) => {
       $or: [{ username: cleanIdentifier }, { email: cleanIdentifier }]
     });
 
-    if (!user || !verifyPassword(password, user.password)) {
+    if (!user || !(await verifyPassword(password, user.password))) {
       return res.status(401).json({ error: 'Credenciales inválidas. Por favor intenta de nuevo.' });
     }
 
@@ -609,7 +636,7 @@ app.put('/api/auth/profile', async (req, res) => {
       if (trimmedPass.length < 4) {
         return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres.' });
       }
-      user.password = hashPassword(trimmedPass);
+      user.password = await hashPassword(trimmedPass);
     }
 
     if (bio !== undefined) user.bio = String(bio).trim();
