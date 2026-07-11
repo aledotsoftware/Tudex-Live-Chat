@@ -1097,8 +1097,28 @@ function buildConversationKey(provider, accountId, conversationId) {
 
 function parseProviderContext(req = {}) {
   const provider = normalizeProvider(req.query?.provider || req.body?.provider || DEFAULT_PROVIDER);
-  const accountId = normalizeAccountId(req.query?.accountId || req.body?.accountId || (req.user ? String(req.user._id) : '') || DEFAULT_ACCOUNT_ID);
-  return { provider, accountId };
+  const rawAccountId = req.query?.accountId || req.body?.accountId;
+
+  // 🛡️ Sentinel: Enforce Authorization to prevent IDOR.
+  if (req.user) {
+    const sessionAccountId = normalizeAccountId(req.user._id);
+    if (rawAccountId) {
+      const requestedAccountId = normalizeAccountId(rawAccountId);
+      const defaultAccountId = normalizeAccountId(DEFAULT_ACCOUNT_ID);
+
+      if (requestedAccountId !== sessionAccountId && requestedAccountId !== defaultAccountId) {
+        // Fail securely on unauthorized access attempt
+        const err = new Error('Forbidden: Unauthorized account access');
+        err.status = 403;
+        throw err;
+      }
+      return { provider, accountId: requestedAccountId };
+    }
+    return { provider, accountId: sessionAccountId };
+  }
+
+  // Fallback for unauthenticated/webhook routes
+  return { provider, accountId: normalizeAccountId(rawAccountId || DEFAULT_ACCOUNT_ID) };
 }
 
 function nowIso() {

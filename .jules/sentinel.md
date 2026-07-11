@@ -12,3 +12,7 @@
 **Vulnerability:** The unvalidated `password` property from user input (e.g., `req.body.password`) was passed directly into the native Node.js `crypto.pbkdf2Sync` method. An attacker could pass a NoSQL payload object instead of a string, causing a `TypeError` in the native module and crashing the node process, resulting in a Denial of Service (DoS).
 **Learning:** Native Node.js modules like `crypto` often lack the graceful error handling or implicit casting found in some higher-level frameworks. Feeding them unexpected object types (especially from unvalidated Express request payloads) can cause synchronous crashes that take down the entire server.
 **Prevention:** Always explicitly cast unvalidated user input properties to primitives (e.g., `String(password)`) before passing them to native Node.js methods like `crypto`.
+## 2024-06-25 - [Fix IDOR in Provider Context]
+**Vulnerability:** The function `parseProviderContext` trusted client input (`req.query.accountId` or `req.body.accountId`) to determine the account context for accessing chats and messages, leading to an Insecure Direct Object Reference (IDOR) where users could access other users data.
+**Learning:** Never trust client-provided identifiers for sensitive operations like data access. Always derive the active user ID from the trusted authentication session (`req.user._id`).
+**Prevention:** Rely strictly on session variables for authorization context instead of accepting user IDs from query parameters or request bodies.
