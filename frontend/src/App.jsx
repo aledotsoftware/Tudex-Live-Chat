@@ -373,14 +373,19 @@ function AckIcon({ status }) {
   return null;
 }
 
+const POSITIVE_REGEX = /bien|feliz|buen|genial|excelente|gracias|jaja|súper|super|:\)/gi;
+const NEGATIVE_REGEX = /mal|triste|enojado|problema|tarde|perdón|perdon|fallo|error|:\(/gi;
+
 const ChatSentiment = React.memo(function ChatSentiment({ lastMsg }) {
   if (!lastMsg) return null;
-  const text = String(lastMsg.body || '').toLowerCase();
-  const positive = ['bien', 'feliz', 'buen', 'genial', 'excelente', 'gracias', 'jaja', 'súper', 'super', ':)'];
-  const negative = ['mal', 'triste', 'enojado', 'problema', 'tarde', 'perdón', 'perdon', 'fallo', 'error', ':('];
+  const text = String(lastMsg.body || '');
   let score = 0;
-  positive.forEach(w => { if (text.includes(w)) score += 1; });
-  negative.forEach(w => { if (text.includes(w)) score -= 1; });
+
+  const posMatches = text.match(POSITIVE_REGEX);
+  if (posMatches) score += posMatches.length;
+
+  const negMatches = text.match(NEGATIVE_REGEX);
+  if (negMatches) score -= negMatches.length;
 
   let sentiment = null;
   if (score > 0) sentiment = { emoji: <HappyIcon size={12} />, color: "#10b981", label: "Positivo" };

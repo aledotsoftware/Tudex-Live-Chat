@@ -27,3 +27,6 @@
 ## 2026-07-04 - [O(n) Array.indexOf Optimization in React Render]
 **Learning:** Using `Array.prototype.indexOf` inside a `.map` function during React renders (like calculating original indices in a virtualized list) causes O(n^2) operations and severe main thread blocking for large arrays.
 **Action:** Always replace O(n) lookups inside render loops with O(1) mathematical calculations based on the slice `startIndex` and map `idx` to prevent scroll jank.
+## 2026-07-04 - [Regex Optimization for Frequent Array Rendering]
+**Learning:** React components that perform string analysis (`.includes()`) over arrays inside their render body (like `ChatSentiment` checking positive/negative words) suffer from O(N) operations and array/string re-allocations on every single render.
+**Action:** Always hoist static search arrays and replace iterative `.includes()` checks with a single pre-compiled module-level Regular Expression (`/word1|word2/gi`) and use `String.match()` to achieve O(1) instantiation and utilize the faster native regex engine.
