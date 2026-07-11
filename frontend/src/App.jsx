@@ -3645,6 +3645,7 @@ function App() {
                     } ${msg.isRevoked ? "isRevoked" : ""}`}
                     tabIndex={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? 0 : undefined}
                     role={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "button" : undefined}
+                    aria-label={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "Ver sugerencias de gramática" : undefined}
                     onClick={
                       !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
                         ? () => prepareGrammarReply(msg)
@@ -3668,7 +3669,7 @@ function App() {
                       </div>
                     ) : null}
                     {!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? (
-                      <span className="grammarErrorBadge">Posibles errores gramaticales · Presionar para responder</span>
+                      <span id={`grammar-error-${msg._uiId}`} className="grammarErrorBadge">Posibles errores gramaticales · Presionar para responder</span>
                     ) : null}
                     {!msg.fromMe && Array.isArray(msg.mentionedIds) && msg.mentionedIds.length > 0 ? (
                       <span className="pingBadge">Ping</span>
@@ -4294,7 +4295,6 @@ function App() {
                           e.currentTarget.style.transform = userAvatarColorInput === color ? 'scale(1.2)' : 'none';
                         }}
                         title={color}
-                        aria-label={`Color de avatar ${color}`}
                       />
                     ))}
                   </div>
@@ -5103,7 +5103,6 @@ function App() {
                       boxShadow: newStatusBgTheme === theme.id ? '0 0 8px rgba(255,255,255,0.5)' : 'none'
                     }}
                     title={theme.label}
-                    aria-label={`Fondo ${theme.label}`}
                   />
                 ))}
               </div>
