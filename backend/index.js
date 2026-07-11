@@ -888,8 +888,9 @@ app.post('/api/public-statuses/:id/view', async (req, res) => {
 // Get followed active stories
 app.get('/api/followed-statuses', async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    const followedIds = user.followedUsers || [];
+    // ⚡ Bolt: Using .select() and .lean() for read-only user lookup reduces memory and Mongoose hydration overhead.
+    const user = await User.findById(req.user._id).select('followedUsers').lean();
+    const followedIds = user?.followedUsers || [];
 
     const statuses = await PublicStatus.find({
       userId: { $in: followedIds }
@@ -2976,7 +2977,8 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
       }
 
       // Case B: User-to-User Chat
-      const receiver = await User.findById(receiverId);
+      // ⚡ Bolt: Using .select() and .lean() for read-only receiver lookup to prevent full document hydration overhead.
+      const receiver = await User.findById(receiverId).select('username avatarUrl').lean();
       if (!receiver) {
         return res.status(404).json({ error: 'El usuario destinatario no existe.' });
       }
