@@ -315,6 +315,19 @@ class WhatsAppAdapter extends BaseAdapter {
       if (mediaUrl || mediaBase64) {
         let media;
         if (mediaUrl) {
+          // 🛡️ Sentinel: Prevent Server-Side Request Forgery (SSRF) when fetching media
+          try {
+            const parsedUrl = new URL(mediaUrl);
+            if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+              throw new Error('Invalid URL protocol');
+            }
+            const forbiddenHosts = ['localhost', '127.0.0.1', '169.254.169.254', '[::1]', '0.0.0.0'];
+            if (forbiddenHosts.includes(parsedUrl.hostname) || parsedUrl.hostname.endsWith('.local') || parsedUrl.hostname.startsWith('192.168.') || parsedUrl.hostname.startsWith('10.')) {
+              throw new Error('Local or private IP addresses are not allowed');
+            }
+          } catch (e) {
+            throw new Error(`Invalid mediaUrl: ${e.message}`);
+          }
           media = await MessageMedia.fromUrl(mediaUrl).catch(e => {
             console.error('❌ Failed to fetch media from URL:', e.message);
             return null;
@@ -395,6 +408,19 @@ class WhatsAppAdapter extends BaseAdapter {
       if (mediaUrl || mediaBase64) {
         let media;
         if (mediaUrl) {
+          // 🛡️ Sentinel: Prevent Server-Side Request Forgery (SSRF) when fetching media
+          try {
+            const parsedUrl = new URL(mediaUrl);
+            if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+              throw new Error('Invalid URL protocol');
+            }
+            const forbiddenHosts = ['localhost', '127.0.0.1', '169.254.169.254', '[::1]', '0.0.0.0'];
+            if (forbiddenHosts.includes(parsedUrl.hostname) || parsedUrl.hostname.endsWith('.local') || parsedUrl.hostname.startsWith('192.168.') || parsedUrl.hostname.startsWith('10.')) {
+              throw new Error('Local or private IP addresses are not allowed');
+            }
+          } catch (e) {
+            throw new Error(`Invalid mediaUrl: ${e.message}`);
+          }
           media = await MessageMedia.fromUrl(mediaUrl).catch(e => {
             console.error('❌ Failed to fetch media from URL:', e.message);
             return null;
