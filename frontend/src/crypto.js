@@ -208,3 +208,91 @@ export async function decryptMessage(encryptedPayloadJson, privateKey) {
     return "[Mensaje Cifrado - Llave no coincidente]";
   }
 }
+
+// Encrypt private key (Base64) using password-derived AES-GCM key
+export async function encryptPrivateKeyWithPassword(privateKeyBase64, password) {
+  try {
+    const salt = new TextEncoder().encode("tapchat-e2ee-salt-key");
+    const passphraseKey = await window.crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+    const aesKey = await window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: salt,
+        iterations: 100000,
+        hash: "SHA-256"
+      },
+      passphraseKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt"]
+    );
+
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await window.crypto.subtle.encrypt(
+      {
+        name: "AES-GCM",
+        iv: iv
+      },
+      aesKey,
+      new TextEncoder().encode(privateKeyBase64)
+    );
+
+    return JSON.stringify({
+      iv: arrayBufferToBase64(iv),
+      ciphertext: arrayBufferToBase64(encrypted)
+    });
+  } catch (err) {
+    console.error("Failed to encrypt private key with password:", err);
+    throw err;
+  }
+}
+
+// Decrypt private key (Base64) using password-derived AES-GCM key
+export async function decryptPrivateKeyWithPassword(encryptedJson, password) {
+  try {
+    const payload = JSON.parse(encryptedJson);
+    const iv = new Uint8Array(base64ToArrayBuffer(payload.iv));
+    const ciphertext = base64ToArrayBuffer(payload.ciphertext);
+
+    const salt = new TextEncoder().encode("tapchat-e2ee-salt-key");
+    const passphraseKey = await window.crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveKey"]
+    );
+    const aesKey = await window.crypto.subtle.deriveKey(
+      {
+        name: "PBKDF2",
+        salt: salt,
+        iterations: 100000,
+        hash: "SHA-256"
+      },
+      passphraseKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["decrypt"]
+    );
+
+    const decrypted = await window.crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: iv
+      },
+      aesKey,
+      ciphertext
+    );
+
+    return new TextDecoder().decode(decrypted);
+  } catch (err) {
+    console.error("Failed to decrypt private key with password:", err);
+    throw err;
+  }
+}

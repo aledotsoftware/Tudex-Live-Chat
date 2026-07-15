@@ -81,6 +81,14 @@ export default defineConfig({
         target: 'http://backend:3005',
         changeOrigin: true,
         ws: true
+      },
+      '/media-archive': {
+        target: 'http://backend:3005',
+        changeOrigin: true
+      },
+      '/status-archive': {
+        target: 'http://backend:3005',
+        changeOrigin: true
       }
     }
   }

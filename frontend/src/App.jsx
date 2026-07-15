@@ -18,7 +18,9 @@ import {
   exportPrivateKey,
   importPrivateKey,
   encryptMessage,
-  decryptMessage
+  decryptMessage,
+  encryptPrivateKeyWithPassword,
+  decryptPrivateKeyWithPassword
 } from "./crypto";
 import { VirtualMessageList } from "./components/VirtualMessageList";
 import { useVoiceCall } from "./hooks/useVoiceCall";
@@ -714,8 +716,11 @@ function App() {
         let pubKeyBase64 = pubKeyEntry?.value;
         let privKeyBase64 = privKeyEntry?.value;
 
-        if (!pubKeyBase64 || !privKeyBase64) {
-          console.log("[E2EE] Keys not found locally. Generating new keypair...");
+        // Try to get password from temporary window storage
+        const tempPass = window.tempLoginPassword;
+
+        async function handleNewKeyPair() {
+          console.log("[E2EE] Generating new keypair...");
           const pair = await generateE2eeKeypair();
           pubKeyBase64 = await exportPublicKey(pair.publicKey);
           privKeyBase64 = await exportPrivateKey(pair.privateKey);
@@ -723,19 +728,29 @@ function App() {
           await writeEntry(`e2ee:${userId}:publicKey`, pubKeyBase64);
           await writeEntry(`e2ee:${userId}:privateKey`, privKeyBase64);
           privateKeyRef.current = pair.privateKey;
-        } else {
-          privateKeyRef.current = await importPrivateKey(privKeyBase64);
-        }
 
-        if (!currentUser.publicKey || currentUser.publicKey !== pubKeyBase64) {
-          console.log("[E2EE] Syncing public key with backend...");
+          // If password is available, encrypt and sync with server
+          let encryptedPrivKey = null;
+          if (tempPass) {
+            try {
+              encryptedPrivKey = await encryptPrivateKeyWithPassword(privKeyBase64, tempPass);
+            } catch (err) {
+              console.error("[E2EE] Could not encrypt new private key:", err);
+            }
+          }
+
+          // Sync public key (and encrypted private key if available)
+          console.log("[E2EE] Syncing public/private key with backend...");
           const res = await fetch(`${API_URL}/api/auth/profile`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${localStorage.getItem("tapchat_token")}`
             },
-            body: JSON.stringify({ publicKey: pubKeyBase64 })
+            body: JSON.stringify({ 
+              publicKey: pubKeyBase64,
+              ...(encryptedPrivKey ? { encryptedPrivateKey: encryptedPrivKey } : {})
+            })
           });
           if (res.ok) {
             const data = await res.json();
@@ -745,6 +760,113 @@ function App() {
             }
           }
         }
+
+        // If local keys exist, import and use them
+        if (pubKeyBase64 && privKeyBase64) {
+          privateKeyRef.current = await importPrivateKey(privKeyBase64);
+          
+          // Legacy check: If user has a local private key but NO encryptedPrivateKey on the server,
+          // and we have the tempPass, encrypt and sync it to the server.
+          if (!currentUser.encryptedPrivateKey && tempPass) {
+            console.log("[E2EE] Uploading encrypted private key to server (legacy migration)...");
+            try {
+              const encryptedPrivKey = await encryptPrivateKeyWithPassword(privKeyBase64, tempPass);
+              await fetch(`${API_URL}/api/auth/profile`, {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${localStorage.getItem("tapchat_token")}`
+                },
+                body: JSON.stringify({ encryptedPrivateKey: encryptedPrivKey })
+              });
+              setCurrentUser(prev => {
+                const updated = { ...prev, encryptedPrivateKey: encryptedPrivKey };
+                localStorage.setItem("tapchat_cached_user", JSON.stringify(updated));
+                return updated;
+              });
+            } catch (err) {
+              console.error("[E2EE] Failed to upload legacy private key:", err);
+            }
+          }
+        } else {
+          // Local keys NOT found.
+          // Check if server has the encrypted private key
+          if (currentUser.encryptedPrivateKey) {
+            // We need a password to decrypt it
+            if (tempPass) {
+              console.log("[E2EE] Found encrypted private key on server. Decrypting...");
+              try {
+                privKeyBase64 = await decryptPrivateKeyWithPassword(currentUser.encryptedPrivateKey, tempPass);
+                pubKeyBase64 = currentUser.publicKey;
+
+                const privKey = await importPrivateKey(privKeyBase64);
+                
+                await writeEntry(`e2ee:${userId}:publicKey`, pubKeyBase64);
+                await writeEntry(`e2ee:${userId}:privateKey`, privKeyBase64);
+                privateKeyRef.current = privKey;
+                console.log("[E2EE] Successfully synced E2EE keys from server using password.");
+              } catch (decErr) {
+                console.error("[E2EE] Failed to decrypt private key with temporary password:", decErr);
+                await handleNewKeyPair();
+              }
+            } else {
+              console.log("[E2EE] Private key is encrypted on server but no password available. Prompting user...");
+              const recoveryPassword = window.prompt("Se requiere tu contraseña de Tapchat para descifrar y restaurar tus mensajes cifrados en este dispositivo:");
+              if (recoveryPassword) {
+                try {
+                  privKeyBase64 = await decryptPrivateKeyWithPassword(currentUser.encryptedPrivateKey, recoveryPassword);
+                  pubKeyBase64 = currentUser.publicKey;
+                  const privKey = await importPrivateKey(privKeyBase64);
+                  await writeEntry(`e2ee:${userId}:publicKey`, pubKeyBase64);
+                  await writeEntry(`e2ee:${userId}:privateKey`, privKeyBase64);
+                  privateKeyRef.current = privKey;
+                  window.tempLoginPassword = recoveryPassword;
+                  console.log("[E2EE] Successfully restored keys via user prompt.");
+                } catch (decErr) {
+                  alert("Contraseña incorrecta. No se pudieron restaurar los mensajes cifrados.");
+                  await handleNewKeyPair();
+                }
+              } else {
+                await handleNewKeyPair();
+              }
+            }
+          } else {
+            // Server has no encrypted private key. Generate new.
+            await handleNewKeyPair();
+          }
+        }
+
+        // Keep standard public key sync check in case public key exists but is not on server
+        if (!currentUser.publicKey || currentUser.publicKey !== pubKeyBase64) {
+          console.log("[E2EE] Syncing public key with backend...");
+          let encryptedPrivKey = null;
+          if (tempPass && privKeyBase64) {
+            try {
+              encryptedPrivKey = await encryptPrivateKeyWithPassword(privKeyBase64, tempPass);
+            } catch (err) {
+              console.error("[E2EE] Could not encrypt private key:", err);
+            }
+          }
+          const res = await fetch(`${API_URL}/api/auth/profile`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem("tapchat_token")}`
+            },
+            body: JSON.stringify({ 
+              publicKey: pubKeyBase64,
+              ...(encryptedPrivKey ? { encryptedPrivateKey: encryptedPrivKey } : {})
+            })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.user) {
+              setCurrentUser(data.user);
+              localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
+            }
+          }
+        }
+
         setE2eeReady(true);
         console.log("[E2EE] Cryptographic engine initialized successfully.");
       } catch (err) {
@@ -845,7 +967,7 @@ function App() {
   }, [sending, correcting, correctingAndSending, selectedChatId]);
 
   async function saveUserProfile() {
-    const profilePayload = {
+    let profilePayload = {
       username: userUsernameInput,
       email: userEmailInput,
       password: userPasswordInput,
@@ -853,6 +975,18 @@ function App() {
       avatarColor: userAvatarColorInput,
       avatarUrl: userAvatarUrlInput
     };
+
+    if (userPasswordInput && privateKeyRef.current) {
+      try {
+        const privKeyBase64 = await exportPrivateKey(privateKeyRef.current);
+        const encryptedPrivKey = await encryptPrivateKeyWithPassword(privKeyBase64, userPasswordInput);
+        profilePayload.encryptedPrivateKey = encryptedPrivKey;
+        window.tempLoginPassword = userPasswordInput;
+      } catch (err) {
+        console.error("[E2EE] Failed to encrypt private key with new password:", err);
+      }
+    }
+
     if (!navigator.onLine || isOffline) {
       setCurrentUser(prev => ({
         ...prev,
@@ -884,14 +1018,19 @@ function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        setCurrentUser(prev => ({
-          ...prev,
-          username: data.user.username,
-          email: data.user.email,
-          bio: data.user.bio,
-          avatarColor: data.user.avatarColor,
-          avatarUrl: data.user.avatarUrl
-        }));
+        setCurrentUser(prev => {
+          const updated = {
+            ...prev,
+            username: data.user.username,
+            email: data.user.email,
+            bio: data.user.bio,
+            avatarColor: data.user.avatarColor,
+            avatarUrl: data.user.avatarUrl,
+            encryptedPrivateKey: data.user.encryptedPrivateKey || prev.encryptedPrivateKey
+          };
+          localStorage.setItem("tapchat_cached_user", JSON.stringify(updated));
+          return updated;
+        });
         showNotice("Perfil actualizado correctamente.", "success");
         setShowProfileMenu(false);
       } else {
@@ -3098,6 +3237,7 @@ function App() {
                   });
                   const data = await res.json();
                   if (res.ok) {
+                    window.tempLoginPassword = password;
                     localStorage.setItem("tapchat_token", data.token);
                     localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
                     setCurrentUser(data.user);
@@ -3119,6 +3259,7 @@ function App() {
                   });
                   const data = await res.json();
                   if (res.ok) {
+                    window.tempLoginPassword = password;
                     localStorage.setItem("tapchat_token", data.token);
                     localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
                     setCurrentUser(data.user);
@@ -4671,7 +4812,43 @@ function App() {
                           <audio className="msgAudio" src={resolvedMediaUrls[msg.mediaUrl] || `${API_URL}${msg.mediaUrl}`} controls />
                         ) : null}
                         {!msg.isRevoked && (msg.body || (!msg.mediaUrl && !msg.imageDataUrl)) ? (
-                          <p className="">{msg.body || "[mensaje vacío]"}</p>
+                          msg.mediaUrl && msg.mediaType !== "image" && msg.mediaType !== "video" && msg.mediaType !== "audio" ? (
+                            <a
+                              href={resolvedMediaUrls[msg.mediaUrl] || `${API_URL}${msg.mediaUrl}`}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                textDecoration: 'none',
+                                color: 'inherit',
+                                wordBreak: 'break-all',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                marginTop: '4px',
+                                marginBottom: '4px',
+                                transition: 'background-color 0.2s',
+                                cursor: 'pointer'
+                              }}
+                              className="generic-file-bubble"
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
+                            >
+                              <span style={{ fontSize: '1.75rem', flexShrink: 0 }}>📁</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', overflow: 'hidden' }}>
+                                <span style={{ fontWeight: '600', color: 'var(--accent-color, #38bdf8)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                  {msg.body || "Descargar archivo"}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)' }}>Hacé click para descargar</span>
+                              </div>
+                            </a>
+                          ) : (
+                            <p className="">{msg.body || "[mensaje vacío]"}</p>
+                          )
                         ) : null}
 
                         {/* Reactions Badges */}

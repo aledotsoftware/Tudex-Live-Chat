@@ -530,6 +530,7 @@ const UserSchema = new mongoose.Schema({
   bio: { type: String, default: '¡Hola! Estoy usando Tapchat.' },
   status: { type: String, default: 'online' },
   publicKey: { type: String, default: '' },
+  encryptedPrivateKey: { type: String, default: '' },
   latitude: { type: Number },
   longitude: { type: Number },
   followedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
@@ -675,7 +676,9 @@ app.post('/api/auth/register', async (req, res) => {
         email: user.email,
         avatarColor: user.avatarColor,
         avatarUrl: user.avatarUrl || '',
-        bio: user.bio
+        bio: user.bio,
+        publicKey: user.publicKey || '',
+        encryptedPrivateKey: user.encryptedPrivateKey || ''
       }
     });
   } catch (err) {
@@ -743,7 +746,8 @@ app.post('/api/auth/login', async (req, res) => {
         avatarColor: user.avatarColor,
         avatarUrl: user.avatarUrl || '',
         bio: user.bio,
-        publicKey: user.publicKey || ''
+        publicKey: user.publicKey || '',
+        encryptedPrivateKey: user.encryptedPrivateKey || ''
       }
     });
   } catch (err) {
@@ -768,7 +772,7 @@ app.post('/api/auth/logout', async (req, res) => {
 // Profile Update endpoint
 app.put('/api/auth/profile', async (req, res) => {
   try {
-    const { username, email, password, bio, avatarColor, avatarUrl, publicKey } = req.body;
+    const { username, email, password, bio, avatarColor, avatarUrl, publicKey, encryptedPrivateKey } = req.body;
     
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -817,6 +821,7 @@ app.put('/api/auth/profile', async (req, res) => {
     if (avatarColor !== undefined) user.avatarColor = String(avatarColor).trim();
     if (avatarUrl !== undefined) user.avatarUrl = String(avatarUrl).trim();
     if (publicKey !== undefined) user.publicKey = String(publicKey).trim();
+    if (encryptedPrivateKey !== undefined) user.encryptedPrivateKey = String(encryptedPrivateKey).trim();
 
     await user.save();
 
@@ -829,7 +834,8 @@ app.put('/api/auth/profile', async (req, res) => {
         avatarColor: user.avatarColor,
         avatarUrl: user.avatarUrl || '',
         bio: user.bio,
-        publicKey: user.publicKey || ''
+        publicKey: user.publicKey || '',
+        encryptedPrivateKey: user.encryptedPrivateKey || ''
       }
     });
   } catch (err) {
@@ -1114,7 +1120,8 @@ app.get('/api/check-auth', (req, res) => {
       avatarColor: req.user.avatarColor,
       avatarUrl: req.user.avatarUrl || '',
       bio: req.user.bio,
-      publicKey: req.user.publicKey || ''
+      publicKey: req.user.publicKey || '',
+      encryptedPrivateKey: req.user.encryptedPrivateKey || ''
     }
   });
 });
