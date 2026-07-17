@@ -1,0 +1,399 @@
+2096-              border: '1px solid rgba(255, 255, 255, 0.08)'
+2097-            }}>
+2098:              <button
+2099-                type="button"
+2100-                style={{
+--
+2113-                Ingresar
+2114-              </button>
+2115:              <button
+2116-                type="button"
+2117-                style={{
+--
+2224-                    style={{ width: '100%' }}
+2225-                  />
+2226:                  <button
+2227-                    type="button"
+2228-                    className="passwordToggleBtn"
+--
+2252-              )}
+2253-
+2254:              <button
+2255-                type="submit"
+2256-                className="primary fullWidth"
+--
+2331-              )}
+2332-              <div className="authRecoveryOptions mt-4">
+2333:                <button
+2334-                  className="secondary fullWidth"
+2335-                  aria-label="Cancelar y salir"
+--
+2358-          {(sessionStatus === "auth_failure" && socketConnected) && (
+2359-            <div className="authRecoveryOptions">
+2360:              <button
+2361-                className="primary fullWidth"
+2362-                aria-label="Reintentar conexión con el proveedor"
+--
+2365-                Reintentar conexión
+2366-              </button>
+2367:              <button
+2368-                className="secondary fullWidth mt-2"
+2369-                aria-label="Cerrar sesión y volver al inicio"
+--
+2395-        <div className="updateBanner" role="alert" aria-live="assertive">
+2396-          <InfoIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Hay una nueva versión de Tapchat disponible.
+2397:          <button className="primary" onClick={() => pwaUpdateAvailable(true)}>Actualizar ahora</button>
+2398:          <button className="secondary" onClick={() => setPwaUpdateAvailable(null)}>Ignorar</button>
+2399-        </div>
+2400-      )}
+--
+2429-          </h2>
+2430-          <div className="headerActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+2431:            <button
+2432-              className="secondary"
+2433-              aria-label="Actualizar chats"
+--
+2452-              {loadingChats ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : <ReloadIcon size={16} />}
+2453-            </button>
+2454:            <button
+2455-              type="button"
+2456-              onClick={toggleProfileMenu}
+--
+2509-          />
+2510-          {localChatSearch && (
+2511:            <button
+2512-              className="iconButton"
+2513-              onClick={() => {
+--
+2538-          )}
+2539-          {viewMode !== "statuses" && (
+2540:            <button
+2541-              type="button"
+2542-              onClick={() => setShowNewChatModal(true)}
+--
+2584-                const hasMyStatus = myActiveStatuses.length > 0;
+2585-                return (
+2586:                  <button
+2587-                    onClick={() => {
+2588-                      if (hasMyStatus) {
+--
+2675-
+2676-              {followedStories.map((story, idx) => (
+2677:                <button
+2678-                  key={story._id}
+2679-                  onClick={() => {
+--
+2733-
+2734-          {viewMode === "statuses" && filteredStatusArchive.map((item) => (
+2735:            <button
+2736-              key={item._id || item.id || item.providerStatusMessageId}
+2737-              className="chatItem statusArchiveSidebarItem"
+--
+2842-                    {/* Actions */}
+2843-                    <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '4px' }}>
+2844:                      <button
+2845-                        onClick={() => {
+2846-                          const localChat = {
+--
+2879-                        Chat
+2880-                      </button>
+2881:                      <button
+2882-                        onClick={() => toggleFollowUser(user._id, user.isFollowed)}
+2883-                        style={{
+--
+2932-                  rows={2}
+2933-                />
+2934:                <button
+2935-                  onClick={publishPublicStatus}
+2936-                  disabled={publishingStatus || !newPublicStatusBody.trim()}
+--
+3026-                      {/* Footer Actions */}
+3027-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+3028:                        <button
+3029-                          onClick={() => likePublicStatus(status._id)}
+3030-                          aria-label={status.isLiked ? "Ya no me gusta" : "Me gusta"}
+--
+3054-
+3055-          {viewMode === "chats" && filteredChats.map((chat) => (
+3056:            <button
+3057-              key={chat.id}
+3058-              aria-label={`Chat con ${chat.name || chat.id}`}
+--
+3164-                Conéctate con otros usuarios o inicia una nueva conversación.
+3165-              </p>
+3166:              <button
+3167-                className="primary"
+3168-                onClick={() => setShowNewChatModal(true)}
+--
+3203-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>{notif.time}</div>
+3204-                    </div>
+3205:                    <button
+3206-                      type="button"
+3207-                      onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
+--
+3234-          alignItems: 'center'
+3235-        }}>
+3236:          <button
+3237-            type="button"
+3238-            onClick={() => {
+--
+3261-          </button>
+3262-
+3263:          <button
+3264-            type="button"
+3265-            onClick={() => setViewMode("chats")}
+--
+3284-          </button>
+3285-
+3286:          <button
+3287-            type="button"
+3288-            onClick={() => {
+--
+3311-          </button>
+3312-
+3313:          <button
+3314-            type="button"
+3315-            onClick={() => {
+--
+3338-          </button>
+3339-
+3340:          <button
+3341-            type="button"
+3342-            onClick={() => {
+--
+3392-            <header className="chatHeader">
+3393-              <div className="chatHeaderLeft">
+3394:                <button
+3395-                  className="secondary mobileBackBtn"
+3396-                  aria-label="Volver a la lista"
+--
+3410-              </div>
+3411-              <div className="chatHeaderActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+3412:                <button
+3413-                  className="secondary"
+3414-                  aria-label="Actualizar estados archivados"
+--
+3428-                  {loadingStatusArchive ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
+3429-                </button>
+3430:                <button
+3431-                  type="button"
+3432-                  onClick={toggleProfileMenu}
+--
+3523-            </p>
+3524-            <div style={{ display: 'flex', gap: '12px' }}>
+3525:              <button className="primary" onClick={() => setViewMode("chats")} style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+3526-                Ver Chats
+3527-              </button>
+3528:              <button className="secondary" onClick={() => setShowNewChatModal(true)} style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>
+3529-                Buscar Usuario
+3530-              </button>
+--
+3535-            <header className="chatHeader">
+3536-              <div className="chatHeaderLeft">
+3537:                <button
+3538-                  className="secondary mobileBackBtn"
+3539-                  aria-label="Volver a lista de chats"
+--
+3567-              </div>
+3568-              <div className="chatHeaderActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+3569:                <button
+3570-                  className="secondary"
+3571-                  aria-label="Ver recursos del contacto"
+--
+3577-                  <span className="hideOnMobile">Recursos</span>
+3578-                </button>
+3579:                <button
+3580-                  className="secondary"
+3581-                  aria-label="Recargar mensajes"
+--
+3595-                  {loadingMessages[selectedChatId] ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : <ReloadIcon size={16} />}
+3596-                </button>
+3597:                <button
+3598-                  type="button"
+3599-                  onClick={toggleProfileMenu}
+--
+3697-                    </div>
+3698-                    <div className="bubbleActions">
+3699:                      <button
+3700-                        className="replyBtn"
+3701-                        aria-label="Responder a este mensaje"
+--
+3712-              );})}
+3713-              {showJumpToLatest ? (
+3714:                <button
+3715-                  className="jumpToLatest"
+3716-                  aria-label="Ir al último mensaje"
+--
+3730-                  <div className="multiReplyHeader">
+3731-                    <p>{replyQueue.length} respuestas en paralelo listas</p>
+3732:                    <button
+3733-                      className="primary"
+3734-                      aria-label="Enviar todas las respuestas en cola"
+--
+3748-                      />
+3749-                      <div className="composerActions">
+3750:                        <button
+3751-                          className="primary"
+3752-                          aria-label="Enviar respuesta sugerida"
+--
+3757-                          {sendingReplyQueueIds[item.localId] ? <><span className="buttonSpinner" aria-hidden="true" /><span>Enviando...</span></> : "Enviar"}
+3758-                        </button>
+3759:                        <button
+3760-                          className="secondary"
+3761-                          aria-label="Editar respuesta en el editor principal"
+--
+3764-                          Editar en editor
+3765-                        </button>
+3766:                        <button
+3767-                          className="secondary"
+3768-                          aria-label="Quitar respuesta de la cola"
+--
+3785-                    <p className="replyTargetText">{replyTarget.text}</p>
+3786-                  </div>
+3787:                  <button
+3788-                    className="secondary"
+3789-                    aria-label="Cancelar respuesta"
+--
+3808-                  <div className="correctedHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+3809-                    <p className="correctedLabel" style={{ margin: 0, fontWeight: '700', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>✨ Versión sugerida por IA</p>
+3810:                    <button
+3811-                      className="iconButton"
+3812-                      onClick={() => setCorrectedDraft("")}
+--
+3821-
+3822-                  <div className="correctedActions" style={{ display: 'flex', gap: '8px' }}>
+3823:                    <button
+3824-                      className="primary sendCorrectedBtn"
+3825-                      onClick={() => sendMessage(correctedDraft, "corrected")}
+--
+3828-                      🚀 Enviar versión IA
+3829-                    </button>
+3830:                    <button
+3831-                      className="secondary useCorrectedBtn"
+3832-                      onClick={() => {
+--
+3917-
+3918-                  {/* IA Magic button inside Pill */}
+3919:                  <button
+3920-                    type="button"
+3921-                    onClick={correctDraft}
+--
+3942-
+3943-                {/* Circular Send Button */}
+3944:                <button
+3945-                  type="button"
+3946-                  onClick={() => {
+--
+4001-            <div className="modalHeader">
+4002-              <h3 id="resourcesModalHeading">Recursos de {selectedChat?.name || selectedChatId}</h3>
+4003:              <button className="secondary" onClick={() => setShowResources(false)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CloseIcon size={16} /> Cerrar</button>
+4004-            </div>
+4005-
+--
+4076-                <UserIcon size={20} /> Mi Perfil y Ajustes
+4077-              </h3>
+4078:              <button className="secondary" onClick={() => setShowProfileMenu(false)} style={{ borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+4079-                <CloseIcon size={14} /> Cerrar
+4080-              </button>
+--
+4134-                      style={{ display: 'none' }}
+4135-                    />
+4136:                    <button
+4137-                      type="button"
+4138-                      onClick={() => document.getElementById('userAvatarUploadInput').click()}
+--
+4154-                    </button>
+4155-                    {(userAvatarUrlInput || currentUser?.avatarUrl) && (
+4156:                      <button
+4157-                        type="button"
+4158-                        onClick={() => setUserAvatarUrlInput("")}
+--
+4274-                      '#f59e0b'  // Amber Glow
+4275-                    ].map((color) => (
+4276:                      <button
+4277-                        key={color}
+4278-                        type="button"
+--
+4322-                </div>
+4323-
+4324:                <button
+4325-                  type="button"
+4326-                  className="primary"
+--
+4350-                    <span>⌨️</span> Atajos de Teclado y Accesos
+4351-                  </div>
+4352:                  <button
+4353-                    type="button"
+4354-                    onClick={() => {
+--
+4470-                            style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', paddingRight: '40px' }}
+4471-                          />
+4472:                          <button
+4473-                            type="button"
+4474-                            className="passwordToggleBtn"
+--
+4594-
+4595-                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+4596:                    <button
+4597-                      type="button"
+4598-                      className="secondary"
+--
+4604-                      {checkingAiHealth ? <><span className="buttonSpinner" aria-hidden="true" /><span>Probando...</span></> : <><TestIcon size={14} style={{ marginRight: '6px' }} /> Probar Conexión</>}
+4605-                    </button>
+4606:                    <button
+4607-                      type="button"
+4608-                      className="primary"
+--
+4625-            {/* Logout Footer Section */}
+4626-            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+4627:              <button
+4628-                type="button"
+4629-                className="logoutBtn"
+--
+4674-            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '15px', marginBottom: '15px' }}>
+4675-              <h3 id="newChatModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>Nuevo Mensaje</h3>
+4676:              <button className="secondary" onClick={() => setShowNewChatModal(false)} style={{ borderRadius: '8px', padding: '6px 12px' }}>Cerrar</button>
+4677-            </div>
+4678-
+--
+4909-                  </div>
+4910-                </div>
+4911:                <button
+4912-                  onClick={() => setActiveStoryIndex(null)}
+4913-                  aria-label="Cerrar historia"
+--
+4973-                background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)'
+4974-              }}>
+4975:                <button
+4976-                  disabled={activeStoryIndex === 0}
+4977-                  onClick={(e) => {
+--
+4993-                </button>
+4994-
+4995:                <button
+4996-                  onClick={(e) => {
+4997-                    e.stopPropagation();
+--
+5017-                </button>
+5018-
+5019:                <button
+5020-                  onClick={(e) => {
+5021-                    e.stopPropagation();
+--
+5057-            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+5058-              <h3 id="newStatusModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>⭕ Publicar Nuevo Estado</h3>
+5059:              <button className="secondary" onClick={() => setShowNewStatusModal(false)} style={{ borderRadius: '8px', padding: '6px 12px' }}>Cerrar</button>
+5060-            </div>
+5061-
+--
+5093-                  { id: 'landscape5', color: '#10b981', label: 'Emerald' }
+5094-                ].map((theme) => (
+5095:                  <button
+5096-                    key={theme.id}
+5097-                    type="button"
+--
+5154-            </div>
+5155-
+5156:            <button
+5157-              onClick={publishPersonalStatus}
+5158-              disabled={publishingStatus || !newStatusBody.trim()}

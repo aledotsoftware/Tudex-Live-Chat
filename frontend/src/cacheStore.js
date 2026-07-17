@@ -31,7 +31,7 @@ function openDb() {
   });
 }
 
-async function readEntry(key) {
+export async function readEntry(key) {
   const db = await openDb();
   if (!db) return null;
   return new Promise((resolve, reject) => {
@@ -47,7 +47,7 @@ async function readEntry(key) {
   });
 }
 
-async function writeEntry(key, value) {
+export async function writeEntry(key, value) {
   const db = await openDb();
   if (!db) return;
   await new Promise((resolve, reject) => {
@@ -118,4 +118,22 @@ export async function setCachedMessages(provider, accountId, conversationId, mes
   const limitedMessages = messages.slice(-150);
   const key = getStorageKey(MESSAGES_PREFIX, provider, accountId, conversationId);
   try { await writeEntry(key, limitedMessages); } catch (e) {}
+}
+
+const OFFLINE_QUEUE_PREFIX = "offline_queue";
+
+export async function getOfflineQueue(provider, accountId) {
+  try {
+    const key = getStorageKey(OFFLINE_QUEUE_PREFIX, provider, accountId);
+    const entry = await readEntry(key);
+    return Array.isArray(entry?.value) ? entry.value : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+export async function setOfflineQueue(provider, accountId, queue) {
+  if (!Array.isArray(queue)) return;
+  const key = getStorageKey(OFFLINE_QUEUE_PREFIX, provider, accountId);
+  try { await writeEntry(key, queue); } catch (e) {}
 }

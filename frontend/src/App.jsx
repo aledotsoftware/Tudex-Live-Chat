@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import QRCode from "react-qr-code";
 import {
@@ -6,25 +6,66 @@ import {
   getCachedMessages,
   setCachedChats,
   setCachedMessages,
-  clearCache
+  clearCache,
+  getOfflineQueue,
+  setOfflineQueue,
+  readEntry,
+  writeEntry
 } from "./cacheStore";
+import {
+  generateE2eeKeypair,
+  exportPublicKey,
+  exportPrivateKey,
+  importPrivateKey,
+  encryptMessage,
+  decryptMessage,
+  encryptPrivateKeyWithPassword,
+  decryptPrivateKeyWithPassword
+} from "./crypto";
+import { VirtualMessageList } from "./components/VirtualMessageList";
+import { useVoiceCall } from "./hooks/useVoiceCall";
+import { VoiceCallOverlay } from "./components/VoiceCallOverlay";
+import { cacheMediaFile, getCachedMediaUrl } from "./mediaCache";
 
-const runtimeHost =
-  typeof window !== "undefined" ? window.location.hostname : "localhost";
-const runtimeProtocol =
-  typeof window !== "undefined" ? window.location.protocol : "http:";
+const MemoizedMessageReactions = React.memo(({ reactions, currentUser, onSendReaction, providerMessageId }) => {
+  const groupedReactions = React.useMemo(() => {
+    if (!Array.isArray(reactions) || reactions.length === 0) return [];
+    return Object.entries(
+      reactions.reduce((acc, r) => {
+        acc[r.emoji] = acc[r.emoji] || [];
+        acc[r.emoji].push(r);
+        return acc;
+      }, {})
+    );
+  }, [reactions]);
 
-// Smart API Resolution: localhost and private IPs use :3005, any other domain prepends api-
-const isLocal = runtimeHost === "localhost" ||
-                runtimeHost === "127.0.0.1" ||
-                runtimeHost.startsWith("192.168.") ||
-                runtimeHost.startsWith("10.") ||
-                runtimeHost.startsWith("172.") ||
-                runtimeHost.endsWith(".local");
+  if (groupedReactions.length === 0) return null;
 
-const defaultApiUrl = isLocal
-  ? `${runtimeProtocol}//${runtimeHost}:3005`
-  : `https://api-${runtimeHost.replace(/^api-/, "")}`;
+  return (
+    <div className="message-reactions">
+      {groupedReactions.map(([emoji, reactingUsers]) => {
+        const hasReacted = reactingUsers.some(r => r.userId === currentUser?.id);
+        return (
+          <button
+            key={emoji}
+            type="button"
+            className={`reaction-badge ${hasReacted ? 'my-reaction' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSendReaction(providerMessageId, hasReacted ? null : emoji);
+            }}
+            title={reactingUsers.map(r => r.username).join(', ')}
+          >
+            <span>{emoji}</span>
+            <span>{reactingUsers.length}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+});
+
+const defaultApiUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:3005";
 
 console.log("[Tapchat] API target:", defaultApiUrl);
 
@@ -80,12 +121,17 @@ window.fetch = async (...args) => {
   return response;
 };
 
+//  Bolt: Cache Intl.DateTimeFormat instances to avoid expensive instantiation on every render for large lists
+const timeFormatter = new Intl.DateTimeFormat([], { hour: "2-digit", minute: "2-digit" });
+const dateFormatter = new Intl.DateTimeFormat([], { day: "2-digit", month: "2-digit" });
+const dateTimeFormatter = new Intl.DateTimeFormat([], {
+  year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit"
+});
+
 function formatTime(unixTs) {
   const value = Number(unixTs) || Math.floor(Date.now() / 1000);
-  return new Date(value * 1000).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return timeFormatter.format(value * 1000);
 }
 
 function formatChatTime(unixTs) {
@@ -98,19 +144,13 @@ function formatChatTime(unixTs) {
     date.getMonth() === now.getMonth() &&
     date.getFullYear() === now.getFullYear();
   if (sameDay) return formatTime(value);
-  return date.toLocaleDateString([], { day: "2-digit", month: "2-digit" });
+  return dateFormatter.format(value * 1000);
 }
 
 function formatStatusDate(unixTs) {
   const value = Number(unixTs);
   if (!value) return "";
-  return new Date(value * 1000).toLocaleString([], {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
+  return dateTimeFormatter.format(value * 1000);
 }
 
 function messageId(msg) {
@@ -138,6 +178,14 @@ function getAvatarGradient(id) {
   const c1 = `hsl(${Math.abs(hash) % 360}, 65%, 35%)`;
   const c2 = `hsl(${(Math.abs(hash) + 40) % 360}, 75%, 45%)`;
   return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+}
+
+function PhoneCallIcon({ size = 16, className = "" }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </svg>
+  );
 }
 
 function ChatIcon({ size = 20, className = "" }) {
@@ -357,12 +405,54 @@ function UserIcon({ size = 20, className = "" }) {
 }
 
 function AckIcon({ status }) {
-  if (status === 3) return <span className="ackDoubleBlue">✓✓</span>;
-  if (status === 2) return <span className="ackDouble">✓✓</span>;
-  if (status === 1) return <span className="ackSingle">✓</span>;
-  if (status === 'sending') return <span className="ackClock">⏲</span>;
+  if (status === 3) return <span role="status" aria-label="Leído" className="ackDoubleBlue" aria-hidden="false"><span aria-hidden="true"></span></span>;
+  if (status === 2) return <span role="status" aria-label="Entregado" className="ackDouble" aria-hidden="false"><span aria-hidden="true"></span></span>;
+  if (status === 1) return <span role="status" aria-label="Enviado" className="ackSingle" aria-hidden="false"><span aria-hidden="true"></span></span>;
+  if (status === 'sending') return <span role="status" aria-label="Enviando" className="ackClock" aria-hidden="false"><span aria-hidden="true">⏲</span></span>;
+  if (status === 'offline_pending') return <span role="status" aria-label="Pendiente sin conexión" className="ackOffline" aria-hidden="false"><span aria-hidden="true"></span></span>;
   return null;
 }
+
+const POSITIVE_REGEX = /bien|feliz|buen|genial|excelente|gracias|jaja|súper|super|:\)/gi;
+const NEGATIVE_REGEX = /mal|triste|enojado|problema|tarde|perdón|perdon|fallo|error|:\(/gi;
+
+const ChatSentiment = React.memo(function ChatSentiment({ lastMsg }) {
+  if (!lastMsg) return null;
+  const text = String(lastMsg.body || '');
+  let score = 0;
+
+  const posMatches = text.match(POSITIVE_REGEX);
+  if (posMatches) score += posMatches.length;
+
+  const negMatches = text.match(NEGATIVE_REGEX);
+  if (negMatches) score -= negMatches.length;
+
+  let sentiment = null;
+  if (score > 0) sentiment = { emoji: <HappyIcon size={12} />, color: "#10b981", label: "Positivo" };
+  else if (score < 0) sentiment = { emoji: <SadIcon size={12} />, color: "#f43f5e", label: "Negativo" };
+
+  if (!sentiment) return null;
+  return (
+    <span
+      title={`Análisis de Sentimiento: ${sentiment.label}`}
+      style={{
+        fontSize: '11px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '18px',
+        height: '18px',
+        borderRadius: '50%',
+        background: `${sentiment.color}20`,
+        border: `1px solid ${sentiment.color}`,
+        color: sentiment.color,
+        marginLeft: '4px'
+      }}
+    >
+      {sentiment.emoji}
+    </span>
+  );
+});
 
 function App() {
   const socketRef = useRef(null);
@@ -384,12 +474,88 @@ function App() {
   const lastGrammarCheckAtRef = useRef(0);
   const searchInputRef = useRef(null);
   const draftInputRef = useRef(null);
+  const syncRetryTimeoutRef = useRef(null);
+  const syncAttemptsRef = useRef(0);
+  const iceServersRef = useRef([{ urls: "stun:stun.l.google.com:19302" }]);
+
+  // Media caching, Reactions, and Typing indicator upgrades
+  const [resolvedMediaUrls, setResolvedMediaUrls] = useState({});
+  const [activeReactionPicker, setActiveReactionPicker] = useState(null); // messageId or null
+  const attachmentInputRef = useRef(null);
+
+  const handleAttachmentChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Data = reader.result.split(',')[1];
+      try {
+        showNotice("Subiendo archivo...", "info");
+        const res = await fetch(`${API_URL}/api/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileData: base64Data,
+            fileName: file.name,
+            mimeType: file.type
+          })
+        });
+        
+        if (!res.ok) throw new Error("Error al subir archivo");
+        const data = await res.json();
+        
+        if (data.success && data.publicUrl) {
+          sendMessage(`[Archivo: ${file.name}]`, "original", data.publicUrl, data.mediaType);
+          showNotice("Archivo enviado con éxito.", "success");
+        }
+      } catch (err) {
+        console.error("Upload failed:", err);
+        showNotice("Error al subir el archivo adjunto.", "error");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+  const lastTypingSignalRef = useRef(0);
+  const typingTimerRef = useRef(null);
+
+  const handleTyping = () => {
+    if (!socketRef.current || !selectedChatId) return;
+    const now = Date.now();
+    if (now - lastTypingSignalRef.current > 2000) {
+      lastTypingSignalRef.current = now;
+      socketRef.current.emit('chat_state', { chatId: selectedChatId, state: 'typing' });
+    }
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      if (socketRef.current) {
+        socketRef.current.emit('chat_state', { chatId: selectedChatId, state: 'idle' });
+      }
+    }, 3000);
+  };
+
+  const sendReaction = React.useCallback((providerMessageId, emoji) => {
+    if (socketRef.current) {
+      socketRef.current.emit('send-reaction', { providerMessageId, emoji });
+    }
+  }, []);
 
   const [apiAuthenticated, setApiAuthenticated] = useState(false);
   const [inputApiKey, setInputApiKey] = useState(localStorage.getItem("tapchat_api_key") || "");
   const [showApiKey, setShowApiKey] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [initialAuthChecked, setInitialAuthChecked] = useState(false);
   const [authError, setAuthError] = useState("");
+
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (message, type = "info") => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
 
   const [sessionStatus, setSessionStatus] = useState("connecting");
   const [socketConnected, setSocketConnected] = useState(false);
@@ -400,15 +566,42 @@ function App() {
     statusArchive: null
   });
 
-  const [toasts, setToasts] = useState([]);
-
   function showNotice(text, type = "info") {
-    const id = Date.now() + Math.random().toString(36);
-    setToasts(prev => [...prev, { id, text, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4500);
+    // Show in-app visual toast banner
+    addToast(text, type);
+
+    // Only trigger native system notifications for critical user events
+    const isCritical = text.toLowerCase().includes("llamando") || 
+                       text.toLowerCase().includes("entrante") || 
+                       text.toLowerCase().includes("desconect") || 
+                       text.toLowerCase().includes("cort") || 
+                       text.toLowerCase().includes("conexi") ||
+                       text.toLowerCase().includes("llamada");
+    
+    if (!isCritical) return;
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification("Tapchat", {
+            body: text,
+            icon: "/favicon.ico",
+            badge: "/favicon.ico",
+            tag: "tapchat-notice",
+            renotify: true
+          });
+        });
+      } catch (e) {
+        try {
+          new Notification("Tapchat", { body: text });
+        } catch (err) {
+          console.error("Native notification failed:", err);
+        }
+      }
+    }
   }
+
+
 
   const [loadingChats, setLoadingChats] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState({});
@@ -426,7 +619,9 @@ function App() {
   const [aiModels, setAiModels] = useState([]);
   const [showCloudflareToken, setShowCloudflareToken] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [offlineQueue, setOfflineQueueState] = useState([]);
   const [pwaUpdateAvailable, setPwaUpdateAvailable] = useState(null);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [isMobileLayout, setIsMobileLayout] = useState(() =>
     typeof window !== "undefined"
       ? window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX}px)`).matches
@@ -447,7 +642,7 @@ function App() {
     if (chatSearchDebounceRef.current) {
       clearTimeout(chatSearchDebounceRef.current);
     }
-    // ⚡ Bolt: Debounce the search input to prevent excessive React re-renders and hook recalculations
+    //  Bolt: Debounce the search input to prevent excessive React re-renders and hook recalculations
     chatSearchDebounceRef.current = setTimeout(() => {
       setChatSearch(val);
     }, 300);
@@ -462,7 +657,13 @@ function App() {
   const [loadingStatusArchive, setLoadingStatusArchive] = useState(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [pendingIncomingCount, setPendingIncomingCount] = useState(0);
-  const [draftsByChat, setDraftsByChat] = useState(() => { try { return JSON.parse(localStorage.getItem("tapchat_drafts") || "{}"); } catch (e) { return {}; } }); const draft = draftsByChat[selectedChatId] || ""; const setDraft = (val) => setDraftsByChat(prev => ({ ...prev, [selectedChatId]: val }));
+  const [draftsByChat, setDraftsByChat] = useState(() => { try { return JSON.parse(localStorage.getItem("tapchat_drafts") || "{}"); } catch (e) { return {}; } });
+  const draft = draftsByChat[selectedChatId] || "";
+  const setDraft = (val) => setDraftsByChat(prev => ({ ...prev, [selectedChatId]: val }));
+
+  useEffect(() => {
+    localStorage.setItem("tapchat_drafts", JSON.stringify(draftsByChat));
+  }, [draftsByChat]);
   const [correctedDraft, setCorrectedDraft] = useState("");
   const debouncedDraftRef = useRef(null);
   const [replyTarget, setReplyTarget] = useState(null);
@@ -486,11 +687,55 @@ function App() {
     userPromptTemplate: ""
   });
 
+  const [typingStates, setTypingStates] = useState({});
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
+  const [activeSettingsTab, setActiveSettingsTab] = useState("profile");
+
   const [currentUser, setCurrentUser] = useState(null);
   const currentUserRef = useRef(currentUser);
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  const privateKeyRef = useRef(null);
+  const [e2eeReady, setE2eeReady] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser || !currentUser.id) {
+      privateKeyRef.current = null;
+      setE2eeReady(false);
+      return;
+    }
+
+    async function initE2ee() {
+      try {
+        const userId = currentUser.id;
+        const pubKeyEntry = await readEntry(`e2ee:${userId}:publicKey`);
+        const privKeyEntry = await readEntry(`e2ee:${userId}:privateKey`);
+
+        let pubKeyBase64 = pubKeyEntry?.value;
+        let privKeyBase64 = privKeyEntry?.value;
+
+        // If local keys exist, import them so we can passively decrypt historical E2EE messages
+        if (pubKeyBase64 && privKeyBase64) {
+          try {
+            privateKeyRef.current = await importPrivateKey(privKeyBase64);
+            console.log("[E2EE] Local private key loaded for passive legacy decryption.");
+          } catch (importErr) {
+            console.warn("[E2EE] Could not import local private key:", importErr);
+          }
+        } else {
+          console.log("[E2EE] No local keys found. Running in plaintext mode for new messages.");
+        }
+
+        setE2eeReady(true);
+      } catch (err) {
+        console.error("[E2EE] Key initialization error:", err);
+      }
+    }
+
+    initE2ee();
+  }, [currentUser?.id]);
 
   useEffect(() => {
     chatsRef.current = chats;
@@ -499,6 +744,27 @@ function App() {
   useEffect(() => {
     selectedChatIdRef.current = selectedChatId;
   }, [selectedChatId]);
+
+  useEffect(() => {
+    async function resolveUrls() {
+      const updates = {};
+      for (const msg of messages) {
+        if (msg.mediaUrl && !resolvedMediaUrls[msg.mediaUrl]) {
+          const cachedUrl = await getCachedMediaUrl(msg.mediaUrl);
+          if (cachedUrl !== msg.mediaUrl) {
+            updates[msg.mediaUrl] = cachedUrl;
+          }
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        setResolvedMediaUrls(prev => ({ ...prev, ...updates }));
+      }
+    }
+    resolveUrls();
+  }, [messages]);
+
+
+
   const [authMode, setAuthMode] = useState("login");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -538,64 +804,104 @@ function App() {
   const [publishingStatus, setPublishingStatus] = useState(false);
   const [activeStoryIndex, setActiveStoryIndex] = useState(null);
 
+  // Initialize profile settings fields when the profile menu is opened
   useEffect(() => {
-    if (activeStoryIndex === null) return;
-    const timer = setTimeout(() => {
-      if (activeStoryIndex < storyPlayList.length - 1) {
-        setActiveStoryIndex(activeStoryIndex + 1);
-      } else {
-        setActiveStoryIndex(null);
-      }
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [activeStoryIndex, storyPlayList.length]);
-
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      setUserBioInput(currentUser.bio || "¡Hola! Estoy usando Tapchat.");
-      setUserAvatarColorInput(currentUser.avatarColor || "hsl(200, 70%, 40%)");
+    if (showProfileMenu && currentUser) {
       setUserUsernameInput(currentUser.username || "");
       setUserEmailInput(currentUser.email || "");
-      setUserPasswordInput("");
+      setUserBioInput(currentUser.bio || "");
+      setUserAvatarColorInput(currentUser.avatarColor || "");
       setUserAvatarUrlInput(currentUser.avatarUrl || "");
+      setUserPasswordInput("");
     }
-  }, [currentUser]);
+  }, [showProfileMenu, currentUser]);
+
+  // Autofocus back to draft input when composer is re-enabled or chat changes
+  useEffect(() => {
+    if (!sending && !correcting && !correctingAndSending && selectedChatId) {
+      const timer = setTimeout(() => {
+        draftInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [sending, correcting, correctingAndSending, selectedChatId]);
 
   async function saveUserProfile() {
+    let profilePayload = {
+      username: userUsernameInput,
+      email: userEmailInput,
+      password: userPasswordInput,
+      bio: userBioInput,
+      avatarColor: userAvatarColorInput,
+      avatarUrl: userAvatarUrlInput
+    };
+
+    if (userPasswordInput && privateKeyRef.current) {
+      try {
+        const privKeyBase64 = await exportPrivateKey(privateKeyRef.current);
+        const encryptedPrivKey = await encryptPrivateKeyWithPassword(privKeyBase64, userPasswordInput);
+        profilePayload.encryptedPrivateKey = encryptedPrivKey;
+        window.tempLoginPassword = userPasswordInput;
+      } catch (err) {
+        console.error("[E2EE] Failed to encrypt private key with new password:", err);
+      }
+    }
+
+    if (!navigator.onLine || isOffline) {
+      setCurrentUser(prev => ({
+        ...prev,
+        username: userUsernameInput,
+        email: userEmailInput,
+        bio: userBioInput,
+        avatarColor: userAvatarColorInput,
+        avatarUrl: userAvatarUrlInput
+      }));
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const optimisticAction = {
+        _uiId: `profile-${Date.now()}`,
+        type: 'update_profile',
+        payload: profilePayload
+      };
+      const nextQueue = [...offlineQueue, optimisticAction];
+      setOfflineQueueState(nextQueue);
+      await setOfflineQueue(provider, accountId, nextQueue);
+      showNotice(" Sin conexión. Cambios de perfil guardados localmente y se sincronizarán al reconectar.", "success");
+      setShowProfileMenu(false);
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/api/auth/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: userUsernameInput,
-          email: userEmailInput,
-          password: userPasswordInput,
-          bio: userBioInput,
-          avatarColor: userAvatarColorInput,
-          avatarUrl: userAvatarUrlInput
-        })
+        body: JSON.stringify(profilePayload)
       });
       if (res.ok) {
         const data = await res.json();
-        setCurrentUser(prev => ({
-          ...prev,
-          username: data.user.username,
-          email: data.user.email,
-          bio: data.user.bio,
-          avatarColor: data.user.avatarColor,
-          avatarUrl: data.user.avatarUrl
-        }));
+        setCurrentUser(prev => {
+          const updated = {
+            ...prev,
+            username: data.user.username,
+            email: data.user.email,
+            bio: data.user.bio,
+            avatarColor: data.user.avatarColor,
+            avatarUrl: data.user.avatarUrl,
+            encryptedPrivateKey: data.user.encryptedPrivateKey || prev.encryptedPrivateKey
+          };
+          localStorage.setItem("tapchat_cached_user", JSON.stringify(updated));
+          return updated;
+        });
         showNotice("Perfil actualizado correctamente.", "success");
         setShowProfileMenu(false);
       } else {
-        const errorData = await res.json();
-        showNotice(errorData.error || "No se pudo actualizar el perfil.", "error");
+        let errorMsg = "No se pudo actualizar el perfil.";
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch (jsonErr) {
+          errorMsg = `Error (${res.status}): ${res.statusText || "Respuesta inválida del servidor"}`;
+        }
+        showNotice(errorMsg, "error");
       }
     } catch (err) {
       showNotice("Error de conexión al guardar el perfil.", "error");
@@ -627,6 +933,21 @@ function App() {
   }
 
   async function toggleFollowUser(userId, isFollowed) {
+    if (!navigator.onLine || isOffline) {
+      setProximityUsers(prev => prev.map(u => u._id === userId ? { ...u, isFollowed: !isFollowed } : u));
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const optimisticAction = {
+        _uiId: `follow-${Date.now()}`,
+        type: 'toggle_follow',
+        payload: { userId, isFollowed }
+      };
+      const nextQueue = [...offlineQueue, optimisticAction];
+      setOfflineQueueState(nextQueue);
+      await setOfflineQueue(provider, accountId, nextQueue);
+      showNotice(isFollowed ? " Sin conexión. Se dejará de seguir al reconectarse." : " Sin conexión. Se seguirá al reconectarse.", "success");
+      return;
+    }
     try {
       const endpoint = isFollowed ? 'unfollow' : 'follow';
       const res = await fetch(`${API_URL}/api/users/${userId}/${endpoint}`, {
@@ -660,17 +981,50 @@ function App() {
 
   async function publishPublicStatus() {
     if (!newPublicStatusBody.trim()) return;
+    const bgImages = [
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",
+      "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+      "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&w=400&q=80",
+      "https://images.unsplash.com/photo-1433832597026-488b418f2bd3?auto=format&fit=crop&w=400&q=80"
+    ];
+    const randomBg = bgImages[Math.floor(Math.random() * bgImages.length)];
+
+    if (!navigator.onLine || isOffline) {
+      const optimisticStatus = {
+        _id: `temp-status-${Date.now()}`,
+        userId: currentUser?.id || 'me',
+        username: currentUser?.username || 'Yo',
+        avatarColor: currentUser?.avatarColor || 'hsl(200, 70%, 40%)',
+        avatarUrl: currentUser?.avatarUrl || '',
+        body: newPublicStatusBody,
+        mediaUrl: randomBg,
+        mediaType: "image",
+        likesCount: 0,
+        viewsCount: 0,
+        likedBy: [],
+        viewedBy: [],
+        createdAt: new Date().toISOString(),
+        isOfflinePending: true
+      };
+      setPublicStatuses(prev => [optimisticStatus, ...prev]);
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const optimisticAction = {
+        _uiId: `publish-pub-${Date.now()}`,
+        type: 'publish_status_public',
+        payload: { body: newPublicStatusBody, mediaUrl: randomBg, mediaType: "image" }
+      };
+      const nextQueue = [...offlineQueue, optimisticAction];
+      setOfflineQueueState(nextQueue);
+      await setOfflineQueue(provider, accountId, nextQueue);
+      setNewPublicStatusBody("");
+      showNotice(" Sin conexión. Estado en cola para publicar en el muro.", "info");
+      return;
+    }
+
     setPublishingStatus(true);
     try {
-      const bgImages = [
-        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1433832597026-488b418f2bd3?auto=format&fit=crop&w=400&q=80"
-      ];
-      const randomBg = bgImages[Math.floor(Math.random() * bgImages.length)];
-
       const res = await fetch(`${API_URL}/api/public-statuses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -695,17 +1049,46 @@ function App() {
 
   async function publishPersonalStatus() {
     if (!newStatusBody.trim()) return;
+    const bgImages = {
+      landscape1: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",
+      landscape2: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80",
+      landscape3: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
+      landscape4: "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&w=400&q=80",
+      landscape5: "https://images.unsplash.com/photo-1433832597026-488b418f2bd3?auto=format&fit=crop&w=400&q=80"
+    };
+    const selectedBg = bgImages[newStatusBgTheme] || bgImages.landscape1;
+
+    if (!navigator.onLine || isOffline) {
+      const optimisticArchive = {
+        _id: `temp-archive-${Date.now()}`,
+        statusOwnerId: currentUser?.id || 'me',
+        statusOwnerName: currentUser?.username || 'Yo',
+        description: newStatusBody,
+        imageUrl: selectedBg,
+        mediaUrl: selectedBg,
+        mediaType: "image",
+        timestamp: Math.floor(Date.now() / 1000),
+        isOfflinePending: true
+      };
+      setStatusArchiveItems(prev => [optimisticArchive, ...prev]);
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const optimisticAction = {
+        _uiId: `publish-pers-${Date.now()}`,
+        type: 'publish_status_personal',
+        payload: { body: newStatusBody, mediaUrl: selectedBg, mediaType: "image" }
+      };
+      const nextQueue = [...offlineQueue, optimisticAction];
+      setOfflineQueueState(nextQueue);
+      await setOfflineQueue(provider, accountId, nextQueue);
+      setNewStatusBody("");
+      setShowNewStatusModal(false);
+      showNotice(" Sin conexión. Estado personal en cola para publicar.", "info");
+      return;
+    }
+
     setPublishingStatus(true);
     try {
-      const bgImages = {
-        landscape1: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=400&q=80",
-        landscape2: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=400&q=80",
-        landscape3: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80",
-        landscape4: "https://images.unsplash.com/photo-1475924156734-496f6cac6ec1?auto=format&fit=crop&w=400&q=80",
-        landscape5: "https://images.unsplash.com/photo-1433832597026-488b418f2bd3?auto=format&fit=crop&w=400&q=80"
-      };
-      const selectedBg = bgImages[newStatusBgTheme] || bgImages.landscape1;
-
       const res = await fetch(`${API_URL}/api/public-statuses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -730,6 +1113,28 @@ function App() {
   }
 
   async function likePublicStatus(statusId) {
+    if (!navigator.onLine || isOffline) {
+      setPublicStatuses(prev => prev.map(s => {
+        if (s._id !== statusId) return s;
+        const willLike = !s.isLiked;
+        return {
+          ...s,
+          isLiked: willLike,
+          likesCount: Math.max(0, s.likesCount + (willLike ? 1 : -1))
+        };
+      }));
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const optimisticAction = {
+        _uiId: `like-${statusId}-${Date.now()}`,
+        type: 'like_status',
+        payload: { statusId }
+      };
+      const nextQueue = [...offlineQueue, optimisticAction];
+      setOfflineQueueState(nextQueue);
+      await setOfflineQueue(provider, accountId, nextQueue);
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/api/public-statuses/${statusId}/like`, {
         method: "POST"
@@ -744,6 +1149,26 @@ function App() {
   }
 
   async function viewPublicStatus(statusId) {
+    if (!navigator.onLine || isOffline) {
+      setPublicStatuses(prev => prev.map(s => {
+        if (s._id !== statusId) return s;
+        return {
+          ...s,
+          viewsCount: s.viewsCount + 1
+        };
+      }));
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const optimisticAction = {
+        _uiId: `view-${statusId}-${Date.now()}`,
+        type: 'view_status',
+        payload: { statusId }
+      };
+      const nextQueue = [...offlineQueue, optimisticAction];
+      setOfflineQueueState(nextQueue);
+      await setOfflineQueue(provider, accountId, nextQueue);
+      return;
+    }
     try {
       const res = await fetch(`${API_URL}/api/public-statuses/${statusId}/view`, {
         method: "POST"
@@ -801,10 +1226,73 @@ function App() {
     [chats, selectedChatId]
   );
 
+  const activeChatPublicKeyRef = useRef(null);
+
+  useEffect(() => {
+    activeChatPublicKeyRef.current = null;
+    if (!selectedChatId || !apiAuthenticated) return;
+    if (selectedChatId === 'ai_assistant' || selectedChat?.isGroup) return;
+
+    async function getChatPublicKey() {
+      try {
+        const res = await fetch(`${API_URL}/api/users/${encodeURIComponent(selectedChatId)}/public-key`, {
+          headers: { "Authorization": `Bearer ${localStorage.getItem("tapchat_token")}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          activeChatPublicKeyRef.current = data.publicKey || null;
+          console.log(`[E2EE] Public key loaded for chat partner: ${selectedChatId} (${data.publicKey ? 'Found' : 'Not Found'})`);
+        }
+      } catch (err) {
+        console.warn("[E2EE] Failed to load chat partner public key:", err.message);
+      }
+    }
+    getChatPublicKey();
+  }, [selectedChatId, selectedChat, apiAuthenticated]);
+
+  // Voice Calls custom hook integration
+  const {
+    inVoiceCall,
+    voiceRoomId,
+    isCallMinimized,
+    voicePeers,
+    isMuted,
+    screenStream,
+    callVolume,
+    activeCallState,
+    incomingCallInfo,
+    outgoingCallInfo,
+    joinVoiceRoom,
+    leaveVoiceRoom,
+    toggleMute,
+    startScreenShare,
+    stopScreenShare,
+    setIsCallMinimized,
+    setCallVolume,
+    setActiveCallState,
+    setIncomingCallInfo
+  } = useVoiceCall({
+    socketRef,
+    socketConnected,
+    currentUser,
+    selectedChat,
+    showNotice,
+    iceServers: iceServersRef.current,
+    setNotifications
+  });
+
+  useEffect(() => {
+    if (isOffline && inVoiceCall) {
+      showNotice("Warning Conexión perdida. Saliendo de la llamada...", "warning");
+      leaveVoiceRoom();
+    }
+  }, [isOffline, inVoiceCall]);
+
   const filteredChats = useMemo(() => {
     const needle = chatSearch.trim().toLowerCase();
-    if (!needle) return chats;
-    return chats.filter((chat) => {
+    const activeChats = chats.filter(c => c.id !== 'ai_assistant');
+    if (!needle) return activeChats;
+    return activeChats.filter((chat) => {
       const label = `${chat.name || ""} ${chat.id || ""}`.toLowerCase();
       return label.includes(needle);
     });
@@ -1021,9 +1509,22 @@ function App() {
     runGrammarQueue();
   }
 
-  function mergeLiveMessage(msg) {
+  async function mergeLiveMessage(msg) {
     if (!msg?.chatId) return;
-    const normalized = { ...msg, _uiId: messageId(msg) };
+    
+    let decryptedBody = msg.body;
+    if (msg.body && msg.body.includes('"e2ee":true') && privateKeyRef.current) {
+      try {
+        decryptedBody = await decryptMessage(msg.body, privateKeyRef.current);
+      } catch (e) {
+        decryptedBody = "[Mensaje Cifrado - Error de descifrado]";
+      }
+    }
+
+    const normalized = { ...msg, body: decryptedBody, _uiId: messageId(msg) };
+    if (normalized.mediaUrl) {
+      cacheMediaFile(normalized.mediaUrl);
+    }
     
     const isCurrentChat = selectedChatIdRef.current === msg.chatId;
     const isAppBackgrounded = document.hidden;
@@ -1036,7 +1537,7 @@ function App() {
         markChatAsRead(msg.chatId);
       } else {
         // 1. In-app toast notification
-        showNotice(`💬 ${senderName}: ${previewText}`, "info");
+        showNotice(`Chat ${senderName}: ${previewText}`, "info");
 
         // 2. Add to Notifications history
         setNotifications(prev => [
@@ -1054,11 +1555,31 @@ function App() {
       if (isAppBackgrounded || !isCurrentChat) {
         if ("Notification" in window && Notification.permission === "granted") {
           try {
-            new Notification(`Tapchat - ${senderName}`, {
+            const title = `Tapchat - ${senderName}`;
+            const options = {
               body: previewText,
-              icon: 'https://cdn-icons-png.flaticon.com/512/3616/3616223.png',
-              tag: msg.chatId
-            });
+              icon: '/pwa-192x192.png',
+              tag: msg.chatId,
+              data: {
+                chatId: msg.chatId,
+                token: localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key")
+              },
+              actions: [
+                {
+                  action: 'reply',
+                  type: 'text',
+                  title: 'Responder',
+                  placeholder: 'Escribe tu respuesta...'
+                }
+              ]
+            };
+            if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+              navigator.serviceWorker.ready.then(registration => {
+                registration.showNotification(title, options);
+              });
+            } else {
+              new Notification(title, options);
+            }
           } catch (e) {
             console.error("Error creating browser notification:", e);
           }
@@ -1147,6 +1668,35 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      apiAuthenticated &&
+      "Notification" in window &&
+      Notification.permission === "default" &&
+      !localStorage.getItem("tapchat_notifications_dismissed")
+    ) {
+      setShowNotificationPrompt(true);
+    }
+  }, [apiAuthenticated]);
+
+  const requestNotificationPermission = () => {
+    if ("Notification" in window) {
+      Notification.requestPermission().then(permission => {
+        setShowNotificationPrompt(false);
+        if (permission === "granted") {
+          showNotice("Alert ¡Notificaciones nativas del sistema activadas!", "success");
+        } else {
+          showNotice("No se pudieron activar las notificaciones. Por favor revise los permisos del navegador.", "error");
+        }
+      });
+    }
+  };
+
+  const dismissNotificationPrompt = () => {
+    localStorage.setItem("tapchat_notifications_dismissed", "true");
+    setShowNotificationPrompt(false);
+  };
+
 
   const checkAuth = async (key) => {
     setAuthChecking(true);
@@ -1158,6 +1708,7 @@ function App() {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("tapchat_token", key);
+        localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
         setCurrentUser(data.user);
         setApiAuthenticated(true);
       } else {
@@ -1165,19 +1716,38 @@ function App() {
         setAuthError("Sesión inválida. Por favor, iniciá sesión.");
         localStorage.removeItem("tapchat_token");
         localStorage.removeItem("tapchat_api_key");
+        localStorage.removeItem("tapchat_cached_user");
         clearCache().catch(() => {});
       }
     } catch (e) {
-      setApiAuthenticated(false);
-      setAuthError("Error de conexión al verificar credenciales.");
+      const cachedUserStr = localStorage.getItem("tapchat_cached_user");
+      if (cachedUserStr) {
+        try {
+          const cachedUser = JSON.parse(cachedUserStr);
+          setCurrentUser(cachedUser);
+          setApiAuthenticated(true);
+          showNotice("Status Modo sin conexión activado. Usando sesión guardada.", "info");
+        } catch (_) {
+          setApiAuthenticated(false);
+          setAuthError("Error de conexión al verificar credenciales.");
+        }
+      } else {
+        setApiAuthenticated(false);
+        setAuthError("Error de conexión al verificar credenciales.");
+      }
     }
     setAuthChecking(false);
+    setInitialAuthChecked(true);
   };
 
   useEffect(() => {
     const savedKey = localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key");
-    if (savedKey) checkAuth(savedKey);
-    else setAuthChecking(false);
+    if (savedKey) {
+      checkAuth(savedKey);
+    } else {
+      setAuthChecking(false);
+      setInitialAuthChecked(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -1198,6 +1768,115 @@ function App() {
     mediaQuery.addListener(handleChange);
     return () => mediaQuery.removeListener(handleChange);
   }, []);
+
+  const isHandlingPopstateRef = useRef(false);
+
+  const getTargetHashAndState = () => {
+    if (activeStoryIndex !== null) {
+      return { hash: '#story', state: { type: 'story', index: activeStoryIndex } };
+    }
+    if (showNewStatusModal) {
+      return { hash: '#new-status', state: { type: 'new-status' } };
+    }
+    if (showNewChatModal) {
+      return { hash: '#new-chat', state: { type: 'new-chat' } };
+    }
+    if (showProfileMenu) {
+      return { hash: '#settings', state: { type: 'settings' } };
+    }
+    if (selectedChatId) {
+      return { hash: `#chat-${selectedChatId}`, state: { type: 'chat', id: selectedChatId } };
+    }
+    return { hash: '', state: null };
+  };
+
+  useEffect(() => {
+    const handlePopstate = (event) => {
+      isHandlingPopstateRef.current = true;
+      const state = event.state;
+
+      // Reset the flag after React has finished processing state updates
+      setTimeout(() => {
+        isHandlingPopstateRef.current = false;
+      }, 0);
+
+      if (!state) {
+        // Back to root
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+        return;
+      }
+
+      if (state.type === 'chat') {
+        setSelectedChatId(state.id);
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'settings') {
+        setShowProfileMenu(true);
+        setSelectedChatId("");
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'new-chat') {
+        setShowNewChatModal(true);
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewStatusModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'new-status') {
+        setShowNewStatusModal(true);
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setActiveStoryIndex(null);
+      } else if (state.type === 'story') {
+        setActiveStoryIndex(state.index ?? 0);
+        setSelectedChatId("");
+        setShowProfileMenu(false);
+        setShowNewChatModal(false);
+        setShowNewStatusModal(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopstate);
+    return () => {
+      window.removeEventListener('popstate', handlePopstate);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isHandlingPopstateRef.current) return;
+    if (!apiAuthenticated) return;
+
+    const { hash, state } = getTargetHashAndState();
+    const currentHash = window.location.hash;
+
+    if (hash) {
+      if (currentHash === hash) {
+        // Update state metadata if changed
+        window.history.replaceState(state, '', hash);
+      } else {
+        // Transitioning to a new view
+        // If currentHash is already a sub-view, we replaceState so we don't pile up chat history
+        const isCurrentSubView = currentHash && currentHash !== '#' && currentHash !== '';
+        if (isCurrentSubView) {
+          window.history.replaceState(state, '', hash);
+        } else {
+          window.history.pushState(state, '', hash);
+        }
+      }
+    } else {
+      // Transitioning back to root
+      if (currentHash && currentHash !== '#' && currentHash !== '') {
+        window.history.back();
+      }
+    }
+  }, [selectedChatId, showProfileMenu, showNewChatModal, showNewStatusModal, activeStoryIndex, apiAuthenticated]);
 
   useEffect(() => {
     if (!apiAuthenticated) {
@@ -1278,6 +1957,24 @@ function App() {
       mergeLiveMessage(payload);
     };
     socket.on("new_message", handleNewMessage);
+    socket.on("chat_state", (payload) => {
+      if (payload && payload.chatId) {
+        setTypingStates((prev) => ({
+          ...prev,
+          [payload.chatId]: payload.state === 'typing'
+        }));
+      }
+    });
+    socket.on("message-reacted", ({ providerMessageId, reactions }) => {
+      setMessages(prev => prev.map(m => m.providerMessageId === providerMessageId ? { ...m, reactions } : m));
+      setMessagesByChat(prev => {
+        const next = { ...prev };
+        for (const cId in next) {
+          next[cId] = next[cId].map(m => m.providerMessageId === providerMessageId ? { ...m, reactions } : m);
+        }
+        return next;
+      });
+    });
     socket.on("message_updated", (updated) => {
       const eventProvider = updated?.provider || DEFAULT_PROVIDER;
       const eventAccountId = updated?.accountId || DEFAULT_ACCOUNT_ID;
@@ -1323,10 +2020,15 @@ function App() {
       prev.map((item) => (item.id === selectedChatId ? { ...item, unreadCount: 0 } : item))
     );
     markChatAsRead(selectedChatId);
-    setMessages(messagesByChat[selectedChatId] || []);
+    const cached = messagesByChat[selectedChatId] || [];
+    setMessages(cached);
+    const needLoader = cached.length === 0;
+    if (needLoader) {
+      setLoadingMessages((prev) => ({ ...prev, [selectedChatId]: true }));
+    }
     fetchMessages(selectedChatId, {
-      withLoader: !messagesByChat[selectedChatId],
-      background: !!messagesByChat[selectedChatId]
+      withLoader: needLoader,
+      background: !needLoader
     });
   }, [selectedChatId]);
 
@@ -1337,6 +2039,9 @@ function App() {
         if (showResources) setShowResources(false);
         if (showProfileMenu) setShowProfileMenu(false);
         if (replyTarget) setReplyTarget(null);
+        if (showNewChatModal) setShowNewChatModal(false);
+        if (showNewStatusModal) setShowNewStatusModal(false);
+        if (activeStoryIndex !== null) setActiveStoryIndex(null);
         return; // Don't prevent default, just handle our local logic
       }
 
@@ -1370,7 +2075,7 @@ function App() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [filteredChats, selectedChatId]);
+  }, [filteredChats, selectedChatId, showResources, showProfileMenu, replyTarget, showNewChatModal, showNewStatusModal, activeStoryIndex]);
 
   useEffect(() => {
     localStorage.setItem("tapchat_drafts", JSON.stringify(draftsByChat));
@@ -1404,18 +2109,18 @@ function App() {
   }, [draft, selectedChatId]);
 
   useEffect(() => {
-    if (sessionStatus !== "authenticated") return;
+    if (!apiAuthenticated) return;
     fetchChats(true);
-  }, [sessionStatus]);
+  }, [apiAuthenticated]);
 
   useEffect(() => {
-    if (!selectedChatId || sessionStatus !== "authenticated") return;
+    if (!selectedChatId || !apiAuthenticated) return;
     const intervalMs = syncingChat ? 3000 : 15000;
     const timer = setInterval(() => {
       fetchMessages(selectedChatId, { withLoader: false, background: true });
     }, intervalMs);
     return () => clearInterval(timer);
-  }, [selectedChatId, sessionStatus, syncingChat]);
+  }, [selectedChatId, apiAuthenticated, syncingChat]);
 
   useEffect(() => {
     const container = messagesAreaRef.current;
@@ -1459,6 +2164,167 @@ function App() {
       enqueueGrammarCheck(msg);
     });
   }, [messages]);
+
+  const offlineQueueRef = useRef([]);
+  useEffect(() => {
+    offlineQueueRef.current = offlineQueue;
+  }, [offlineQueue]);
+
+  useEffect(() => {
+    async function loadQueue() {
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const queue = await getOfflineQueue(provider, accountId);
+      setOfflineQueueState(queue);
+      if (queue.length > 0) {
+        setMessagesByChat(prev => {
+          const next = { ...prev };
+          queue.forEach(msg => {
+            if (msg.type === 'message' || !msg.type) {
+              const current = next[msg.chatId] || [];
+              if (!current.some(m => m._uiId === msg._uiId)) {
+                next[msg.chatId] = [...current, msg].sort(
+                  (a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0)
+                );
+              }
+            }
+          });
+          return next;
+        });
+
+        // Update active messages if viewing a chat that has queued items
+        if (selectedChatIdRef.current) {
+          const chatQueue = queue.filter(q => (q.type === 'message' || !q.type) && q.chatId === selectedChatIdRef.current);
+          if (chatQueue.length > 0) {
+            setMessages(prev => {
+              const next = [...prev];
+              chatQueue.forEach(msg => {
+                if (!next.some(m => m._uiId === msg._uiId)) {
+                  next.push(msg);
+                }
+              });
+              return next.sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+            });
+          }
+        }
+      }
+    }
+    loadQueue();
+  }, [currentUser]);
+
+  async function processOfflineQueue() {
+    if (offlineQueueRef.current.length === 0) return;
+    if (!navigator.onLine || isOffline) return;
+
+    if (syncRetryTimeoutRef.current) clearTimeout(syncRetryTimeoutRef.current);
+
+    const provider = "local";
+    const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+    const queue = [...offlineQueueRef.current];
+
+    if (syncAttemptsRef.current === 0) {
+      showNotice(" Sincronizando acciones pendientes...", "info");
+    }
+
+    for (const action of queue) {
+      try {
+        let res;
+        const targetChatId = action.chatId || action.payload?.chatId;
+        if (action.type === 'message' || !action.type) {
+          const chat = chatsRef.current.find(c => c.id === targetChatId);
+          const chatProvider = targetChatId === 'ai_assistant' ? 'local' : (chat?.provider || 'local');
+
+          let textToSend = action.body || action.payload?.text;
+          if (targetChatId !== 'ai_assistant' && !chat?.isGroup) {
+            try {
+              const keyRes = await fetch(`${API_URL}/api/users/${encodeURIComponent(targetChatId)}/public-key`);
+              if (keyRes.ok) {
+                const keyData = await keyRes.json();
+                if (keyData.publicKey) {
+                  console.log("[E2EE] Encrypting offline queued message...");
+                  textToSend = await encryptMessage(textToSend, keyData.publicKey, currentUser?.publicKey);
+                }
+              }
+            } catch (e) {
+              console.warn("[E2EE] Failed to get key during offline sync", e);
+            }
+          }
+
+          res = await fetch(`${API_URL}/api/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              provider: chatProvider,
+              accountId,
+              chatId: targetChatId,
+              text: textToSend,
+              originalText: action.originalText || action.payload?.originalText || action.body || action.payload?.text,
+              replyToMessageId: action.replyToMessageId || action.payload?.replyToMessageId || ""
+            })
+          });
+        } else if (action.type === 'publish_status_public' || action.type === 'publish_status_personal') {
+          res = await fetch(`${API_URL}/api/public-statuses`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(action.payload)
+          });
+        } else if (action.type === 'like_status') {
+          res = await fetch(`${API_URL}/api/public-statuses/${action.payload.statusId}/like`, {
+            method: "POST"
+          });
+        } else if (action.type === 'view_status') {
+          res = await fetch(`${API_URL}/api/public-statuses/${action.payload.statusId}/view`, {
+            method: "POST"
+          });
+        } else if (action.type === 'toggle_follow') {
+          const endpoint = action.payload.isFollowed ? 'unfollow' : 'follow';
+          res = await fetch(`${API_URL}/api/users/${action.payload.userId}/${endpoint}`, {
+            method: "POST"
+          });
+        } else if (action.type === 'update_profile') {
+          res = await fetch(`${API_URL}/api/auth/profile`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(action.payload)
+          });
+        }
+
+        if (res && (res.ok || res.status < 500)) {
+          syncAttemptsRef.current = 0;
+          setOfflineQueueState(prev => {
+            const next = prev.filter(item => item._uiId !== action._uiId);
+            setOfflineQueue(provider, accountId, next);
+            return next;
+          });
+          if (action.type === 'message' || !action.type) {
+            await fetchMessages(targetChatId, { withLoader: false, background: true });
+          } else if (action.type === 'publish_status_public' || action.type === 'like_status' || action.type === 'view_status') {
+            loadPublicStatuses();
+          } else if (action.type === 'publish_status_personal') {
+            fetchStatusArchive(true);
+          } else if (action.type === 'toggle_follow') {
+            loadProximityUsers();
+            loadFollowedStories();
+          }
+        } else {
+          throw new Error(`Server returned error status ${res?.status}`);
+        }
+      } catch (err) {
+        console.error("Error processing queued offline action:", err);
+        syncAttemptsRef.current += 1;
+        const delay = Math.min(30000, Math.pow(2, syncAttemptsRef.current) * 1000 + Math.random() * 1000);
+        showNotice(`Warning Error de red. Reintentando sincronización en ${Math.round(delay/1000)}s...`, "warning");
+        syncRetryTimeoutRef.current = setTimeout(processOfflineQueue, delay);
+        break;
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!isOffline && socketConnected && apiAuthenticated) {
+      processOfflineQueue();
+    }
+  }, [isOffline, socketConnected, apiAuthenticated, offlineQueue.length]);
 
 
 
@@ -1620,6 +2486,24 @@ function App() {
     }
   }
 
+  async function decryptMessageList(msgList) {
+    if (!privateKeyRef.current) return msgList;
+    const decrypted = [];
+    for (const msg of msgList) {
+      if (msg.body && msg.body.includes('"e2ee":true')) {
+        try {
+          const decryptedBody = await decryptMessage(msg.body, privateKeyRef.current);
+          decrypted.push({ ...msg, body: decryptedBody });
+        } catch (e) {
+          decrypted.push({ ...msg, body: "[Mensaje Cifrado - Error de descifrado]" });
+        }
+      } else {
+        decrypted.push(msg);
+      }
+    }
+    return decrypted;
+  }
+
   async function fetchMessages(chatId, options = {}) {
     const { withLoader = true, background = false } = options;
     if (!chatId) return;
@@ -1631,8 +2515,9 @@ function App() {
       if (!background) {
         const cachedMessages = await getCachedMessages("local", currentUser?.id || DEFAULT_ACCOUNT_ID, chatId);
         if (cachedMessages.length > 0 && selectedChatIdRef.current === chatId) {
-          setMessages(cachedMessages);
-          setMessagesByChat((prev) => ({ ...prev, [chatId]: cachedMessages }));
+          const decryptedCached = await decryptMessageList(cachedMessages);
+          setMessages(decryptedCached);
+          setMessagesByChat((prev) => ({ ...prev, [chatId]: decryptedCached }));
           if (withLoader) setLoadingMessages(prev => ({ ...prev, [chatId]: false }));
         }
       }
@@ -1664,16 +2549,23 @@ function App() {
         .map((msg) => ({ ...msg, _uiId: messageId(msg) }))
         .sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
 
-      setMessagesByChat((prev) => ({ ...prev, [chatId]: safeMessages }));
-      await setCachedMessages("local", currentUser?.id || DEFAULT_ACCOUNT_ID, chatId, safeMessages);
+      const decryptedMessages = await decryptMessageList(safeMessages);
+
+      decryptedMessages.forEach(msg => {
+        if (msg.mediaUrl) {
+          cacheMediaFile(msg.mediaUrl);
+        }
+      });
+
+      setMessagesByChat((prev) => ({ ...prev, [chatId]: decryptedMessages }));
+      await setCachedMessages("local", currentUser?.id || DEFAULT_ACCOUNT_ID, chatId, decryptedMessages);
       if (selectedChatIdRef.current === chatId) {
         setMessages(prev => {
-          // Keep optimistic messages that haven't been confirmed yet by the backend
           const pendingOptimistic = prev.filter(m =>
-            m.status === 'sending' &&
-            !safeMessages.some(sm => sm.body === m.body && sm.fromMe && sm.status !== 'sending')
+            (m.status === 'sending' || m.status === 'offline_pending') &&
+            !decryptedMessages.some(sm => sm.body === m.body && sm.fromMe && sm.status !== 'sending')
           );
-          return [...safeMessages, ...pendingOptimistic].sort(
+          return [...decryptedMessages, ...pendingOptimistic].sort(
             (a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0)
           );
         });
@@ -1767,6 +2659,20 @@ function App() {
     const provider = selectedChatId === 'ai_assistant' ? 'local' : (chat?.provider || 'local');
     const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
 
+    let finalBody = text;
+    // E2EE Cifrado desactivado para evitar errores de llave no coincidente en múltiples dispositivos.
+    // Todos los mensajes nuevos se envían en texto plano directamente.
+    /*
+    if (activeChatPublicKeyRef.current) {
+      try {
+        console.log("[E2EE] Encrypting message before posting...");
+        finalBody = await encryptMessage(text, activeChatPublicKeyRef.current, currentUser?.publicKey);
+      } catch (err) {
+        console.error("[E2EE] Encryption failed, fallback to plain text:", err);
+      }
+    }
+    */
+
     try {
       const res = await fetch(`${API_URL}/api/send`, {
         method: "POST",
@@ -1775,9 +2681,11 @@ function App() {
           provider,
           accountId,
           chatId: selectedChatId,
-          text,
+          text: finalBody,
           originalText: payload?.originalText || text,
-          replyToMessageId: payload?.replyToMessageId || ""
+          replyToMessageId: payload?.replyToMessageId || "",
+          mediaUrl: payload?.mediaUrl || null,
+          mediaType: payload?.mediaType || null
         })
       });
       if (!res.ok) throw new Error("No se pudo enviar el mensaje.");
@@ -1788,11 +2696,37 @@ function App() {
     }
   }
 
-  async function sendMessage(textToSend, type = "original") {
+  async function sendMessage(textToSend, type = "original", mediaUrl = null, mediaType = null) {
     if (!String(textToSend || "").trim()) return;
-    if (!navigator.onLine) {
-       showNotice("No puedes enviar mensajes sin conexión a internet.", "error");
-       return;
+    if (!navigator.onLine || isOffline) {
+      const offlineId = `offline-${Date.now()}`;
+      const optimisticMsg = {
+        _uiId: offlineId,
+        chatId: selectedChatId,
+        body: textToSend,
+        fromMe: true,
+        timestamp: Math.floor(Date.now() / 1000),
+        status: 'offline_pending',
+        originalText: draftsByChat[selectedChatId] || textToSend,
+        replyToMessageId: replyTarget?.id || "",
+        mediaUrl,
+        mediaType
+      };
+      setMessages(prev => [...prev, optimisticMsg]);
+      setMessagesByChat(prev => {
+        const current = prev[selectedChatId] || [];
+        return { ...prev, [selectedChatId]: [...current, optimisticMsg] };
+      });
+      const provider = "local";
+      const accountId = currentUser?.id || DEFAULT_ACCOUNT_ID;
+      const nextQueue = [...offlineQueue, optimisticMsg];
+      setOfflineQueueState(nextQueue);
+      await setOfflineQueue(provider, accountId, nextQueue);
+      setDraft("");
+      setCorrectedDraft("");
+      setReplyTarget(null);
+      showNotice(" Sin conexión a Internet. Mensaje en cola para enviar al reconectar.", "info");
+      return;
     }
     const optimisticMsg = {
       _uiId: `optimistic-${Date.now()}`,
@@ -1800,7 +2734,9 @@ function App() {
       body: textToSend,
       fromMe: true,
       timestamp: Math.floor(Date.now() / 1000),
-      status: 'sending'
+      status: 'sending',
+      mediaUrl,
+      mediaType
     };
     setMessages(prev => [...prev, optimisticMsg]);
     setSending(true);
@@ -1809,7 +2745,9 @@ function App() {
       const ok = await postSendMessage({
         text: textToSend,
         originalText: draftsByChat[selectedChatId] || textToSend,
-        replyToMessageId: replyTarget?.id || ""
+        replyToMessageId: replyTarget?.id || "",
+        mediaUrl,
+        mediaType
       });
       if (!ok) {
         setMessages(prev => prev.filter(m => m._uiId !== optimisticMsg._uiId));
@@ -1818,7 +2756,7 @@ function App() {
       setDraft("");
       setCorrectedDraft("");
       setReplyTarget(null);
-      showNotice(type === "corrected" || type === "correctedAndSending" ? "✨ Mensaje mejorado por IA y enviado." : "📤 Mensaje original enviado.", "success");
+      showNotice(type === "corrected" || type === "correctedAndSending" ? "AI Mensaje mejorado por IA y enviado." : " Mensaje original enviado.", "success");
       await fetchMessages(selectedChatId, { withLoader: false, background: true });
     } catch (error) {
       setMessages(prev => prev.filter(m => m._uiId !== optimisticMsg._uiId));
@@ -1832,17 +2770,8 @@ function App() {
   function handleDraftKeyDown(event) {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!sending && !correcting && !correctingAndSending && (draft.trim() || correctedDraft)) {
-        if (event.ctrlKey || event.metaKey) {
-          // Force send original
-          sendMessage(draft, "original");
-        } else {
-          if (correctedDraft) {
-            sendMessage(correctedDraft, "corrected");
-          } else if (draft.trim()) {
-            correctAndSend();
-          }
-        }
+      if (!sending && draft.trim()) {
+        sendMessage(draft, "original");
       }
     }
   }
@@ -1851,7 +2780,7 @@ function App() {
     const replyBody = (msg.body || "").trim();
     setReplyTarget({
       id: msg.id || msg._uiId,
-      text: replyBody || (msg.mediaType === "image" ? "[Imagen]" : "[Mensaje vacío]"),
+      text: replyBody || (msg.mediaType === "image" ? "[Imagen]" : msg.mediaType === "video" ? "[Video]" : msg.mediaType === "audio" ? "[Audio]" : "[Mensaje vacío]"),
       fromMe: Boolean(msg.fromMe)
     });
   }
@@ -2049,6 +2978,37 @@ function App() {
     }
   }
 
+  if (!initialAuthChecked) {
+    return (
+      <>
+        <div className="bg-blob-container" aria-hidden="true">
+          <div className="bg-blob blob-1"></div>
+          <div className="bg-blob blob-2"></div>
+        </div>
+        <main className="authScreen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+            width: '80px',
+            height: '80px',
+            borderRadius: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
+            marginBottom: '20px'
+          }}>
+            <span style={{ fontSize: '32px', color: '#fff', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>TC</span>
+          </div>
+          <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-heading)' }}>Tapchat</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', color: '#a855f7' }} aria-hidden="true" />
+            Cargando la aplicación...
+          </p>
+        </main>
+      </>
+    );
+  }
+
   if (!apiAuthenticated) {
     return (
       <>
@@ -2070,7 +3030,7 @@ function App() {
                 boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
                 marginBottom: '15px'
               }}>
-                <span style={{ fontSize: '32px', color: '#fff' }}>💬</span>
+                <span style={{ fontSize: '32px', color: '#fff' }}>Chat</span>
               </div>
               <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tapchat</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '5px' }}>
@@ -2141,7 +3101,9 @@ function App() {
                   });
                   const data = await res.json();
                   if (res.ok) {
+                    window.tempLoginPassword = password;
                     localStorage.setItem("tapchat_token", data.token);
+                    localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
                     setCurrentUser(data.user);
                     setApiAuthenticated(true);
                     showNotice("¡Bienvenido a Tapchat!", "success");
@@ -2161,7 +3123,9 @@ function App() {
                   });
                   const data = await res.json();
                   if (res.ok) {
+                    window.tempLoginPassword = password;
                     localStorage.setItem("tapchat_token", data.token);
+                    localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
                     setCurrentUser(data.user);
                     setApiAuthenticated(true);
                     showNotice("Cuenta creada con éxito.", "success");
@@ -2275,15 +3239,7 @@ function App() {
             </form>
           </section>
 
-          {toasts.length > 0 && (
-            <div className="toast-container" aria-live="polite">
-              {toasts.map(t => (
-                <div key={t.id} className={`toast ${t.type}`}>
-                  {t.text}
-                </div>
-              ))}
-            </div>
-          )}
+
         </main>
       </>
     );
@@ -2370,7 +3326,7 @@ function App() {
               </button>
               <div className="notice error mt-2" role="alert" aria-live="assertive">
                 <p className="helperText errorText">
-                  <strong>⚠️ Error de Autenticación de Proveedor</strong><br />
+                  <strong>Warning Error de Autenticación de Proveedor</strong><br />
                   Si el problema persiste, es posible que el dispositivo haya sido desvinculado desde tu teléfono u origen.
                 </p>
               </div>
@@ -2393,6 +3349,13 @@ function App() {
           <InfoIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Hay una nueva versión de Tapchat disponible.
           <button className="primary" onClick={() => pwaUpdateAvailable(true)}>Actualizar ahora</button>
           <button className="secondary" onClick={() => setPwaUpdateAvailable(null)}>Ignorar</button>
+        </div>
+      )}
+      {showNotificationPrompt && (
+        <div className="notificationBanner" role="alert" aria-live="assertive">
+          <AlertIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Para recibir alertas de nuevos mensajes, activa las notificaciones del sistema.
+          <button className="primary" onClick={requestNotificationPermission}>Activar</button>
+          <button className="secondary" onClick={dismissNotificationPrompt}>Ignorar</button>
         </div>
       )}
       {isOffline && (
@@ -2420,6 +3383,9 @@ function App() {
         <header className="sidebarHeader">
           <h2>
             {viewMode === "chats" ? "Chats" : viewMode === "statuses" ? "Estados" : "Notificaciones"}
+            {viewMode === "chats" && totalUnread > 0 && (
+              <span className="pendingCounter" style={{ marginLeft: '8px', display: 'inline-flex', alignSelf: 'center' }}>{totalUnread}</span>
+            )}
             {viewMode === "chats" && syncingChats && (
               <span className="syncIndicator" title="Sincronizando chats..." aria-live="polite"><ReloadIcon size={14} className="spinning" style={{ marginLeft: '6px', display: 'inline-block', verticalAlign: 'middle' }} /></span>
             )}
@@ -2480,15 +3446,6 @@ function App() {
             </button>
           </div>
         </header>
-
-        <div className="statusBar" role="status" aria-live="polite" aria-atomic="true">
-          <span className={`dot ${dotClass}`} aria-hidden="true" />
-          <span className="sr-only">{socketConnected ? "Conectado al servidor." : "Desconectado del servidor."}</span>
-          <span>
-            {connectionLabel}
-          </span>
-          {totalUnread > 0 ? <strong className="pendingCounter" aria-label={`${totalUnread} mensajes pendientes`}>{totalUnread} pendientes</strong> : null}
-        </div>
 
         <div className="searchWrap" style={{ display: 'flex', gap: '8px', alignItems: 'center', position: 'relative', width: '100%' }}>
           <label htmlFor="chatSearchInput" className="sr-only">
@@ -2581,6 +3538,7 @@ function App() {
                 const hasMyStatus = myActiveStatuses.length > 0;
                 return (
                   <button
+                    aria-label={hasMyStatus ? "Ver mi estado" : "Añadir nuevo estado"}
                     onClick={() => {
                       if (hasMyStatus) {
                         setStoryPlayList(myActiveStatuses);
@@ -2673,6 +3631,7 @@ function App() {
               {followedStories.map((story, idx) => (
                 <button
                   key={story._id}
+                  aria-label={"Ver estado de " + (story.statusOwnerName || story.statusOwnerId)}
                   onClick={() => {
                     viewPublicStatus(story._id); // Mark as viewed on backend
                     setStoryPlayList(followedStories);
@@ -2834,7 +3793,7 @@ function App() {
                       border: '1px solid rgba(255, 111, 36, 0.2)',
                       fontWeight: '600'
                     }}>
-                      📍 a {user.distanceMeters ? (user.distanceMeters < 1000 ? `${user.distanceMeters} m` : `${(user.distanceMeters/1000).toFixed(1)} km`) : '150 m'}
+                       a {user.distanceMeters ? (user.distanceMeters < 1000 ? `${user.distanceMeters} m` : `${(user.distanceMeters/1000).toFixed(1)} km`) : '150 m'}
                     </span>
                     {/* Actions */}
                     <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '4px' }}>
@@ -2914,6 +3873,7 @@ function App() {
                   value={newPublicStatusBody}
                   onChange={(e) => setNewPublicStatusBody(e.target.value)}
                   placeholder="Comparte algo efímero con el mundo... (Dura 24 horas)"
+                  aria-label="Publicar estado en el muro"
                   style={{
                     width: '100%',
                     background: 'rgba(0,0,0,0.15)',
@@ -2945,7 +3905,7 @@ function App() {
                     gap: '6px'
                   }}
                 >
-                  {publishingStatus ? 'Publicando...' : '📢 Publicar en Muro'}
+                  {publishingStatus ? 'Publicando...' : ' Publicar en Muro'}
                 </button>
               </div>
 
@@ -2962,84 +3922,101 @@ function App() {
                     style={{
                       background: 'rgba(255, 255, 255, 0.03)',
                       border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '20px',
-                      overflow: 'hidden',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)'
+                      borderRadius: '16px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      transition: 'all 0.2s ease',
+                      position: 'relative'
                     }}
                   >
-                    {/* Media Header (Card Background styling) */}
-                    <div style={{
-                      height: '140px',
-                      background: status.mediaUrl ? `url(${status.mediaUrl}) center/cover no-repeat` : 'linear-gradient(135deg, #1f2c33 0%, #0d1418 100%)',
-                      position: 'relative',
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      padding: '12px'
-                    }}>
+                    {/* Header: Publisher Info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{
-                        position: 'absolute',
-                        top: '0',
-                        left: '0',
-                        right: '0',
-                        bottom: '0',
-                        background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)',
-                        zIndex: 1
-                      }} />
-                      {/* Publisher Details */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
-                        <div style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: status.avatarUrl ? 'transparent' : getAvatarGradient(status.avatarColor || status.userId),
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        background: status.avatarUrl ? 'transparent' : getAvatarGradient(status.avatarColor || status.userId),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '700',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        overflow: 'hidden',
+                        flexShrink: 0
+                      }}>
+                        {status.avatarUrl ? (
+                          <img src={status.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          (status.username || "Yo").slice(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: '600', color: '#fff', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {status.username || "Usuario"}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            · @{(status.username || "usuario").toLowerCase()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                           {status.distanceMeters ? (status.distanceMeters < 1000 ? `${status.distanceMeters} m` : `${(status.distanceMeters/1000).toFixed(1)} km`) : '150 m'}
+                        </div>
+                      </div>
+                      {status.isOfflinePending && (
+                        <span style={{ fontSize: '0.7rem', color: '#ff9f43', background: 'rgba(255, 159, 67, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+                           Pendiente
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Body text */}
+                    <p style={{
+                      fontSize: '0.95rem',
+                      color: '#e2e8f0',
+                      margin: 0,
+                      lineHeight: '1.5',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}>
+                      {status.body}
+                    </p>
+
+                    {/* Footer stats / actions */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '24px',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-muted)',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                      paddingTop: '10px',
+                      marginTop: '4px'
+                    }}>
+                      <button
+                        onClick={() => likePublicStatus(status._id)}
+                        aria-label={status.isLiked ? "Ya no me gusta" : "Me gusta"}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: status.isLiked ? '#ff5252' : '#94a3b8',
+                          cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: '700',
-                          color: '#fff',
-                          fontSize: '0.75rem',
-                          border: '1px solid rgba(255,255,255,0.3)',
-                          overflow: 'hidden'
-                        }}>
-                          {status.avatarUrl ? (
-                            <img src={status.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          ) : (
-                            status.username.slice(0, 2).toUpperCase()
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#fff', fontSize: '0.85rem' }}>{status.username}</div>
-                          <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)' }}>📍 a {status.distanceMeters ? (status.distanceMeters < 1000 ? `${status.distanceMeters} m` : `${(status.distanceMeters/1000).toFixed(1)} km`) : '150 m'}</div>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Body Text */}
-                    <div style={{ padding: '12px', background: 'rgba(13, 20, 24, 0.4)' }}>
-                      <p style={{ fontSize: '0.85rem', color: '#fff', margin: '0 0 10px 0', lineHeight: '1.4' }}>
-                        {status.body}
-                      </p>
-                      {/* Footer Actions */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
-                        <button
-                          onClick={() => likePublicStatus(status._id)}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: status.isLiked ? '#ff5252' : '#ccc',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontWeight: '600'
-                          }}
-                        >
-                          <HeartIcon size={14} filled={status.isLiked} /> {status.likesCount || 0}
-                        </button>
-                        <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <EyeIcon size={14} /> {status.viewsCount || 0} vistas
-                        </span>
-                      </div>
+                          gap: '6px',
+                          fontWeight: '600',
+                          padding: 0
+                        }}
+                      >
+                        <HeartIcon size={16} filled={status.isLiked} /> {status.likesCount || 0}
+                      </button>
+
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8' }}>
+                        <EyeIcon size={16} /> {status.viewsCount || 0}
+                      </span>
                     </div>
                   </div>
                 ))
@@ -3079,50 +4056,25 @@ function App() {
                     {chat.isGroup ? <span className="chatKindBadge">Grupo</span> : null}
                     {(() => {
                       const chatMsgs = messagesByChat[chat.id] || [];
-                      const lastMsg = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null;
-                      if (!lastMsg) return null;
-                      const text = String(lastMsg.body || '').toLowerCase();
-                      const positive = ['bien', 'feliz', 'buen', 'genial', 'excelente', 'gracias', 'jaja', 'súper', 'super', ':)'];
-                      const negative = ['mal', 'triste', 'enojado', 'problema', 'tarde', 'perdón', 'perdon', 'fallo', 'error', ':('];
-                      let score = 0;
-                      positive.forEach(w => { if (text.includes(w)) score += 1; });
-                      negative.forEach(w => { if (text.includes(w)) score -= 1; });
-                      
-                      let sentiment = null;
-                      if (score > 0) sentiment = { emoji: "😊", color: "#10b981", label: "Positivo" };
-                      else if (score < 0) sentiment = { emoji: "😕", color: "#f43f5e", label: "Negativo" };
-                      
-                      if (!sentiment) return null;
-                      return (
-                        <span 
-                          title={`Análisis de Sentimiento: ${sentiment.label}`} 
-                          style={{
-                            fontSize: '11px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '18px',
-                            height: '18px',
-                            borderRadius: '50%',
-                            background: `${sentiment.color}20`,
-                            border: `1px solid ${sentiment.color}`,
-                            color: sentiment.color,
-                            marginLeft: '4px'
-                          }}
-                        >
-                          {sentiment.emoji}
-                        </span>
-                      );
+                      return <ChatSentiment lastMsg={chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null} />;
                     })()}
                     {chat.unreadCount > 0 ? (
                       <span className="unreadBadge">{chat.unreadCount}</span>
                     ) : null}
                   </div>
                 </div>
-                <div className="chatMeta">
-                  {chat.unreadCount
-                    ? `${chat.isGroup ? "Grupo" : "Directo"} · Sin contestar`
-                    : `${chat.isGroup ? "Grupo" : "Directo"} · Sin notificaciones`}
+                <div className="chatMeta" style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {(() => {
+                    const chatMsgs = messagesByChat[chat.id] || [];
+                    const lastMsg = chatMsgs.length > 0 ? chatMsgs[chatMsgs.length - 1] : null;
+                    if (lastMsg) {
+                      const prefix = lastMsg.fromMe ? "Tú: " : "";
+                      return `${prefix}${lastMsg.body || (lastMsg.mediaType === "image" ? " Imagen" : "Archivo")}`;
+                    }
+                    return chat.unreadCount
+                      ? `${chat.isGroup ? "Grupo" : "Directo"} · Sin contestar`
+                      : `${chat.isGroup ? "Grupo" : "Directo"} · Sin notificaciones`;
+                  })()}
                 </div>
               </div>
             </button>
@@ -3170,55 +4122,7 @@ function App() {
           {viewMode === "discover" && filteredProximityUsers.length === 0 ? <p className="helper">No hay usuarios cercanos.</p> : null}
           {viewMode === "muro" && filteredPublicStatuses.length === 0 ? <p className="helper">No hay estados públicos.</p> : null}
 
-          {viewMode === "notifications" && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px 0' }}>
-              {notifications.length === 0 ? (
-                <p className="helper">No tienes notificaciones nuevas.</p>
-              ) : (
-                notifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    style={{
-                      display: 'flex',
-                      gap: '12px',
-                      padding: '12px',
-                      borderRadius: '14px',
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.05)',
-                      fontSize: '0.85rem',
-                      lineHeight: '1.4',
-                      alignItems: 'flex-start'
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem', marginTop: '2px' }}>
-                      {notif.type === 'message' ? '✉️' : notif.type === 'success' ? '✅' : notif.type === 'warning' ? '⚠️' : 'ℹ️'}
-                    </span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ color: '#fff', fontWeight: '500' }}>{notif.text}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>{notif.time}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setNotifications(prev => prev.filter(n => n.id !== notif.id))}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        padding: '0 4px',
-                        display: 'inline-flex'
-                      }}
-                      title="Eliminar"
-                      aria-label="Eliminar notificación"
-                    >
-                      ❌
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
+
         </div>
         <div style={{
           display: 'flex',
@@ -3332,52 +4236,7 @@ function App() {
             Muro
           </button>
           
-          <button
-            type="button"
-            onClick={() => {
-              setViewMode("notifications");
-              setSelectedChatId("");
-            }}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              color: viewMode === "notifications" ? '#ff6f24' : 'var(--text-muted)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              cursor: 'pointer',
-              fontSize: '0.7rem',
-              fontWeight: viewMode === "notifications" ? '700' : '500',
-              transition: 'all 0.2s ease',
-              textShadow: viewMode === "notifications" ? '0 0 10px rgba(255, 111, 36, 0.3)' : 'none',
-              position: 'relative'
-            }}
-          >
-            <AlertIcon size={18} />
-            Alertas
-            {notifications.length > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '0px',
-                right: '20%',
-                background: '#ff6f24',
-                color: '#fff',
-                borderRadius: '50%',
-                width: '14px',
-                height: '14px',
-                fontSize: '9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '800',
-                border: '1px solid #1f2c33'
-              }}>
-                {notifications.length}
-              </span>
-            )}
-          </button>
+
         </div>
       </aside>
 
@@ -3397,8 +4256,9 @@ function App() {
                 <div className="chatHeaderInfo">
                   <h3>Estados archivados</h3>
                   <p>
+                    {/*  Bolt: Using cached timeFormatter instead of toLocaleTimeString to prevent instantiation overhead */}
                     {backendStatus.statusArchive?.lastRunAt
-                      ? `Última revisión ${new Date(backendStatus.statusArchive.lastRunAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                      ? `Última revisión ${timeFormatter.format(new Date(backendStatus.statusArchive.lastRunAt))}`
                       : "Escaneo automático cada minuto"}
                   </p>
                 </div>
@@ -3420,33 +4280,40 @@ function App() {
                     justifyContent: 'center'
                   }}
                 >
-                  {loadingStatusArchive ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : "🔄"}
+                  {loadingStatusArchive ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : ""}
                 </button>
-                <button
-                  type="button"
-                  onClick={toggleProfileMenu}
-                  aria-label="Perfil y configuraciones"
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
-                    color: '#fff',
-                    fontWeight: '700',
-                    border: '2px solid #fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.85rem',
-                    boxShadow: '0 0 8px rgba(255,255,255,0.4)',
-                    transition: 'all 0.2s ease',
-                    padding: 0,
-                    flexShrink: 0
-                  }}
-                >
-                  {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
-                </button>
+                {isMobileLayout && (
+                  <button
+                    type="button"
+                    onClick={toggleProfileMenu}
+                    aria-label="Perfil y configuraciones"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: currentUser?.avatarUrl ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                      color: '#fff',
+                      fontWeight: '700',
+                      border: '2px solid #fff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem',
+                      boxShadow: '0 0 8px rgba(255,255,255,0.4)',
+                      transition: 'all 0.2s ease',
+                      padding: 0,
+                      flexShrink: 0,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {currentUser?.avatarUrl ? (
+                      <img src={currentUser.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+                    )}
+                  </button>
+                )}
               </div>
             </header>
 
@@ -3527,7 +4394,26 @@ function App() {
           </div>
         ) : (
           <>
-            <header className="chatHeader">
+            <header className="chatHeader" style={{ position: 'relative' }}>
+              <style>{`
+                @keyframes tapchat-sync-shimmer {
+                  0% { background-position: -200% 0; }
+                  100% { background-position: 200% 0; }
+                }
+              `}</style>
+              {syncingChat && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '3px',
+                  background: 'linear-gradient(90deg, #ff6f24 25%, #ff8c42 50%, #ff6f24 75%)',
+                  backgroundSize: '200% 100%',
+                  animation: 'tapchat-sync-shimmer 1.5s infinite linear',
+                  zIndex: 20
+                }} />
+              )}
               <div className="chatHeaderLeft">
                 <button
                   className="secondary mobileBackBtn"
@@ -3555,12 +4441,43 @@ function App() {
                 <div className="chatHeaderInfo">
                   <h3>{selectedChat?.name || "Seleccioná un chat"}</h3>
                   <p>
-                    {selectedChat?.id || "Sin chat seleccionado"}
-                    {selectedChat?.isGroup ? " · Grupo" : ""}
+                    {typingStates[selectedChatId] ? (
+                      <span style={{ color: '#16a34a', fontWeight: '600' }}>Escribiendo...</span>
+                    ) : (
+                      <>
+                        {selectedChat?.id || "Sin chat seleccionado"}
+                        {selectedChat?.isGroup ? " · Grupo" : ""}
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
               <div className="chatHeaderActions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  className={inVoiceCall && voiceRoomId === selectedChatId ? "primary" : "secondary"}
+                  aria-label={inVoiceCall && voiceRoomId === selectedChatId ? "Salir de llamada de voz" : "Iniciar llamada de voz"}
+                  onClick={() => {
+                    if (inVoiceCall) {
+                      leaveVoiceRoom();
+                    } else {
+                      joinVoiceRoom(selectedChatId);
+                    }
+                  }}
+                  disabled={!selectedChatId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: inVoiceCall && voiceRoomId === selectedChatId ? '#ef4444' : undefined,
+                    color: inVoiceCall && voiceRoomId === selectedChatId ? '#fff' : undefined,
+                    border: inVoiceCall && voiceRoomId === selectedChatId ? 'none' : undefined,
+                  }}
+                >
+                  <PhoneCallIcon size={16} />
+                  <span className="hideOnMobile">
+                    {inVoiceCall && voiceRoomId === selectedChatId ? "Salir" : "Llamar"}
+                  </span>
+                </button>
                 <button
                   className="secondary"
                   aria-label="Ver recursos del contacto"
@@ -3589,135 +4506,269 @@ function App() {
                 >
                   {loadingMessages[selectedChatId] ? <span className="buttonSpinner" style={{ marginRight: 0 }} aria-hidden="true" /> : <ReloadIcon size={16} />}
                 </button>
-                <button
-                  type="button"
-                  onClick={toggleProfileMenu}
-                  aria-label="Perfil y configuraciones"
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
-                    color: '#fff',
-                    fontWeight: '700',
-                    border: '2px solid #fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.85rem',
-                    boxShadow: '0 0 8px rgba(255,255,255,0.4)',
-                    transition: 'all 0.2s ease',
-                    padding: 0,
-                    flexShrink: 0
-                  }}
-                >
-                  {(currentUser?.username || "Yo").slice(0, 2).toUpperCase()}
-                </button>
+                {isMobileLayout && (
+                  <button
+                    type="button"
+                    onClick={toggleProfileMenu}
+                    aria-label="Perfil y configuraciones"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: currentUser?.avatarUrl ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                      color: '#fff',
+                      fontWeight: '700',
+                      border: '2px solid #fff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem',
+                      boxShadow: '0 0 8px rgba(255,255,255,0.4)',
+                      transition: 'all 0.2s ease',
+                      padding: 0,
+                      flexShrink: 0,
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {currentUser?.avatarUrl ? (
+                      <img src={currentUser.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+                    )}
+                  </button>
+                )}
               </div>
             </header>
 
-            <div
-              className="messagesArea"
-              ref={messagesAreaRef}
-              onScroll={handleMessagesScroll}
-            >
-              {loadingMessages[selectedChatId] && messages.length === 0 ? (
-                <>
-                  <div className="skeleton-msg"></div>
-                  <div className="skeleton-msg"></div>
-                  <div className="skeleton-msg"></div>
-                </>
-              ) : null}
-              {!loadingMessages[selectedChatId] && syncingChat && messages.length === 0 ? <p className="helper">Sincronizando...</p> : null}
-              {!loadingMessages[selectedChatId] && !syncingChat && messages.length === 0 ? (
-                <p className="helper">Este chat todavía no tiene mensajes visibles.</p>
-              ) : null}
+            <VoiceCallOverlay
+              mode="maximized"
+              inVoiceCall={inVoiceCall}
+              voiceRoomId={voiceRoomId}
+              selectedChatId={selectedChatId}
+              isCallMinimized={isCallMinimized}
+              voicePeers={voicePeers}
+              isMuted={isMuted}
+              screenStream={screenStream}
+              callVolume={callVolume}
+              currentUser={currentUser}
+              getAvatarGradient={getAvatarGradient}
+              toggleMute={toggleMute}
+              startScreenShare={startScreenShare}
+              stopScreenShare={stopScreenShare}
+              setCallVolume={setCallVolume}
+              setIsCallMinimized={setIsCallMinimized}
+              leaveVoiceRoom={leaveVoiceRoom}
+              apiUrl={API_URL}
+            />
 
-              {messages.map((msg, idx) => {
-                const prevMsg = messages[idx - 1];
-                const isConsecutive = prevMsg && prevMsg.fromMe === msg.fromMe;
-                return (
-                <div key={msg._uiId} className={`bubbleRow ${msg.fromMe ? "mine" : "theirs"} ${isConsecutive ? "consecutive" : ""} ${msg.isRevoked ? "revokedRow" : ""}`}>
-                  <article
-                    className={`bubble ${
-                      !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "incomingGrammarError" : ""
-                    } ${msg.isRevoked ? "isRevoked" : ""}`}
-                    tabIndex={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? 0 : undefined}
-                    role={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "button" : undefined}
-                    onClick={
-                      !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
-                        ? () => prepareGrammarReply(msg)
-                        : undefined
-                    }
-                    onKeyDown={
-                      !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              prepareGrammarReply(msg);
-                            }
-                          }
-                        : undefined
-                    }
-                  >
-                    {msg.replyToText ? (
-                      <div className="replyPreview">
-                        <span className="replyLabel">Respuesta a</span>
-                        <p>{msg.replyToText}</p>
-                      </div>
-                    ) : null}
-                    {!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? (
-                      <span className="grammarErrorBadge">Posibles errores gramaticales · Presionar para responder</span>
-                    ) : null}
-                    {!msg.fromMe && Array.isArray(msg.mentionedIds) && msg.mentionedIds.length > 0 ? (
-                      <span className="pingBadge">Ping</span>
-                    ) : null}
-                    {msg.isRevoked ? (
-                      <div className="revokedNotice">🗑️ Mensaje eliminado</div>
-                    ) : null}
-                    {msg.mediaType === "image" && (msg.imageDataUrl || msg.mediaUrl) ? (
-                      <img className="msgImage" src={msg.mediaUrl ? `${API_URL}${msg.mediaUrl}` : msg.imageDataUrl} alt="Imagen del chat" />
-                    ) : null}
-                    {msg.mediaType === "video" && msg.mediaUrl ? (
-                      <video className="msgVideo" src={`${API_URL}${msg.mediaUrl}`} controls />
-                    ) : null}
-                    {msg.mediaType === "audio" && msg.mediaUrl ? (
-                      <audio className="msgAudio" src={`${API_URL}${msg.mediaUrl}`} controls />
-                    ) : null}
-                    <p className={msg.isRevoked ? "revokedText" : ""}>{msg.body || "[mensaje vacío]"}</p>
-                    <div className="bubbleMeta">
-                      <time>{formatTime(msg.timestamp)}</time>
-                      {msg.fromMe && <AckIcon status={msg.status || msg.ack} />}
-                    </div>
-                    <div className="bubbleActions">
-                      <button
-                        className="replyBtn"
-                        aria-label="Responder a este mensaje"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startReply(msg);
-                        }}
+            {messages.length === 0 ? (
+              <div
+                className="messagesArea"
+                ref={messagesAreaRef}
+                onScroll={handleMessagesScroll}
+              >
+                {loadingMessages[selectedChatId] ? (
+                  <>
+                    <div className="skeleton-msg"></div>
+                    <div className="skeleton-msg"></div>
+                    <div className="skeleton-msg"></div>
+                  </>
+                ) : null}
+                {!loadingMessages[selectedChatId] && syncingChat ? <p className="helper">Sincronizando...</p> : null}
+                {!loadingMessages[selectedChatId] && !syncingChat ? (
+                  <p className="helper">Este chat todavía no tiene mensajes visibles.</p>
+                ) : null}
+              </div>
+            ) : (
+              <VirtualMessageList
+                messages={messages}
+                containerRef={messagesAreaRef}
+                onScroll={handleMessagesScroll}
+                renderMessage={(msg, idx) => {
+                  const prevMsg = messages[idx - 1];
+                  const isConsecutive = prevMsg && prevMsg.fromMe === msg.fromMe;
+                  return (
+                    <div key={msg._uiId} className={`bubbleRow ${msg.fromMe ? "mine" : "theirs"} ${isConsecutive ? "consecutive" : ""} ${msg.isRevoked ? "revokedRow" : ""}`}>
+                      <article
+                        className={`bubble ${
+                          !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "incomingGrammarError" : ""
+                        } ${msg.isRevoked ? "isRevoked" : ""} ${msg.status === 'offline_pending' ? "is-offline" : ""}`}
+                        tabIndex={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? 0 : undefined}
+                        role={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "button" : undefined}
+                        aria-label={!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? "Mensaje con errores gramaticales. Presionar para responder con corrección." : undefined}
+                        onDoubleClick={() => startReply(msg)}
+                        onClick={
+                          !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
+                            ? () => prepareGrammarReply(msg)
+                            : undefined
+                        }
+                        onKeyDown={
+                          !msg.fromMe && grammarInsights[msg._uiId]?.hasErrors
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  prepareGrammarReply(msg);
+                                }
+                              }
+                            : undefined
+                        }
                       >
-                        Responder
-                      </button>
+                        {msg.replyToText ? (
+                          <div className="replyPreview">
+                            <span className="replyLabel">Respuesta a</span>
+                            <p>{msg.replyToText}</p>
+                          </div>
+                        ) : null}
+                        {!msg.fromMe && grammarInsights[msg._uiId]?.hasErrors ? (
+                          <span className="grammarErrorBadge">Posibles errores gramaticales · Presionar para responder</span>
+                        ) : null}
+                        {!msg.fromMe && Array.isArray(msg.mentionedIds) && msg.mentionedIds.length > 0 ? (
+                          <span className="pingBadge">Ping</span>
+                        ) : null}
+                        {msg.isRevoked ? (
+                          <div className="revokedNotice"><WarningIcon size={14} style={{ marginRight: '4px' }} /> Mensaje eliminado</div>
+                        ) : null}
+                        
+                        {/* Reaction Picker Trigger Button */}
+                        {!msg.isRevoked && (
+                          <button
+                            type="button"
+                            className="reaction-picker-trigger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveReactionPicker(activeReactionPicker === msg._uiId ? null : msg._uiId);
+                            }}
+                            title="Reaccionar"
+                            aria-label="Reaccionar"
+                          >
+                            +
+                          </button>
+                        )}
+
+                        {/* Reaction Picker Popup Menu */}
+                        {activeReactionPicker === msg._uiId && (
+                          <div className="reaction-picker-menu" onClick={(e) => e.stopPropagation()}>
+                            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                className="reaction-emoji-btn"
+                                aria-label={`Reaccionar con ${emoji}`}
+                                onClick={() => {
+                                  sendReaction(msg.providerMessageId, emoji);
+                                  setActiveReactionPicker(null);
+                                }}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {msg.mediaType === "image" && (msg.imageDataUrl || msg.mediaUrl) ? (
+                          <img className="msgImage" src={resolvedMediaUrls[msg.mediaUrl] || (msg.mediaUrl ? `${API_URL}${msg.mediaUrl}` : msg.imageDataUrl)} alt="Imagen del chat" />
+                        ) : null}
+                        {msg.mediaType === "video" && msg.mediaUrl ? (
+                          <video className="msgVideo" src={resolvedMediaUrls[msg.mediaUrl] || `${API_URL}${msg.mediaUrl}`} controls />
+                        ) : null}
+                        {msg.mediaType === "audio" && msg.mediaUrl ? (
+                          <audio className="msgAudio" src={resolvedMediaUrls[msg.mediaUrl] || `${API_URL}${msg.mediaUrl}`} controls />
+                        ) : null}
+                        {!msg.isRevoked && (msg.body || (!msg.mediaUrl && !msg.imageDataUrl)) ? (
+                          msg.mediaUrl && msg.mediaType !== "image" && msg.mediaType !== "video" && msg.mediaType !== "audio" ? (
+                            <a
+                              href={resolvedMediaUrls[msg.mediaUrl] || `${API_URL}${msg.mediaUrl}`}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                textDecoration: 'none',
+                                color: 'inherit',
+                                wordBreak: 'break-all',
+                                padding: '10px 14px',
+                                borderRadius: '10px',
+                                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                border: '1px solid rgba(255, 255, 255, 0.15)',
+                                marginTop: '4px',
+                                marginBottom: '4px',
+                                transition: 'background-color 0.2s',
+                                cursor: 'pointer'
+                              }}
+                              className="generic-file-bubble"
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)'}
+                            >
+                              <span style={{ fontSize: '1.75rem', flexShrink: 0 }}>📁</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', overflow: 'hidden' }}>
+                                <span style={{ fontWeight: '600', color: 'var(--accent-color, #38bdf8)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                  {msg.body || "Descargar archivo"}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)' }}>Hacé click para descargar</span>
+                              </div>
+                            </a>
+                          ) : (
+                            <p className="">{msg.body || "[mensaje vacío]"}</p>
+                          )
+                        ) : null}
+
+                        {/* Reactions Badges */}
+                        <MemoizedMessageReactions
+                          reactions={msg.reactions}
+                          currentUser={currentUser}
+                          onSendReaction={sendReaction}
+                          providerMessageId={msg.providerMessageId}
+                        />
+
+                        <div className="bubbleMeta">
+                          <time>{formatTime(msg.timestamp)}</time>
+                          {msg.fromMe && <AckIcon status={msg.status || msg.ack} />}
+                          {!msg.isRevoked && (
+                            <button
+                              className="bubbleReplyBtn"
+                              aria-label="Responder a este mensaje"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startReply(msg);
+                              }}
+                              title="Responder"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+                                <polyline points="9 17 4 12 9 7" />
+                                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </article>
                     </div>
-                  </article>
-                </div>
-              );})}
-              {showJumpToLatest ? (
-                <button
-                  className="jumpToLatest"
-                  aria-label="Ir al último mensaje"
-                  onClick={() => scrollMessagesToBottom("smooth")}
-                >
-                  ↓ Ir al último
-                  {pendingIncomingCount > 0 ? (
-                    <span className="jumpToLatestCount">{pendingIncomingCount}</span>
-                  ) : null}
-                </button>
-              ) : null}
-            </div>
+                  );
+                }}
+              >
+                {typingStates[selectedChatId] && (
+                  <div className="typing-bubble">
+                    <div className="typing-dot"></div>
+                    <div className="typing-dot"></div>
+                    <div className="typing-dot"></div>
+                  </div>
+                )}
+                {showJumpToLatest ? (
+                  <button
+                    className="jumpToLatest"
+                    aria-label="Ir al último mensaje"
+                    onClick={() => scrollMessagesToBottom("smooth")}
+                  >
+                    ↓ Ir al último
+                    {pendingIncomingCount > 0 ? (
+                      <span className="jumpToLatestCount">{pendingIncomingCount}</span>
+                    ) : null}
+                  </button>
+                ) : null}
+              </VirtualMessageList>
+            )}
 
             <footer className="composer">
               {replyQueue.length > 0 ? (
@@ -3790,51 +4841,7 @@ function App() {
               ) : null}
 
               {/* Suggestions displayed above the input pill exactly like a preview card */}
-              {correctedDraft ? (
-                <div className="correctedPreview" style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  backdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '16px',
-                  padding: '16px',
-                  marginBottom: '12px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
-                }}>
-                  <div className="correctedHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <p className="correctedLabel" style={{ margin: 0, fontWeight: '700', color: 'var(--accent-primary)', fontSize: '0.85rem' }}>✨ Versión sugerida por IA</p>
-                    <button
-                      className="iconButton"
-                      onClick={() => setCorrectedDraft("")}
-                      style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem' }}
-                      title="Descartar"
-                      aria-label="Descartar versión sugerida"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <p className="correctedText" style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: '#f8fafc', lineHeight: '1.4' }}>{correctedDraft}</p>
 
-                  <div className="correctedActions" style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      className="primary sendCorrectedBtn"
-                      onClick={() => sendMessage(correctedDraft, "corrected")}
-                      style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', fontWeight: '600' }}
-                    >
-                      🚀 Enviar versión IA
-                    </button>
-                    <button
-                      className="secondary useCorrectedBtn"
-                      onClick={() => {
-                        setDraft(correctedDraft);
-                        setCorrectedDraft("");
-                      }}
-                      style={{ padding: '8px 12px', borderRadius: '10px' }}
-                    >
-                      ✏️ Usar y editar
-                    </button>
-                  </div>
-                </div>
-              ) : null}
 
               {/* WhatsApp-style Composer Row */}
               <div className="whatsappComposerRow" style={{
@@ -3861,18 +4868,42 @@ function App() {
                   <span
                     role="button"
                     tabIndex={0}
-                    aria-label="Emojis"
-                    title="Emojis"
+                    aria-label="Insertar emoji"
+                    title="Insertar emoji"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
                         e.currentTarget.click();
                       }
                     }}
-                    style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ fontSize: '1.25rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center' }}
                   >
-                    😊
+                    <HappyIcon size={20} />
                   </span>
+
+                  {/* Attachment Icon inside Pill */}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Adjuntar archivo"
+                    title="Adjuntar archivo"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.currentTarget.click();
+                      }
+                    }}
+                    style={{ fontSize: '1rem', color: '#94a3b8', cursor: 'pointer', userSelect: 'none', marginLeft: '8px', marginRight: '4px', fontWeight: '700', display: 'flex', alignItems: 'center' }}
+                  >
+                    <AttachmentIcon size={18} />
+                  </span>
+                  <input
+                    type="file"
+                    ref={attachmentInputRef}
+                    onChange={handleAttachmentChange}
+                    style={{ display: 'none' }}
+                  />
 
                   {/* Textarea inside Pill */}
                   <textarea
@@ -3882,6 +4913,7 @@ function App() {
                       const val = e.target.value;
                       setDraft(val);
                       if (correctedDraft) setCorrectedDraft("");
+                      handleTyping();
 
                       if (debouncedDraftRef.current) clearTimeout(debouncedDraftRef.current);
                       if (val.trim().length > 5) {
@@ -3891,7 +4923,7 @@ function App() {
                       }
                     }}
                     onKeyDown={handleDraftKeyDown}
-                    placeholder={correctedDraft ? "Escribe un mensaje... (Enter: enviar versión IA)" : "Escribe un mensaje... (Enter: enviar original | botón ✨ para mejorar)"}
+                    placeholder="Escribe un mensaje..."
                     rows={1}
                     style={{
                       flex: 1,
@@ -3909,30 +4941,6 @@ function App() {
                     }}
                     disabled={sending || correcting || correctingAndSending}
                   />
-
-                  {/* IA Magic button inside Pill */}
-                  <button
-                    type="button"
-                    onClick={correctDraft}
-                    disabled={!draft.trim() || correcting || correctingAndSending}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: draft.trim() ? 'var(--accent-primary)' : '#64748b',
-                      fontSize: '1.25rem',
-                      cursor: draft.trim() ? 'pointer' : 'not-allowed',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px',
-                      transition: 'all 0.2s ease',
-                      transform: draft.trim() ? 'scale(1.15)' : 'none'
-                    }}
-                    title="Mejorar redacción con IA (Ver sugerencia)"
-                    aria-label="Mejorar redacción con IA"
-                  >
-                    ✨
-                  </button>
                 </div>
 
                 {/* Circular Send Button */}
@@ -3974,7 +4982,7 @@ function App() {
                   style={{ marginTop: '12px' }}
                 >
                   <span className="spinner" aria-hidden="true" />
-                  <span>{correctingAndSending ? "✨ Mejorando y enviando..." : correcting ? "✨ Mejorando redacción..." : sendingType === 'corrected' || sendingType === 'correctedAndSending' ? "✨ Enviando versión IA..." : "📤 Enviando mensaje original..."}</span>
+                  <span>{correctingAndSending ? "AI Mejorando y enviando..." : correcting ? "AI Mejorando redacción..." : sendingType === 'corrected' || sendingType === 'correctedAndSending' ? "AI Enviando versión IA..." : " Enviando mensaje original..."}</span>
                 </div>
               ) : null}
 
@@ -4033,7 +5041,7 @@ function App() {
                 </section>
 
                 <section className="resourceSection">
-                  <h4>📱 Estados Archivados ({resources.statuses.length})</h4>
+                  <h4> Estados Archivados ({resources.statuses.length})</h4>
                   <div className="resourceGrid">
                     {resources.statuses.map(s => (
                       <div key={s._id || s.id || s.providerStatusMessageId} className="resourceItem">
@@ -4057,569 +5065,33 @@ function App() {
       ) : null}
 
       {showProfileMenu && (
-        <section className="modalOverlay" onClick={() => setShowProfileMenu(false)}>
+        <section className="modalOverlay fullscreenSettingsOverlay" onClick={() => setShowProfileMenu(false)}>
           <div
-            className="modalCard profileSettingsModal"
+            className="modalCard profileSettingsModal fullscreen"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="profileSettingsModalHeading"
-            style={{ maxWidth: '520px', width: '90%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
           >
-            <div className="modalHeader" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 id="profileSettingsModalHeading" style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <UserIcon size={20} /> Mi Perfil y Ajustes
-              </h3>
-              <button className="secondary" onClick={() => setShowProfileMenu(false)} style={{ borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CloseIcon size={14} /> Cerrar
+            {/* Sidebar Left */}
+            <aside className="settingsSidebar">
+              <div className="settingsSidebarTitle">Ajustes de Usuario</div>
+              <button
+                type="button"
+                className={`settingsSidebarTab ${activeSettingsTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setActiveSettingsTab('profile')}
+              >
+                 Mi Cuenta
               </button>
-            </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Profile Details Block */}
-              <section className="profileDetailSection" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div
-                    style={{
-                      width: '60px',
-                      height: '60px',
-                      borderRadius: '50%',
-                      background: (userAvatarUrlInput || currentUser?.avatarUrl) ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
-                      color: '#fff',
-                      fontWeight: '700',
-                      border: '2.5px solid #fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '1.3rem',
-                      boxShadow: '0 0 12px rgba(255,255,255,0.25)',
-                      flexShrink: 0,
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {(userAvatarUrlInput || currentUser?.avatarUrl) ? (
-                      <img src={userAvatarUrlInput || currentUser?.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
-                    )}
-                  </div>
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontWeight: '700', color: '#fff', fontSize: '1.1rem' }}>{currentUser?.username || 'Usuario'}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{currentUser?.email || 'sin-correo@tapchat.com'}</div>
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="userAvatarUploadInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Foto de Perfil Personalizada (Subir Imagen)</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <input
-                      id="userAvatarUploadInput"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setUserAvatarUrlInput(reader.result); // Base64 data URL
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      style={{ display: 'none' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById('userAvatarUploadInput').click()}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        background: 'rgba(255,255,255,0.05)',
-                        color: '#fff',
-                        fontSize: '0.85rem',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <AttachmentIcon size={16} /> Subir foto de perfil
-                    </button>
-                    {(userAvatarUrlInput || currentUser?.avatarUrl) && (
-                      <button
-                        type="button"
-                        onClick={() => setUserAvatarUrlInput("")}
-                        style={{
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          color: '#ef4444',
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <CloseIcon size={14} /> Eliminar foto
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="userUsernameInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Nombre de Usuario</label>
-                  <input
-                    id="userUsernameInput"
-                    type="text"
-                    value={userUsernameInput}
-                    onChange={(e) => setUserUsernameInput(e.target.value)}
-                    placeholder="Tu nombre de usuario"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(0,0,0,0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="userEmailInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Correo Electrónico</label>
-                  <input
-                    id="userEmailInput"
-                    type="email"
-                    value={userEmailInput}
-                    onChange={(e) => setUserEmailInput(e.target.value)}
-                    placeholder="tu@correo.com"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(0,0,0,0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="userPasswordInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Nueva Contraseña (dejar en blanco para no cambiar)</label>
-                  <input
-                    id="userPasswordInput"
-                    type="password"
-                    value={userPasswordInput}
-                    onChange={(e) => setUserPasswordInput(e.target.value)}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(0,0,0,0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="userBioInput" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Estado / Biografía</label>
-                  <input
-                    id="userBioInput"
-                    type="text"
-                    value={userBioInput}
-                    onChange={(e) => setUserBioInput(e.target.value)}
-                    placeholder="¡Hola! Estoy usando Tapchat."
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(0,0,0,0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Color de Avatar Personalizado</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                    {[
-                      '#ff6f24', // Theme Sunset Orange
-                      '#0284c7', // Sky Blue
-                      '#16a34a', // Emerald Green
-                      '#7c3aed', // Royal Violet
-                      '#db2777', // Rose Pink
-                      '#ef4444', // Red Glow
-                      '#0f172a', // Deep Slate
-                      '#f59e0b'  // Amber Glow
-                    ].map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        onClick={() => setUserAvatarColorInput(color)}
-                        aria-label={"Seleccionar color de avatar " + color}
-                        style={{
-                          width: '26px',
-                          height: '26px',
-                          borderRadius: '50%',
-                          background: color,
-                          border: userAvatarColorInput === color ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          transform: userAvatarColorInput === color ? 'scale(1.2)' : 'none',
-                          boxShadow: userAvatarColorInput === color ? '0 0 10px rgba(255,255,255,0.6)' : '0 2px 4px rgba(0,0,0,0.15)',
-                          padding: 0
-                        }}
-                        onMouseEnter={(e) => {
-                          if (userAvatarColorInput !== color) {
-                            e.currentTarget.style.transform = 'scale(1.15)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = userAvatarColorInput === color ? 'scale(1.2)' : 'none';
-                        }}
-                        title={color}
-                        aria-label={`Color de avatar ${color}`}
-                      />
-                    ))}
-                  </div>
-                  <input
-                    id="userAvatarColorInput"
-                    type="text"
-                    value={userAvatarColorInput}
-                    onChange={(e) => setUserAvatarColorInput(e.target.value)}
-                    placeholder="Ej. #ff6f24, hsl(200, 70%, 40%) o linear-gradient(...)"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(0,0,0,0.15)',
-                      color: '#fff',
-                      fontSize: '0.9rem',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={saveUserProfile}
-                  style={{
-                    padding: '10px 15px',
-                    borderRadius: '8px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    width: '100%'
-                  }}
-                >
-                  Guardar Perfil
-                </button>
-
-                <div style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  borderRadius: '10px',
-                  padding: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}>
-                  <div style={{ fontWeight: '700', fontSize: '0.85rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>⌨️</span> Atajos de Teclado y Accesos
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      setTimeout(() => {
-                        searchInputRef.current?.focus();
-                      }, 100);
-                    }}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: '8px',
-                      padding: '8px 10px',
-                      color: '#fff',
-                      fontSize: '0.8rem',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      width: '100%',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                  >
-                    <span>🔍 Buscar chats o usuarios</span>
-                    <kbd style={{ background: '#1f2c33', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', color: '#ff6f24', border: '1px solid rgba(255, 111, 36, 0.3)', fontWeight: 'bold' }}>Ctrl + K</kbd>
-                  </button>
-                  <div style={{
-                    background: 'rgba(255,255,255,0.02)',
-                    borderRadius: '8px',
-                    padding: '8px 10px',
-                    fontSize: '0.8rem',
-                    color: 'var(--text-muted)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span>🔄 Navegar entre chats</span>
-                    <span style={{ display: 'flex', gap: '4px' }}>
-                      <kbd style={{ background: '#1f2c33', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', color: '#ccc', border: '1px solid rgba(255,255,255,0.1)' }}>Alt</kbd>
-                      <span>+</span>
-                      <kbd style={{ background: '#1f2c33', padding: '2px 6px', borderRadius: '4px', fontSize: '0.7rem', color: '#ccc', border: '1px solid rgba(255,255,255,0.1)' }}>↑ / ↓</kbd>
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              {/* Collapsible AI Config panel */}
-              <details style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '10px', overflow: 'hidden' }}>
-                <summary style={{ cursor: 'pointer', fontWeight: '700', color: '#fff', fontSize: '0.95rem', padding: '6px', userSelect: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <SettingsIcon size={16} /> Ajustes del Asistente de IA (LM Studio / Cloudflare)
-                </summary>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
-                  {loadingAiConfig ? <p className="helper">Cargando configuración...</p> : null}
-
-                  <div>
-                    <label htmlFor="aiProvider" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Proveedor</label>
-                    <select
-                      id="aiProvider"
-                      value={aiConfig.provider}
-                      onChange={(e) => setAiConfig((prev) => ({ ...prev, provider: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                    >
-                      <option value="lmstudio">LM Studio (local)</option>
-                      <option value="cloudflare">Cloudflare AI</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="aiEndpoint" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Endpoint activo</label>
-                    <input id="aiEndpoint" value={aiConfig.aiBaseUrl} readOnly style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.1)', color: 'var(--text-muted)', fontSize: '0.85rem' }} />
-                  </div>
-
-                  {aiConfig.provider === "lmstudio" ? (
-                    <div>
-                      <label htmlFor="lmStudioBaseUrl" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>URL LM Studio</label>
-                      <input
-                        id="lmStudioBaseUrl"
-                        value={aiConfig.lmStudioBaseUrl}
-                        spellCheck="false"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="none"
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, lmStudioBaseUrl: e.target.value }))}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <div>
-                        <label htmlFor="cfAccountId" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Cloudflare Account ID</label>
-                        <input
-                          id="cfAccountId"
-                          value={aiConfig.cloudflareAccountId}
-                          spellCheck="false"
-                          autoComplete="off"
-                          autoCorrect="off"
-                          autoCapitalize="none"
-                          onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareAccountId: e.target.value }))}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="cfApiToken" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Cloudflare API Token</label>
-                        <div className="passwordInputWrapper" style={{ position: 'relative' }}>
-                          <input
-                            id="cfApiToken"
-                            type={showCloudflareToken ? "text" : "password"}
-                            value={aiConfig.cloudflareApiToken}
-                            spellCheck="false"
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="none"
-                            onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareApiToken: e.target.value }))}
-                            style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', paddingRight: '40px' }}
-                          />
-                          <button
-                            type="button"
-                            className="passwordToggleBtn"
-                            aria-pressed={showCloudflareToken}
-                            onClick={() => setShowCloudflareToken(!showCloudflareToken)}
-                            aria-label={showCloudflareToken ? "Ocultar Cloudflare Token" : "Mostrar Cloudflare Token"}
-                            style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)' }}
-                          >
-                            {showCloudflareToken ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label htmlFor="cfBaseUrl" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Cloudflare Base URL (opcional)</label>
-                        <input
-                          id="cfBaseUrl"
-                          value={aiConfig.cloudflareBaseUrl}
-                          spellCheck="false"
-                          autoComplete="off"
-                          autoCorrect="off"
-                          autoCapitalize="none"
-                          onChange={(e) => setAiConfig((prev) => ({ ...prev, cloudflareBaseUrl: e.target.value }))}
-                          placeholder="https://api.cloudflare.com/client/v4/accounts/{account_id}/ai"
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <div>
-                    <label htmlFor="aiModel" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Modelo</label>
-                    <select
-                      id="aiModel"
-                      value={aiConfig.modelName}
-                      onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', marginBottom: '8px' }}
-                    >
-                      <option value="">Seleccionar modelo...</option>
-                      {aiModels.map((model) => (
-                        <option key={model} value={model}>
-                          {model}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      id="aiModelInput"
-                      value={aiConfig.modelName}
-                      spellCheck="false"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="none"
-                      onChange={(e) => setAiConfig((prev) => ({ ...prev, modelName: e.target.value }))}
-                      placeholder="O escribe el nombre exacto del modelo..."
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div>
-                      <label htmlFor="aiTemperature" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Temperatura</label>
-                      <input
-                        id="aiTemperature"
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="2"
-                        value={aiConfig.temperature}
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, temperature: Number(e.target.value) }))}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="aiTimeoutMs" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Timeout IA (ms)</label>
-                      <input
-                        id="aiTimeoutMs"
-                        type="number"
-                        min="5000"
-                        step="1000"
-                        value={aiConfig.timeoutMs}
-                        onChange={(e) => setAiConfig((prev) => ({ ...prev, timeoutMs: Number(e.target.value) }))}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="aiMaxTokens" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Max tokens</label>
-                    <input
-                      id="aiMaxTokens"
-                      type="number"
-                      min="32"
-                      max="2048"
-                      step="1"
-                      value={aiConfig.maxTokens}
-                      onChange={(e) => setAiConfig((prev) => ({ ...prev, maxTokens: Number(e.target.value) }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="aiSystemPrompt" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Prompt de sistema</label>
-                    <textarea
-                      id="aiSystemPrompt"
-                      rows={3}
-                      value={aiConfig.systemPrompt}
-                      onChange={(e) => setAiConfig((prev) => ({ ...prev, systemPrompt: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', resize: 'vertical' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="aiUserPrompt" style={{ display: 'block', marginBottom: '4px', fontSize: '0.8rem', color: '#ccc' }}>Prompt de usuario (usar {`{{text}}`})</label>
-                    <textarea
-                      id="aiUserPrompt"
-                      rows={3}
-                      value={aiConfig.userPromptTemplate}
-                      onChange={(e) => setAiConfig((prev) => ({ ...prev, userPromptTemplate: e.target.value }))}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: '0.85rem', resize: 'vertical' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                    <button
-                      type="button"
-                      className="secondary"
-                      onClick={checkAiHealth}
-                      disabled={checkingAiHealth}
-                      aria-busy={checkingAiHealth}
-                      style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      {checkingAiHealth ? <><span className="buttonSpinner" aria-hidden="true" /><span>Probando...</span></> : <><TestIcon size={14} style={{ marginRight: '6px' }} /> Probar Conexión</>}
-                    </button>
-                    <button
-                      type="button"
-                      className="primary"
-                      onClick={saveAiConfig}
-                      disabled={savingAiConfig}
-                      aria-busy={savingAiConfig}
-                      style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      {savingAiConfig ? <><span className="buttonSpinner" aria-hidden="true" /><span>Guardando...</span></> : <><SaveIcon size={14} style={{ marginRight: '6px' }} /> Guardar IA</>}
-                    </button>
-                  </div>
-
-                  {aiHealth ? (
-                    <p className={`notice ${aiHealth.ok ? "success" : "error"}`} style={{ margin: '8px 0 0 0', padding: '8px', fontSize: '0.8rem', borderRadius: '6px' }}>{aiHealth.message}</p>
-                  ) : null}
-                </div>
-              </details>
-            </div>
-
-            {/* Logout Footer Section */}
-            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                type="button"
+                className={`settingsSidebarTab ${activeSettingsTab === 'shortcuts' ? 'active' : ''}`}
+                onClick={() => setActiveSettingsTab('shortcuts')}
+              >
+                ⌨️ Atajos y Teclas
+              </button>
+              <div style={{ flex: 1 }} />
               <button
                 type="button"
                 className="logoutBtn"
@@ -4629,30 +5101,293 @@ function App() {
                 }}
                 style={{
                   width: '100%',
-                  padding: '11px',
-                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
                   background: 'rgba(239, 68, 68, 0.1)',
                   border: '1px solid rgba(239, 68, 68, 0.3)',
                   color: '#ef4444',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'center',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                  gap: '6px'
                 }}
               >
-                <LogoutIcon size={16} /> Cerrar Sesión Activa
+                <LogoutIcon size={14} /> Cerrar Sesión
               </button>
+            </aside>
+
+            {/* Main Content Area */}
+            <div className="settingsMainWrapper">
+              <div className="settingsContentPane">
+                
+                {/* Float Close button (Discord style Esc button) */}
+                <button
+                  type="button"
+                  className="settingsCloseButton"
+                  onClick={() => setShowProfileMenu(false)}
+                  title="Cerrar (Esc)"
+                  aria-label="Cerrar configuración"
+                >
+                  <div className="settingsCloseButtonCircle">
+                    <CloseIcon size={16} />
+                  </div>
+                  <span className="settingsCloseButtonText">Esc</span>
+                </button>
+
+                {/* Tab Content: Profile Settings */}
+                {activeSettingsTab === 'profile' && (
+                  <>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>Mi Cuenta</h2>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div
+                        style={{
+                          width: '64px',
+                          height: '64px',
+                          borderRadius: '50%',
+                          background: (userAvatarUrlInput || currentUser?.avatarUrl) ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                          color: '#fff',
+                          fontWeight: '700',
+                          border: '2.5px solid #fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.3rem',
+                          boxShadow: '0 0 12px rgba(255,255,255,0.25)',
+                          flexShrink: 0,
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {(userAvatarUrlInput || currentUser?.avatarUrl) ? (
+                          <img src={userAvatarUrlInput || currentUser?.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      <div style={{ overflow: 'hidden' }}>
+                        <div style={{ fontWeight: '700', color: '#fff', fontSize: '1.2rem' }}>{currentUser?.username || 'Usuario'}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{currentUser?.email || 'sin-correo@tapchat.com'}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="userAvatarUploadInput" style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Foto de Perfil Personalizada</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <input
+                          id="userAvatarUploadInput"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setUserAvatarUrlInput(reader.result);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          style={{ display: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => document.getElementById('userAvatarUploadInput').click()}
+                          className="secondary small"
+                        >
+                          <AttachmentIcon size={14} /> Subir Foto
+                        </button>
+                        {(userAvatarUrlInput || currentUser?.avatarUrl) && (
+                          <button
+                            type="button"
+                            onClick={() => setUserAvatarUrlInput("")}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              color: '#ef4444',
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <CloseIcon size={12} /> Eliminar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="userUsernameInput">Nombre de Usuario</label>
+                      <input
+                        id="userUsernameInput"
+                        type="text"
+                        value={userUsernameInput}
+                        onChange={(e) => setUserUsernameInput(e.target.value)}
+                        placeholder="Nombre de usuario"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="userEmailInput">Correo Electrónico</label>
+                      <input
+                        id="userEmailInput"
+                        type="email"
+                        value={userEmailInput}
+                        onChange={(e) => setUserEmailInput(e.target.value)}
+                        placeholder="tu@correo.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="userPasswordInput">Nueva Contraseña (dejar en blanco para no cambiar)</label>
+                      <input
+                        id="userPasswordInput"
+                        type="password"
+                        value={userPasswordInput}
+                        onChange={(e) => setUserPasswordInput(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="userBioInput">Estado / Biografía</label>
+                      <input
+                        id="userBioInput"
+                        type="text"
+                        value={userBioInput}
+                        onChange={(e) => setUserBioInput(e.target.value)}
+                        placeholder="¡Hola! Estoy usando Tapchat."
+                      />
+                    </div>
+
+                    <div>
+                      <label>Color de Avatar Personalizado</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                        {[
+                          '#ff6f24',
+                          '#0284c7',
+                          '#16a34a',
+                          '#7c3aed',
+                          '#db2777',
+                          '#ef4444',
+                          '#0f172a',
+                          '#f59e0b'
+                        ].map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => setUserAvatarColorInput(color)}
+                            aria-label={"Seleccionar color " + color}
+                            style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '50%',
+                              background: color,
+                              border: userAvatarColorInput === color ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              transform: userAvatarColorInput === color ? 'scale(1.2)' : 'none',
+                              boxShadow: userAvatarColorInput === color ? '0 0 10px rgba(255,255,255,0.6)' : 'none',
+                              padding: 0
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <input
+                        id="userAvatarColorInput"
+                        type="text"
+                        value={userAvatarColorInput}
+                        onChange={(e) => setUserAvatarColorInput(e.target.value)}
+                        placeholder="Ej. #ff6f24, hsl(200, 70%, 40%)"
+                      />
+                    </div>
+
+                     <button
+                      type="button"
+                      className="primary"
+                      onClick={saveUserProfile}
+                      style={{ width: '100%', marginTop: '10px' }}
+                    >
+                      Guardar Cambios de Perfil
+                    </button>
+
+                    <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <h4 style={{ color: '#fff', fontSize: '0.95rem', fontWeight: '600', marginBottom: '8px' }}>Notificaciones del Sistema</h4>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px', lineHeight: '1.4' }}>
+                        Permite a la PWA enviar alertas nativas del sistema operativo en segundo plano.
+                      </p>
+                      {("Notification" in window) ? (
+                        Notification.permission === "granted" ? (
+                          <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                             Notificaciones nativas activadas
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="secondary"
+                            onClick={() => {
+                              Notification.requestPermission().then(permission => {
+                                if (permission === "granted") {
+                                  showNotice("Alert ¡Notificaciones nativas del sistema activadas!", "success");
+                                  window.location.reload();
+                                } else {
+                                  showNotice("No se pudieron activar las notificaciones. Por favor revise los permisos del navegador.", "error");
+                                }
+                              });
+                            }}
+                            style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+                          >
+                            Activar Notificaciones Nativa
+                          </button>
+                        )
+                      ) : (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>Tu sistema operativo no soporta notificaciones de escritorio.</span>
+                      )}
+                    </div>
+                  </>
+                )}
+
+
+
+                {/* Tab Content: Shortcuts */}
+                {activeSettingsTab === 'shortcuts' && (
+                  <>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>Atajos de Teclado</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>Use atajos rápidos para navegar eficientemente por la interfaz de Tapchat.</p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ fontWeight: '500', color: '#eee' }}>Buscar chats / usuarios</span>
+                        <kbd style={{ background: '#1e1f22', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', color: 'var(--accent-primary)', border: '1px solid rgba(255, 111, 36, 0.3)', fontWeight: 'bold' }}>Ctrl + K</kbd>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ fontWeight: '500', color: '#eee' }}>Siguiente Chat</span>
+                        <kbd style={{ background: '#1e1f22', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', color: '#eee', border: '1px solid rgba(255,255,255,0.1)' }}>Alt + ↓</kbd>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ fontWeight: '500', color: '#eee' }}>Chat Anterior</span>
+                        <kbd style={{ background: '#1e1f22', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', color: '#eee', border: '1px solid rgba(255,255,255,0.1)' }}>Alt + ↑</kbd>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '500', color: '#eee' }}>Cerrar Modales / Ajustes</span>
+                        <kbd style={{ background: '#1e1f22', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', color: '#eee', border: '1px solid rgba(255,255,255,0.1)' }}>Esc</kbd>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+              </div>
             </div>
+
           </div>
         </section>
       )}
@@ -4676,11 +5411,12 @@ function App() {
               <input
                 type="text"
                 value={searchUserQuery}
+                aria-label="Buscar usuario"
                 onChange={(e) => {
                   const val = e.target.value;
                   setSearchUserQuery(val);
 
-                  // ⚡ Bolt Optimization: Debounce directory search
+                  //  Bolt Optimization: Debounce directory search
                   // Impact: Reduces API requests to /api/users/search by avoiding a call on every keystroke
                   // Measurement: Observe Network tab - requests only fire after user pauses typing for 300ms
                   if (searchUserDebounceRef.current) {
@@ -4774,7 +5510,7 @@ function App() {
                     style={{
                       width: '40px',
                       height: '40px',
-                      borderRadius: '12px',
+                      borderRadius: '50%',
                       background: getAvatarGradient(user.avatarColor || user._id),
                       display: 'flex',
                       alignItems: 'center',
@@ -4920,7 +5656,7 @@ function App() {
                     fontSize: '1rem'
                   }}
                 >
-                  ✕
+                  
                 </button>
               </div>
 
@@ -5091,7 +5827,7 @@ function App() {
                     key={theme.id}
                     type="button"
                     onClick={() => setNewStatusBgTheme(theme.id)}
-                    aria-label={"Seleccionar fondo " + theme.label}
+                    aria-label={`Fondo ${theme.label}`}
                     style={{
                       height: '45px',
                       borderRadius: '8px',
@@ -5103,7 +5839,6 @@ function App() {
                       boxShadow: newStatusBgTheme === theme.id ? '0 0 8px rgba(255,255,255,0.5)' : 'none'
                     }}
                     title={theme.label}
-                    aria-label={`Fondo ${theme.label}`}
                   />
                 ))}
               </div>
@@ -5166,21 +5901,50 @@ function App() {
                 transition: 'all 0.2s ease'
               }}
             >
-              {publishingStatus ? 'Publicando...' : '🚀 Publicar Estado'}
+              {publishingStatus ? 'Publicando...' : <><SendIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Publicar Estado</>}
             </button>
           </div>
         </section>
       )}
 
-      {toasts.length > 0 && (
-        <div className="toast-container" aria-live="polite">
-          {toasts.map(t => (
-            <div key={t.id} className={`toast ${t.type}`}>
-              {t.text}
-            </div>
-          ))}
-        </div>
-      )}
+      <VoiceCallOverlay
+        mode="overlay"
+        inVoiceCall={inVoiceCall}
+        voiceRoomId={voiceRoomId}
+        selectedChatId={selectedChatId}
+        isCallMinimized={isCallMinimized}
+        voicePeers={voicePeers}
+        isMuted={isMuted}
+        screenStream={screenStream}
+        callVolume={callVolume}
+        currentUser={currentUser}
+        getAvatarGradient={getAvatarGradient}
+        toggleMute={toggleMute}
+        startScreenShare={startScreenShare}
+        stopScreenShare={stopScreenShare}
+        setCallVolume={setCallVolume}
+        setIsCallMinimized={setIsCallMinimized}
+        leaveVoiceRoom={leaveVoiceRoom}
+        apiUrl={API_URL}
+        activeCallState={activeCallState}
+        incomingCallInfo={incomingCallInfo}
+        outgoingCallInfo={outgoingCallInfo}
+        joinVoiceRoom={joinVoiceRoom}
+        setSelectedChatId={setSelectedChatId}
+        setViewMode={setViewMode}
+        socketRef={socketRef}
+        setActiveCallState={setActiveCallState}
+        setIncomingCallInfo={setIncomingCallInfo}
+      />
+
+      <div className="toast-container" aria-live="polite">
+        {toasts.map(t => (
+          <div key={t.id} className={`toast ${t.type}`} role="status">
+            {t.message}
+          </div>
+        ))}
+      </div>
+
       </main>
     </>
   );

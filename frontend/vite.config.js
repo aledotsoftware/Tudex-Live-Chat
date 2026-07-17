@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       manifest: {
         name: "Tapchat PWA",
         short_name: "Tapchat",
@@ -30,6 +30,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+        importScripts: ["/sw-custom.js"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -60,11 +61,35 @@ export default defineConfig({
             }
           }
         ]
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module'
       }
     })
   ],
   server: {
     host: '0.0.0.0',
-    allowedHosts: true
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://backend:3005',
+        changeOrigin: true,
+        ws: true
+      },
+      '/socket.io': {
+        target: 'http://backend:3005',
+        changeOrigin: true,
+        ws: true
+      },
+      '/media-archive': {
+        target: 'http://backend:3005',
+        changeOrigin: true
+      },
+      '/status-archive': {
+        target: 'http://backend:3005',
+        changeOrigin: true
+      }
+    }
   }
 });

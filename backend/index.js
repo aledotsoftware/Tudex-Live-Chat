@@ -18,12 +18,12 @@ function safeUrl(urlStr, defaultUrl = '', varName = 'URL') {
   try {
     const parsed = new URL(urlStr);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      if (varName) console.warn(`⚠️ WARNING: Invalid protocol in ${varName} ("${urlStr}"). Must be http: or https:. Falling back to default.`);
+      if (varName) console.warn(`Warning WARNING: Invalid protocol in ${varName} ("${urlStr}"). Must be http: or https:. Falling back to default.`);
       return defaultUrl;
     }
     return urlStr;
   } catch (e) {
-    if (varName) console.warn(`⚠️ WARNING: Malformed URL in ${varName} ("${urlStr}"). Falling back to default.`);
+    if (varName) console.warn(`Warning WARNING: Malformed URL in ${varName} ("${urlStr}"). Falling back to default.`);
     return defaultUrl;
   }
 }
@@ -32,15 +32,15 @@ function safeNumber(val, defaultVal, min, max, varName = 'Number') {
   if (val === undefined || val === null || val === '') return defaultVal;
   const num = Number(val);
   if (!Number.isFinite(num)) {
-    if (varName) console.warn(`⚠️ WARNING: Non-numeric value in ${varName} ("${val}"). Falling back to ${defaultVal}.`);
+    if (varName) console.warn(`Warning WARNING: Non-numeric value in ${varName} ("${val}"). Falling back to ${defaultVal}.`);
     return defaultVal;
   }
   if (min !== undefined && num < min) {
-    if (varName) console.warn(`⚠️ WARNING: Value in ${varName} (${num}) is less than minimum (${min}). Clamping to ${min}.`);
+    if (varName) console.warn(`Warning WARNING: Value in ${varName} (${num}) is less than minimum (${min}). Clamping to ${min}.`);
     return min;
   }
   if (max !== undefined && num > max) {
-    if (varName) console.warn(`⚠️ WARNING: Value in ${varName} (${num}) is greater than maximum (${max}). Clamping to ${max}.`);
+    if (varName) console.warn(`Warning WARNING: Value in ${varName} (${num}) is greater than maximum (${max}). Clamping to ${max}.`);
     return max;
   }
   return num;
@@ -96,6 +96,7 @@ function getProviderState(provider) {
   }
   return providerStates.get(key);
 }
+const voiceRooms = new Map();
 let modelsCache = { provider: '', expiresAt: 0, data: [] };
 const avatarCache = new Map();
 const l1ChatsCache = new Map();
@@ -141,23 +142,23 @@ function validateStartupConfig() {
 
   // Validate AI config values that aren't inherently checked by safeUrl/safeNumber correctly
   if (!process.env.MODEL_NAME || process.env.MODEL_NAME.trim() === '') {
-    console.warn('⚠️ WARNING: MODEL_NAME is not set or empty. Falling back to "llama-3.1-8b-instruct".');
+    console.warn('Warning WARNING: MODEL_NAME is not set or empty. Falling back to "llama-3.1-8b-instruct".');
   }
 
   if (provider !== 'lmstudio' && provider !== 'cloudflare') {
-    console.warn(`⚠️ WARNING: Unsupported AI_PROVIDER "${process.env.AI_PROVIDER}". Falling back to "lmstudio".`);
+    console.warn(`Warning WARNING: Unsupported AI_PROVIDER "${process.env.AI_PROVIDER}". Falling back to "lmstudio".`);
   }
 
   if (provider === 'cloudflare') {
     if (!process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID.trim() === '') {
-      console.warn('⚠️ WARNING: AI_PROVIDER is set to "cloudflare" but CLOUDFLARE_ACCOUNT_ID is missing or empty.');
+      console.warn('Warning WARNING: AI_PROVIDER is set to "cloudflare" but CLOUDFLARE_ACCOUNT_ID is missing or empty.');
     }
     if (!process.env.CLOUDFLARE_API_TOKEN || process.env.CLOUDFLARE_API_TOKEN.trim() === '') {
-      console.warn('⚠️ WARNING: AI_PROVIDER is set to "cloudflare" but CLOUDFLARE_API_TOKEN is missing or empty.');
+      console.warn('Warning WARNING: AI_PROVIDER is set to "cloudflare" but CLOUDFLARE_API_TOKEN is missing or empty.');
     }
   } else if (provider === 'lmstudio') {
     if (!process.env.LM_STUDIO_URL || process.env.LM_STUDIO_URL.trim() === '') {
-      console.warn('⚠️ WARNING: AI_PROVIDER is set to "lmstudio" but LM_STUDIO_URL is missing or empty. Falling back to default.');
+      console.warn('Warning WARNING: AI_PROVIDER is set to "lmstudio" but LM_STUDIO_URL is missing or empty. Falling back to default.');
     }
   }
 
@@ -170,9 +171,9 @@ validateStartupConfig();
 const API_KEY = process.env.API_KEY !== undefined ? process.env.API_KEY : '';
 
 if (API_KEY.length > 0 && API_KEY.length < 8) {
-  console.warn('⚠️ WARNING: API_KEY is too short. This is insecure for production environments. Minimum length is 8 characters.');
+  console.warn('Warning WARNING: API_KEY is too short. This is insecure for production environments. Minimum length is 8 characters.');
 } else if (API_KEY.length === 0) {
-  console.warn('⚠️ WARNING: API_KEY is missing or empty. Authentication is DISABLED. This is highly insecure for production environments.');
+  console.warn('Warning WARNING: API_KEY is missing or empty. Authentication is DISABLED. This is highly insecure for production environments.');
 }
 
 const authenticateUser = async (req, res, next) => {
@@ -197,7 +198,7 @@ const authenticateUser = async (req, res, next) => {
       let adminUser = await User.findOne({ username: 'admin' });
       if (!adminUser) {
         try {
-          // 🛡️ Sentinel: Secure random password generation instead of hardcoded 'admin123'
+          // ️ Sentinel: Secure random password generation instead of hardcoded 'admin123'
           const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
           adminUser = await User.create({
             username: 'admin',
@@ -221,7 +222,7 @@ const authenticateUser = async (req, res, next) => {
   }
 
   try {
-    // ⚡ Bolt: Using .lean() to reduce memory and CPU overhead for read-only session lookups.
+    //  Bolt: Using .lean() to reduce memory and CPU overhead for read-only session lookups.
     const session = await Session.findOne({ token }).populate('userId').lean();
     if (!session || session.expiresAt < new Date()) {
       return res.status(401).json({
@@ -252,7 +253,7 @@ io.use(async (socket, next) => {
     let adminUser = await User.findOne({ username: 'admin' });
     if (!adminUser) {
       try {
-        // 🛡️ Sentinel: Secure random password generation instead of hardcoded 'admin123'
+        // ️ Sentinel: Secure random password generation instead of hardcoded 'admin123'
         const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
         adminUser = await User.create({
           username: 'admin',
@@ -270,7 +271,7 @@ io.use(async (socket, next) => {
   }
 
   try {
-    // ⚡ Bolt: Using .lean() to reduce memory and CPU overhead for read-only session lookups.
+    //  Bolt: Using .lean() to reduce memory and CPU overhead for read-only session lookups.
     const session = await Session.findOne({ token }).lean();
     if (!session || session.expiresAt < new Date()) {
       return next(new Error("Invalid or expired session"));
@@ -283,7 +284,7 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(`🔌 Client connected to socket: ${socket.userId}`);
+  console.log(` Client connected to socket: ${socket.userId}`);
   
   if (socket.userId) {
     socket.join(socket.userId);
@@ -297,6 +298,177 @@ io.on('connection', (socket) => {
       socket.emit('ready', { status: 'authenticated', provider: providerName, accountId: socket.userId || DEFAULT_ACCOUNT_ID });
     }
   }
+
+  socket.on('chat_state', (payload) => {
+    if (payload && payload.chatId) {
+      socket.to(payload.chatId).emit('chat_state', {
+        chatId: socket.userId,
+        state: payload.state,
+        senderId: socket.userId
+      });
+    }
+  });
+
+  socket.on('send-reaction', async ({ providerMessageId, emoji }) => {
+    try {
+      const msgs = await Message.find({ providerMessageId });
+      if (!msgs.length) return;
+
+      const userObj = await User.findById(socket.userId);
+      const username = userObj ? userObj.username : 'Usuario';
+
+      for (const msg of msgs) {
+        if (!msg.reactions) msg.reactions = [];
+        // Remove existing reaction by same user
+        msg.reactions = msg.reactions.filter(r => r.userId !== socket.userId);
+        // Add new reaction if emoji is provided
+        if (emoji) {
+          msg.reactions.push({ emoji, userId: socket.userId, username });
+        }
+        await msg.save();
+
+        // Emit to the account owner
+        io.to(msg.accountId).emit('message-reacted', {
+          providerMessageId,
+          reactions: msg.reactions
+        });
+      }
+    } catch (err) {
+      console.error("Error saving reaction:", err);
+    }
+  });
+
+  // Mic Voice Signaling & Call Rooms (Discord style WebRTC mesh)
+  socket.on('join-voice-room', async ({ roomId }) => {
+    if (!roomId) return;
+    try {
+      let username = 'Usuario';
+      let avatarColor = 'hsl(200, 70%, 40%)';
+      let avatarUrl = '';
+      if (socket.userId) {
+        const userObj = await User.findById(socket.userId).lean();
+        if (userObj) {
+          username = userObj.username;
+          avatarColor = userObj.avatarColor;
+          avatarUrl = userObj.avatarUrl;
+        }
+      }
+
+      socket.join(`voice_${roomId}`);
+      socket.voiceRoomId = roomId;
+
+      if (!voiceRooms.has(roomId)) {
+        voiceRooms.set(roomId, new Map());
+      }
+      
+      const roomPeers = voiceRooms.get(roomId);
+      
+      // Notify other peers in this room
+      socket.to(`voice_${roomId}`).emit('voice-peer-joined', {
+        socketId: socket.id,
+        userId: socket.userId,
+        username,
+        avatarColor,
+        avatarUrl
+      });
+      
+      // Add current socket to room
+      roomPeers.set(socket.id, {
+        userId: socket.userId,
+        username,
+        avatarColor,
+        avatarUrl
+      });
+
+      // Notify target user / group about the call start
+      if (roomPeers.size === 1) {
+        socket.to(roomId).emit('incoming-voice-call', {
+          roomId,
+          hostId: socket.userId,
+          hostName: username
+        });
+      }
+
+      // Send the list of current peers to the newly joined client
+      const peerList = [];
+      for (const [sId, peerInfo] of roomPeers.entries()) {
+        if (sId !== socket.id) {
+          peerList.push({
+            socketId: sId,
+            userId: peerInfo.userId,
+            username: peerInfo.username,
+            avatarColor: peerInfo.avatarColor,
+            avatarUrl: peerInfo.avatarUrl
+          });
+        }
+      }
+      socket.emit('voice-room-peers', { peers: peerList });
+      
+      console.log(`Mic Socket ${socket.id} (User: ${username}) joined voice room: ${roomId}`);
+    } catch (err) {
+      console.error('Error in join-voice-room:', err);
+    }
+  });
+
+  socket.on('leave-voice-room', () => {
+    const roomId = socket.voiceRoomId;
+    if (!roomId) return;
+    
+    socket.leave(`voice_${roomId}`);
+    socket.voiceRoomId = null;
+    
+    const roomPeers = voiceRooms.get(roomId);
+    if (roomPeers) {
+      roomPeers.delete(socket.id);
+      if (roomPeers.size === 0) {
+        voiceRooms.delete(roomId);
+      }
+    }
+    
+    socket.to(`voice_${roomId}`).emit('voice-peer-left', {
+      socketId: socket.id,
+      userId: socket.userId
+    });
+    
+    console.log(`Mic Socket ${socket.id} left voice room: ${roomId}`);
+  });
+
+  socket.on('reject-voice-call', ({ roomId, hostId }) => {
+    if (hostId) {
+      io.to(hostId).emit('voice-call-rejected', { roomId, rejecterId: socket.userId });
+    }
+    socket.to(`voice_${roomId}`).emit('voice-call-rejected', { roomId, rejecterId: socket.userId });
+  });
+
+  socket.on('cancel-voice-call', ({ roomId }) => {
+    socket.to(roomId).emit('voice-call-cancelled', { roomId });
+  });
+
+  socket.on('send-voice-signal', ({ to, signal }) => {
+    io.to(to).emit('voice-signal', {
+      from: socket.id,
+      signal
+    });
+  });
+
+  socket.on('disconnect', () => {
+    const roomId = socket.voiceRoomId;
+    if (roomId) {
+      const roomPeers = voiceRooms.get(roomId);
+      if (roomPeers) {
+        roomPeers.delete(socket.id);
+        if (roomPeers.size === 0) {
+          voiceRooms.delete(roomId);
+        }
+      }
+      socket.to(`voice_${roomId}`).emit('voice-peer-left', {
+        socketId: socket.id,
+        userId: socket.userId
+      });
+      console.log(`Mic Socket ${socket.id} disconnected, left voice room: ${roomId}`);
+    }
+    console.log(` Client disconnected from socket: ${socket.userId}`);
+  });
 });
 
 app.use(cors({
@@ -305,13 +477,18 @@ app.use(cors({
   allowedHeaders: 'Content-Type,Authorization,X-API-Key,Accept'
 }));
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(STATUS_ARCHIVE_PUBLIC_BASE, express.static(STATUS_ARCHIVE_DIR));
 app.use(MEDIA_ARCHIVE_PUBLIC_BASE, express.static(MEDIA_ARCHIVE_DIR));
 
-// Middleware global para proteger todas las rutas /api/ (incluyendo health y status, excepto auth de login y registro)
+// Middleware global para proteger todas las rutas /api/ (excepto auth de login, registro y endpoints de health)
 app.use('/api', (req, res, next) => {
-  if (req.path === '/auth/login' || req.path === '/auth/register') {
+  if (
+    req.path === '/auth/login' ||
+    req.path === '/auth/register' ||
+    req.path === '/health' ||
+    req.path.startsWith('/health/')
+  ) {
     return next();
   }
   return authenticateUser(req, res, next);
@@ -319,13 +496,13 @@ app.use('/api', (req, res, next) => {
 
 // Root endpoint for connectivity check
 app.get('/', (req, res) => {
-  res.send('🚀 Tapchat Backend is running on port 3005!');
+  res.send('Send Tapchat Backend is running on port 3005!');
 });
 
 // Healthcheck/Auth verify endpoint
 // Password hashing helper functions using native crypto module
 function hashPassword(password) {
-  // 🛡️ Sentinel: Enforce string type to prevent Object Type Confusion/DoS crashes in crypto module
+  // ️ Sentinel: Enforce string type to prevent Object Type Confusion/DoS crashes in crypto module
   if (typeof password !== 'string') {
     throw new Error('Password must be a string');
   }
@@ -336,7 +513,7 @@ function hashPassword(password) {
 
 function verifyPassword(password, storedPassword) {
   if (!storedPassword || !storedPassword.includes(':')) return false;
-  // 🛡️ Sentinel: Enforce string type to prevent Object Type Confusion/DoS crashes in crypto module
+  // ️ Sentinel: Enforce string type to prevent Object Type Confusion/DoS crashes in crypto module
   if (typeof password !== 'string') return false;
   const [salt, hash] = storedPassword.split(':');
   const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
@@ -352,6 +529,8 @@ const UserSchema = new mongoose.Schema({
   avatarUrl: { type: String, default: '' },
   bio: { type: String, default: '¡Hola! Estoy usando Tapchat.' },
   status: { type: String, default: 'online' },
+  publicKey: { type: String, default: '' },
+  encryptedPrivateKey: { type: String, default: '' },
   latitude: { type: Number },
   longitude: { type: Number },
   followedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
@@ -378,6 +557,10 @@ const PublicStatusSchema = new mongoose.Schema({
 
 // Ephemeral index (TTL 24 hours = 86400 seconds)
 PublicStatusSchema.index({ createdAt: 1 }, { expireAfterSeconds: 86400 });
+//  Bolt: Add compound index for $in filter combined with .sort() to prevent slow in-memory sorts
+//  Bolt: Added compound index for userId and createdAt to prevent slow in-memory sorts during followed-statuses queries
+//  Bolt: Add compound index for followed stories query combining $in filter and sort
+PublicStatusSchema.index({ userId: 1, createdAt: -1 });
 
 // ⚡ Bolt: Added compound index for optimal querying and sorting of followed statuses
 // Impact: Changes a full collection scan with in-memory sort into an efficient index scan
@@ -412,7 +595,7 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Formato de correo electrónico inválido.' });
     }
 
-    // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
+    //  Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
     const existingUser = await User.findOne({
       $or: [{ username: cleanUsername }, { email: cleanEmail }]
     }).lean();
@@ -460,6 +643,7 @@ app.post('/api/auth/register', async (req, res) => {
         conversationId: 'ai_assistant'
       },
       {
+        id: 'ai_assistant',
         provider: 'local',
         accountId: String(user._id),
         conversationId: 'ai_assistant',
@@ -496,7 +680,9 @@ app.post('/api/auth/register', async (req, res) => {
         email: user.email,
         avatarColor: user.avatarColor,
         avatarUrl: user.avatarUrl || '',
-        bio: user.bio
+        bio: user.bio,
+        publicKey: user.publicKey || '',
+        encryptedPrivateKey: user.encryptedPrivateKey || ''
       }
     });
   } catch (err) {
@@ -515,7 +701,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const cleanIdentifier = String(identifier).trim().toLowerCase();
 
-    // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only auth check
+    //  Bolt: Using .lean() to prevent Mongoose document instantiation for read-only auth check
     const user = await User.findOne({
       $or: [{ username: cleanIdentifier }, { email: cleanIdentifier }]
     }).lean();
@@ -541,6 +727,7 @@ app.post('/api/auth/login', async (req, res) => {
         conversationId: 'ai_assistant'
       },
       {
+        id: 'ai_assistant',
         provider: 'local',
         accountId: String(user._id),
         conversationId: 'ai_assistant',
@@ -562,7 +749,9 @@ app.post('/api/auth/login', async (req, res) => {
         email: user.email,
         avatarColor: user.avatarColor,
         avatarUrl: user.avatarUrl || '',
-        bio: user.bio
+        bio: user.bio,
+        publicKey: user.publicKey || '',
+        encryptedPrivateKey: user.encryptedPrivateKey || ''
       }
     });
   } catch (err) {
@@ -587,7 +776,7 @@ app.post('/api/auth/logout', async (req, res) => {
 // Profile Update endpoint
 app.put('/api/auth/profile', async (req, res) => {
   try {
-    const { username, email, password, bio, avatarColor, avatarUrl } = req.body;
+    const { username, email, password, bio, avatarColor, avatarUrl, publicKey, encryptedPrivateKey } = req.body;
     
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -600,7 +789,7 @@ app.put('/api/auth/profile', async (req, res) => {
         return res.status(400).json({ error: 'El nombre de usuario debe tener al menos 3 caracteres.' });
       }
       if (cleanUsername !== user.username) {
-        // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
+        //  Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
         const duplicate = await User.findOne({ username: cleanUsername }).lean();
         if (duplicate) {
           return res.status(400).json({ error: 'El nombre de usuario ya está registrado por otra cuenta.' });
@@ -615,7 +804,7 @@ app.put('/api/auth/profile', async (req, res) => {
         return res.status(400).json({ error: 'Formato de correo electrónico inválido.' });
       }
       if (cleanEmail !== user.email) {
-        // ⚡ Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
+        //  Bolt: Using .lean() to prevent Mongoose document instantiation for read-only existence check
         const duplicate = await User.findOne({ email: cleanEmail }).lean();
         if (duplicate) {
           return res.status(400).json({ error: 'El correo electrónico ya está registrado por otra cuenta.' });
@@ -635,6 +824,8 @@ app.put('/api/auth/profile', async (req, res) => {
     if (bio !== undefined) user.bio = String(bio).trim();
     if (avatarColor !== undefined) user.avatarColor = String(avatarColor).trim();
     if (avatarUrl !== undefined) user.avatarUrl = String(avatarUrl).trim();
+    if (publicKey !== undefined) user.publicKey = String(publicKey).trim();
+    if (encryptedPrivateKey !== undefined) user.encryptedPrivateKey = String(encryptedPrivateKey).trim();
 
     await user.save();
 
@@ -646,12 +837,25 @@ app.put('/api/auth/profile', async (req, res) => {
         email: user.email,
         avatarColor: user.avatarColor,
         avatarUrl: user.avatarUrl || '',
-        bio: user.bio
+        bio: user.bio,
+        publicKey: user.publicKey || '',
+        encryptedPrivateKey: user.encryptedPrivateKey || ''
       }
     });
   } catch (err) {
     console.error('Profile update error:', err);
     res.status(500).json({ error: 'Error al actualizar el perfil.' });
+  }
+});
+
+// Get User public key endpoint
+app.get('/api/users/:userId/public-key', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('publicKey').lean();
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ publicKey: user.publicKey || '' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener llave pública' });
   }
 });
 
@@ -666,7 +870,7 @@ app.get('/api/users/search', async (req, res) => {
     };
 
     if (query) {
-      // 🛡️ Sentinel: Escape user input to prevent NoSQL Regex Injection/ReDoS
+      // ️ Sentinel: Escape user input to prevent NoSQL Regex Injection/ReDoS
       const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
         { username: { $regex: safeQuery, $options: 'i' } },
@@ -674,10 +878,10 @@ app.get('/api/users/search', async (req, res) => {
       ];
     }
 
-    // ⚡ Bolt: Using .lean() to bypass Mongoose document instantiation, returning plain JS objects
+    //  Bolt: Using .lean() to bypass Mongoose document instantiation, returning plain JS objects
     // for significantly lower memory usage and faster read performance.
     const users = await User.find(filter)
-      .select('_id username email avatarColor avatarUrl bio status')
+      .select('_id username email avatarColor avatarUrl bio status publicKey')
       .limit(20)
       .lean();
 
@@ -711,12 +915,12 @@ app.get('/api/users/proximity', async (req, res) => {
     const userLat = req.user.latitude || 40.4167;
     const userLng = req.user.longitude || -3.7037;
 
-    // ⚡ Bolt: Using .lean() to bypass Mongoose document instantiation, returning plain JS objects
+    //  Bolt: Using .lean() to bypass Mongoose document instantiation, returning plain JS objects
     // for significantly lower memory usage and faster read performance.
     const allUsers = await User.find({
       _id: { $ne: req.user._id },
       username: { $ne: 'admin' }
-    }).select('_id username email avatarColor avatarUrl bio status latitude longitude').lean();
+    }).select('_id username email avatarColor avatarUrl bio status publicKey latitude longitude').lean();
 
     const mapped = allUsers.map(u => {
       const lat = u.latitude || (40.4167 + (Math.random() - 0.5) * 0.08);
@@ -729,6 +933,7 @@ app.get('/api/users/proximity', async (req, res) => {
         avatarColor: u.avatarColor,
         avatarUrl: u.avatarUrl || '',
         bio: u.bio,
+        publicKey: u.publicKey || '',
         status: u.status,
         distanceMeters: distance !== null ? Math.round(distance) : null,
         isFollowed: Array.isArray(req.user.followedUsers) && req.user.followedUsers.some(id => String(id) === String(u._id))
@@ -892,7 +1097,8 @@ app.post('/api/public-statuses/:id/view', async (req, res) => {
 // Get followed active stories
 app.get('/api/followed-statuses', async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    // ⚡ Bolt: Using .lean() to bypass Mongoose document instantiation for read-only user query, reducing memory usage.
+    const user = await User.findById(req.user._id).lean();
     const followedIds = user.followedUsers || [];
 
     const statuses = await PublicStatus.find({
@@ -917,7 +1123,9 @@ app.get('/api/check-auth', (req, res) => {
       email: req.user.email,
       avatarColor: req.user.avatarColor,
       avatarUrl: req.user.avatarUrl || '',
-      bio: req.user.bio
+      bio: req.user.bio,
+      publicKey: req.user.publicKey || '',
+      encryptedPrivateKey: req.user.encryptedPrivateKey || ''
     }
   });
 });
@@ -925,10 +1133,10 @@ app.get('/api/check-auth', (req, res) => {
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tapchat')
   .then(async () => {
-    console.log('✅ MongoDB connected');
+    console.log(' MongoDB connected');
     await ensureCanonicalProviderFields();
   })
-  .catch(err => console.error('❌ MongoDB error:', err));
+  .catch(err => console.error('Close MongoDB error:', err));
 
 const MessageSchema = new mongoose.Schema({
   id: { type: String, index: true },
@@ -954,7 +1162,8 @@ const MessageSchema = new mongoose.Schema({
   originalText: String,
   correctedText: String,
   sentText: String,
-  timestamp: Number
+  timestamp: Number,
+  reactions: [{ emoji: String, userId: String, username: String }]
 }, { timestamps: true });
 MessageSchema.index({ provider: 1, accountId: 1, conversationId: 1, timestamp: -1 });
 MessageSchema.index(
@@ -1023,6 +1232,8 @@ StatusArchiveSchema.index(
   { unique: true }
 );
 StatusArchiveSchema.index({ provider: 1, accountId: 1, timestamp: -1 });
+//  Bolt: Add missing compound index for fast lookup and sorting of statuses by owner/chat without an in-memory sort
+StatusArchiveSchema.index({ provider: 1, accountId: 1, statusOwnerId: 1, timestamp: -1 });
 
 const StatusArchive = mongoose.model('StatusArchive', StatusArchiveSchema);
 
@@ -1063,7 +1274,7 @@ async function loadAiConfig() {
       aiConfig.provider = getAiProvider(aiConfig);
     }
   } catch (error) {
-    console.error('⚠️ AI config load error:', error.message);
+    console.error('Warning AI config load error:', error.message);
   }
 }
 
@@ -1099,7 +1310,18 @@ function buildConversationKey(provider, accountId, conversationId) {
 
 function parseProviderContext(req = {}) {
   const provider = normalizeProvider(req.query?.provider || req.body?.provider || DEFAULT_PROVIDER);
-  const accountId = normalizeAccountId(req.query?.accountId || req.body?.accountId || (req.user ? String(req.user._id) : '') || DEFAULT_ACCOUNT_ID);
+  let accountId = normalizeAccountId(req.query?.accountId || req.body?.accountId || (req.user ? String(req.user._id) : '') || DEFAULT_ACCOUNT_ID);
+
+  // ️ Sentinel: Fix IDOR by ensuring non-admin users can only access their own accountId or the shared default account
+  if (req.user && req.user.username !== 'admin') {
+    const userId = String(req.user._id);
+    if (provider === 'local') {
+      accountId = userId;
+    } else if (accountId !== userId && accountId !== DEFAULT_ACCOUNT_ID) {
+      accountId = userId;
+    }
+  }
+
   return { provider, accountId };
 }
 
@@ -1230,7 +1452,7 @@ function setSyncState(task, patch) {
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   ).catch((error) => {
-    console.error('⚠️ SyncState persistence error:', error.message);
+    console.error('Warning SyncState persistence error:', error.message);
   });
   return next;
 }
@@ -1266,6 +1488,8 @@ async function ensureCanonicalProviderFields() {
   const chatResult = await Chat.updateMany(
     {
       $or: [
+        { id: { $exists: false } },
+        { id: null },
         { provider: { $exists: false } },
         { accountId: { $exists: false } },
         { conversationId: { $exists: false } },
@@ -1275,6 +1499,7 @@ async function ensureCanonicalProviderFields() {
     [
       {
         $set: {
+          id: { $ifNull: ['$id', { $ifNull: ['$conversationId', { $toString: '$_id' }] }] },
           provider: { $ifNull: ['$provider', DEFAULT_PROVIDER] },
           accountId: { $ifNull: ['$accountId', DEFAULT_ACCOUNT_ID] },
           conversationId: { $ifNull: ['$conversationId', { $ifNull: ['$id', { $toString: '$_id' }] }] },
@@ -1295,6 +1520,8 @@ async function ensureCanonicalProviderFields() {
   const messageResult = await Message.updateMany(
     {
       $or: [
+        { id: { $exists: false } },
+        { id: null },
         { provider: { $exists: false } },
         { accountId: { $exists: false } },
         { conversationId: { $exists: false } },
@@ -1306,6 +1533,7 @@ async function ensureCanonicalProviderFields() {
     [
       {
         $set: {
+          id: { $ifNull: ['$id', { $ifNull: ['$providerMessageId', { $toString: '$_id' }] }] },
           provider: { $ifNull: ['$provider', DEFAULT_PROVIDER] },
           accountId: { $ifNull: ['$accountId', DEFAULT_ACCOUNT_ID] },
           conversationId: { $ifNull: ['$conversationId', { $ifNull: ['$chatId', { $toString: '$_id' }] }] },
@@ -1363,7 +1591,7 @@ async function ensureCanonicalProviderFields() {
 
   if (chatResult.modifiedCount > 0 || messageResult.modifiedCount > 0 || syncStateResult.modifiedCount > 0 || statusArchiveResult.modifiedCount > 0) {
     console.log(
-      `🧩 Canonical field migration complete chats=${chatResult.modifiedCount} messages=${messageResult.modifiedCount} syncStates=${syncStateResult.modifiedCount} statusArchives=${statusArchiveResult.modifiedCount}`
+      ` Canonical field migration complete chats=${chatResult.modifiedCount} messages=${messageResult.modifiedCount} syncStates=${syncStateResult.modifiedCount} statusArchives=${statusArchiveResult.modifiedCount}`
     );
   }
 }
@@ -1459,7 +1687,7 @@ function logAiError(error, context = 'correct') {
   }
 
   console.error(
-    `❌ AI error [${context}] provider=${provider} model=${model} status=${status} detail=${detail}`
+    `Close AI error [${context}] provider=${provider} model=${model} status=${status} detail=${detail}`
   );
 }
 
@@ -1694,7 +1922,7 @@ async function buildMediaPayload(message, provider) {
   } catch (error) {
     const adapter = resolveProviderAdapter(normalizeProvider(provider));
     const msgCtx = adapter.extractMessageContext(message);
-    console.warn(`⚠️ Media download skipped for message ${msgCtx.providerMessageId || 'unknown'}:`, error.message);
+    console.warn(`Warning Media download skipped for message ${msgCtx.providerMessageId || 'unknown'}:`, error.message);
   }
 
   return { mediaType: null, imageDataUrl: null, mediaUrl: null, mimeType: null };
@@ -1795,7 +2023,7 @@ async function upsertChat(chatData, index, context = {}) {
     invalidateChatsCache(provider, accountId);
   } catch (err) {
     const chatCtx = resolveProviderAdapter(normalizeProvider(context.provider)).extractChatContext(chatData);
-    console.error(`❌ Error upserting chat ${chatCtx.chatId || 'unknown'}:`, err.message);
+    console.error(`Close Error upserting chat ${chatCtx.chatId || 'unknown'}:`, err.message);
   }
 }
 
@@ -1826,7 +2054,7 @@ async function upsertMessage(messageData, chatId, extraData = {}, context = {}) 
     const provider = normalizeProvider(context.provider);
     const adapter = resolveProviderAdapter(provider);
     const msgCtx = adapter.extractMessageContext(messageData);
-    console.error(`❌ Error upserting message ${msgCtx.providerMessageId || 'unknown'}:`, err.message);
+    console.error(`Close Error upserting message ${msgCtx.providerMessageId || 'unknown'}:`, err.message);
     return null;
   }
 }
@@ -1866,7 +2094,7 @@ async function fetchCurrentStatusDescriptors(provider) {
     const adapter = resolveProviderAdapter(provider);
     return await adapter.fetchStatusDescriptors();
   } catch (err) {
-    console.error(`⚠️ fetchStatusDescriptors error for ${provider}:`, err.message);
+    console.error(`Warning fetchStatusDescriptors error for ${provider}:`, err.message);
     return [];
   }
 }
@@ -1895,7 +2123,7 @@ async function archiveStatusFromDescriptor(entry = {}, source = 'poll', context 
     await adapter.markStatusRead().catch(() => {});
     statusMessage = await adapter.getMessageById(normalized.providerStatusMessageId).catch(() => null);
   } catch (err) {
-    console.warn('⚠️ Adapter call failed during archiveStatusFromDescriptor:', err.message);
+    console.warn('Warning Adapter call failed during archiveStatusFromDescriptor:', err.message);
   }
 
   if (!statusMessage) {
@@ -2003,12 +2231,12 @@ async function runStatusArchiveSweep(source = 'poll', context = {}) {
         else stats.skipped += 1;
       } else {
         stats.errors += 1;
-        console.error('⚠️ Status archive item error:', res.reason?.message || res.reason);
+        console.error('Warning Status archive item error:', res.reason?.message || res.reason);
       }
     }
   } catch (error) {
     stats.errors += 1;
-    console.error('⚠️ Status archive sweep error:', error.message);
+    console.error('Warning Status archive sweep error:', error.message);
   } finally {
     statusArchivePollInFlight = false;
     lastStatusArchiveRunAt = nowIso();
@@ -2023,7 +2251,7 @@ async function syncAllChats(context = {}) {
   const accountId = normalizeAccountId(context.accountId);
   const adapter = resolveProviderAdapter(provider);
   if (!adapter.isReady()) return;
-  console.log(`🔄 Starting full chat sync provider=${provider} account=${accountId}`);
+  console.log(` Starting full chat sync provider=${provider} account=${accountId}`);
   try {
     const chats = await adapter.listChats({ provider, accountId });
     if (!chats || chats.length === 0) return;
@@ -2034,9 +2262,9 @@ async function syncAllChats(context = {}) {
     );
 
     invalidateChatsCache(provider, accountId);
-    console.log(`✅ Synced ${chats.length} chats.`);
+    console.log(` Synced ${chats.length} chats.`);
   } catch (err) {
-    console.error('❌ Error in syncAllChats:', err.message);
+    console.error('Close Error in syncAllChats:', err.message);
   }
 }
 
@@ -2085,7 +2313,7 @@ async function syncChatMessages(chatId, limit = 50, context = {}) {
     invalidateMessagesCache(provider, accountId, chatId);
     invalidateChatsCache(provider, accountId);
   } catch (err) {
-    console.error(`❌ Error syncing messages for chat ${chatId}:`, err.message);
+    console.error(`Close Error syncing messages for chat ${chatId}:`, err.message);
   }
 }
 
@@ -2255,7 +2483,7 @@ async function getChatAvatar(chat, index, provider) {
     const adapter = resolveProviderAdapter(provider);
     avatarSourceUrl = await adapter.getChatAvatarUrl(chat);
   } catch (err) {
-    console.warn(`⚠️ Error resolving avatar for chat ${chatId}:`, err.message);
+    console.warn(`Warning Error resolving avatar for chat ${chatId}:`, err.message);
   }
 
   const avatarDataUrl = await toImageDataUrl(avatarSourceUrl);
@@ -2287,7 +2515,7 @@ async function handleMessageRevoke(after, before, context = {}) {
   const msgId = adapter.extractMessageContext(before || after).providerMessageId;
   if (!msgId) return;
 
-  console.log(`🗑️ Message revoked: ${msgId}`);
+  console.log(`Deleted Message revoked: ${msgId}`);
 
   try {
     const updated = await Message.findOneAndUpdate(
@@ -2304,7 +2532,7 @@ async function handleMessageRevoke(after, before, context = {}) {
       io.emit('message_updated', { ...updated, provider: context.provider, accountId: context.accountId });
     }
   } catch (err) {
-    console.error(`❌ Error handling revoke for ${msgId}:`, err.message);
+    console.error(`Close Error handling revoke for ${msgId}:`, err.message);
   }
 }
 
@@ -2312,7 +2540,7 @@ function bindProviderEvents(adapter, accountId) {
   const providerName = adapter.getProviderName();
 
   adapter.on('qr', (qr) => {
-    console.log('📡 QR Received - Emitting to frontend...');
+    console.log(' QR Received - Emitting to frontend...');
     const state = getProviderState(providerName);
     state.lastQR = qr;
     state.lastDisconnectReason = null;
@@ -2320,7 +2548,7 @@ function bindProviderEvents(adapter, accountId) {
   });
 
   adapter.on('ready', () => {
-    console.log(`✅ Client is ready for provider: ${providerName}!`);
+    console.log(` Client is ready for provider: ${providerName}!`);
     const state = getProviderState(providerName);
     state.lastQR = null;
     state.lastReadyAt = new Date().toISOString();
@@ -2335,7 +2563,7 @@ function bindProviderEvents(adapter, accountId) {
       reason: 'provider_ready'
     });
     runStatusArchiveSweep('poll', { provider: providerName, accountId }).catch((error) => {
-      console.error('⚠️ Initial status archive sweep failed:', error.message);
+      console.error('Warning Initial status archive sweep failed:', error.message);
     });
   });
 
@@ -2368,9 +2596,9 @@ function bindProviderEvents(adapter, accountId) {
 
         const descriptor = adapter.extractStatusDescriptor(msg);
         await archiveStatusFromDescriptor(descriptor, 'event', { provider: providerName, accountId });
-        console.log(`👁️ Status auto-visto [${descriptor.mediaType}] de: ${descriptor.statusOwnerId}`);
+        console.log(`️ Status auto-visto [${descriptor.mediaType}] de: ${descriptor.statusOwnerId}`);
       } catch (e) {
-        console.error('⚠️ Error al auto-ver status:', e.message);
+        console.error('Warning Error al auto-ver status:', e.message);
       }
       return; // No procesamos los estados como mensajes normales en la UI
     }
@@ -2411,7 +2639,7 @@ function bindProviderEvents(adapter, accountId) {
         await upsertChat(chat, 0, { provider: providerName, accountId });
       }
     } catch (err) {
-      console.error('⚠️ Failed to update chat on message_create:', err.message);
+      console.error('Warning Failed to update chat on message_create:', err.message);
     }
   });
 }
@@ -2427,7 +2655,7 @@ providerRegistry.initializeAll();
 setInterval(() => {
   for (const providerName of providerRegistry.listProviders()) {
     runStatusArchiveSweep('poll', { provider: providerName, accountId: DEFAULT_ACCOUNT_ID }).catch((error) => {
-      console.error(`⚠️ Scheduled status archive sweep failed for ${providerName}:`, error.message);
+      console.error(`Warning Scheduled status archive sweep failed for ${providerName}:`, error.message);
     });
   }
 }, STATUS_POLL_INTERVAL_MS);
@@ -2444,6 +2672,52 @@ function ensureProviderReady(res, provider) {
   }
   return true;
 }
+
+// TURN credentials endpoint for WebRTC
+app.get('/api/turn-credentials', (req, res) => {
+  const turnUrl = process.env.TURN_URL || '';
+  const turnSecret = process.env.TURN_SECRET || '';
+  const turnUsername = process.env.TURN_USERNAME || 'tapchat';
+
+  if (!turnUrl) {
+    return res.json({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+  }
+
+  const urls = turnUrl.split(',').map(u => u.trim());
+
+  if (!turnSecret) {
+    const staticPassword = process.env.TURN_STATIC_PASSWORD || '';
+    return res.json({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+          urls,
+          username: turnUsername,
+          credential: staticPassword
+        }
+      ]
+    });
+  }
+
+  const expiry = Math.floor(Date.now() / 1000) + 86400;
+  const tempUsername = `${expiry}:${turnUsername}`;
+  const hmac = crypto.createHmac('sha1', turnSecret);
+  hmac.update(tempUsername);
+  const tempPassword = hmac.digest('base64');
+
+  res.json({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls,
+        username: tempUsername,
+        credential: tempPassword
+      }
+    ]
+  });
+});
 
 // AI API endpoint
 app.post('/api/correct', async (req, res) => {
@@ -2486,24 +2760,39 @@ app.post('/api/correct', async (req, res) => {
   }
 });
 
-app.get('/api/ai/config', async (_req, res) => {
+app.get('/api/ai/config', async (req, res) => {
   try {
     const configResponse = {
       ...aiConfig,
       provider: getAiProvider(aiConfig),
       aiBaseUrl: getAiBaseUrl(aiConfig)
     };
-    if (configResponse.cloudflareApiToken) {
-      configResponse.cloudflareApiToken = '********';
+
+    // 🛡️ Sentinel: Redact sensitive internal URLs and API tokens for non-admins to prevent info leakage
+    if (!req.user || req.user.username !== 'admin') {
+      if (configResponse.cloudflareApiToken) configResponse.cloudflareApiToken = '********';
+      if (configResponse.cloudflareAccountId) configResponse.cloudflareAccountId = '********';
+      if (configResponse.lmStudioBaseUrl) configResponse.lmStudioBaseUrl = '********';
+      if (configResponse.cloudflareBaseUrl) configResponse.cloudflareBaseUrl = '********';
+      if (configResponse.aiBaseUrl) configResponse.aiBaseUrl = '********';
+    } else {
+      if (configResponse.cloudflareApiToken) {
+        configResponse.cloudflareApiToken = '********';
+      }
     }
     res.json(configResponse);
   } catch (error) {
-    console.error('❌ Fetch AI config error:', error.message);
+    console.error('Close Fetch AI config error:', error.message);
     res.status(500).json({ error: 'Failed to fetch AI configuration' });
   }
 });
 
 app.put('/api/ai/config', async (req, res) => {
+  // ️ Sentinel: Enforce admin authorization to prevent Broken Access Control and SSRF
+  if (!req.user || req.user.username !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: Only admin can modify AI configuration' });
+  }
+
   try {
     const nextConfig = {
       ...aiConfig
@@ -2574,14 +2863,14 @@ app.put('/api/ai/config', async (req, res) => {
     const saved = await saveAiConfig(nextConfig);
     res.json({ success: true, config: saved });
   } catch (error) {
-    console.error('❌ Save AI config error:', error.message);
+    console.error('Close Save AI config error:', error.message);
     res.status(500).json({ error: 'Failed to save AI config' });
   }
 });
 
-app.get('/api/ai/health', async (_req, res) => {
+app.get('/api/ai/health', async (req, res) => {
   try {
-    const models = await getAvailableModels(_req.query.refresh === '1');
+    const models = await getAvailableModels(req.query.refresh === '1');
     const provider = getAiProvider(aiConfig);
     const payload = {
       ok: true,
@@ -2591,7 +2880,12 @@ app.get('/api/ai/health', async (_req, res) => {
       models
     };
 
-    const shouldProbe = _req.query.probe === '1';
+    // 🛡️ Sentinel: Redact sensitive internal URLs for non-admins to prevent info leakage
+    if (!req.user || req.user.username !== 'admin') {
+      if (payload.aiBaseUrl) payload.aiBaseUrl = '********';
+    }
+
+    const shouldProbe = req.query.probe === '1';
     if (shouldProbe) {
       try {
         const probe = await axios.post(getAiChatCompletionsUrl(aiConfig), {
@@ -2682,7 +2976,7 @@ app.get(['/api/chats', '/api/chats/:channelCode'], async (req, res) => {
       syncState: getSyncStateSnapshot(provider, accountId, '__all__', 'chats')
     });
   } catch (error) {
-    console.error('❌ Fetch chats error:', error.message);
+    console.error('Close Fetch chats error:', error.message);
     res.status(500).json({ error: 'Failed to fetch chats' });
   }
 });
@@ -2750,7 +3044,7 @@ app.get(['/api/chats/:chatId/messages', '/api/chats/:chatId/messages/:channelCod
       syncState: getSyncStateSnapshot(provider, accountId, chatId, 'messages')
     });
   } catch (error) {
-    console.error('❌ Fetch messages error details:', error);
+    console.error('Close Fetch messages error details:', error);
     res.status(500).json({ 
       error: 'Failed to fetch messages', 
       detail: error.message 
@@ -2807,7 +3101,7 @@ app.get(['/api/chats/:chatId/resources', '/api/chats/:chatId/resources/:channelC
       statuses
     });
   } catch (error) {
-    console.error('❌ Fetch resources error:', error.message);
+    console.error('Close Fetch resources error:', error.message);
     res.status(500).json({ error: 'Failed to fetch resources', detail: error.message });
   }
 });
@@ -2833,15 +3127,140 @@ app.post(['/api/chats/:chatId/read', '/api/chats/:chatId/read/:channelCode'], as
       const adapter = resolveProviderAdapter(provider);
       if (adapter.isReady()) {
         adapter.markRead({ provider, accountId, conversationId: chatId }).catch(err => {
-          console.warn(`⚠️ Failed to sendSeen via provider ${provider} for ${chatId}:`, err.message);
+          console.warn(`Warning Failed to sendSeen via provider ${provider} for ${chatId}:`, err.message);
         });
       }
     }
 
     res.json({ success: true, provider, accountId, conversationId: chatId });
   } catch (error) {
-    console.error('❌ Mark read error:', error.message);
+    console.error('Close Mark read error:', error.message);
     res.status(500).json({ error: 'Failed to mark chat as read' });
+  }
+});
+
+const previewCache = new Map();
+
+app.get('/api/link-preview', async (req, res) => {
+  const targetUrl = req.query.url;
+  if (!targetUrl) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  // 🛡️ Sentinel: Validate URL to prevent SSRF
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return res.status(400).json({ error: 'Invalid URL protocol' });
+    }
+    const hostname = parsed.hostname;
+    if (hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]' || hostname === '::1') {
+      return res.status(400).json({ error: 'Localhost URLs are not allowed' });
+    }
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const match = hostname.match(ipv4Regex);
+    if (match) {
+      const p1 = parseInt(match[1], 10);
+      const p2 = parseInt(match[2], 10);
+      if (
+        p1 === 10 ||
+        (p1 === 172 && p2 >= 16 && p2 <= 31) ||
+        (p1 === 192 && p2 === 168) ||
+        (p1 === 169 && p2 === 254)
+      ) {
+        return res.status(400).json({ error: 'Private network URLs are not allowed' });
+      }
+    }
+  } catch (err) {
+    return res.status(400).json({ error: 'Invalid URL format' });
+  }
+
+  if (previewCache.has(targetUrl)) {
+    return res.json(previewCache.get(targetUrl));
+  }
+
+  try {
+    const response = await axios.get(targetUrl, {
+      timeout: 4000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
+
+    const html = response.data;
+    if (typeof html !== 'string') {
+      throw new Error('Invalid response type');
+    }
+
+    const metadata = {
+      url: targetUrl,
+      title: '',
+      description: '',
+      image: '',
+      siteName: ''
+    };
+
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) metadata.title = titleMatch[1];
+
+    const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+    if (ogTitleMatch) metadata.title = ogTitleMatch[1];
+
+    const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) ||
+                        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i) ||
+                        html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
+    if (ogDescMatch) metadata.description = ogDescMatch[1];
+
+    const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+    if (ogImageMatch) metadata.image = ogImageMatch[1];
+
+    const ogSiteName = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i);
+    if (ogSiteName) metadata.siteName = ogSiteName[1];
+
+    // Clean HTML entities
+    for (const key in metadata) {
+      if (typeof metadata[key] === 'string') {
+        metadata[key] = metadata[key]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#039;/g, "'");
+      }
+    }
+
+    previewCache.set(targetUrl, metadata);
+    res.json(metadata);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to scrape metadata', message: err.message });
+  }
+});
+
+// Upload file endpoint
+app.post('/api/upload', express.json({ limit: '50mb' }), async (req, res) => {
+  try {
+    const { fileData, fileName, mimeType } = req.body;
+    if (!fileData || !fileName || !mimeType) {
+      return res.status(400).json({ error: 'fileData, fileName y mimeType son obligatorios.' });
+    }
+
+    const mediaSha256 = crypto.createHash('sha256').update(fileData).digest('hex');
+    const extension = path.extname(fileName) || '.png';
+    const archivedFileName = `media-${Date.now()}-${mediaSha256.slice(0, 16)}${extension}`;
+    const filePath = path.join(MEDIA_ARCHIVE_DIR, archivedFileName);
+
+    fs.writeFileSync(filePath, Buffer.from(fileData, 'base64'));
+
+    res.json({
+      success: true,
+      publicUrl: `/media-archive/${encodeURIComponent(archivedFileName)}`,
+      mediaType: mimeType.split('/')[0] // 'image', 'video', 'audio', etc.
+    });
+  } catch (err) {
+    console.error('Upload error:', err);
+    res.status(500).json({ error: 'No se pudo subir el archivo.' });
   }
 });
 
@@ -2882,7 +3301,18 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
 
         await Chat.findOneAndUpdate(
           { provider: 'local', accountId: senderId, conversationId: 'ai_assistant' },
-          { timestamp, lastSyncedAt: new Date() },
+          {
+            id: 'ai_assistant',
+            provider: 'local',
+            accountId: senderId,
+            conversationId: 'ai_assistant',
+            conversationKey: `local:${senderId}:ai_assistant`,
+            name: 'AI Companion',
+            timestamp,
+            isGroup: false,
+            avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&q=80',
+            lastSyncedAt: new Date()
+          },
           { upsert: true }
         );
 
@@ -2961,7 +3391,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
             conversationKey: `local:${senderId}:ai_assistant`,
             from: 'ai_assistant',
             to: senderId,
-            body: "⚠️ Error al conectar con el servidor de IA (LM Studio o Cloudflare). Por favor, comprueba que el servidor esté activo y la configuración en Ajustes sea correcta.",
+            body: "Warning Error al conectar con el servidor de IA (LM Studio o Cloudflare). Por favor, comprueba que el servidor esté activo y la configuración en Ajustes sea correcta.",
             fromMe: false,
             timestamp: Math.floor(Date.now() / 1000)
           });
@@ -2980,7 +3410,8 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
       }
 
       // Case B: User-to-User Chat
-      const receiver = await User.findById(receiverId);
+      // ⚡ Bolt: Using .lean() to bypass Mongoose document instantiation for read-only user query, reducing memory usage.
+      const receiver = await User.findById(receiverId).lean();
       if (!receiver) {
         return res.status(404).json({ error: 'El usuario destinatario no existe.' });
       }
@@ -2996,12 +3427,15 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
         to: receiverId,
         body: text,
         fromMe: true,
-        timestamp
+        timestamp,
+        mediaUrl: req.body?.mediaUrl || null,
+        mediaType: req.body?.mediaType || null
       });
 
       await Chat.findOneAndUpdate(
         { provider: 'local', accountId: senderId, conversationId: receiverId },
         {
+          id: receiverId,
           provider: 'local',
           accountId: senderId,
           conversationId: receiverId,
@@ -3026,12 +3460,15 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
         to: receiverId,
         body: text,
         fromMe: false,
-        timestamp
+        timestamp,
+        mediaUrl: req.body?.mediaUrl || null,
+        mediaType: req.body?.mediaType || null
       });
 
       await Chat.findOneAndUpdate(
         { provider: 'local', accountId: receiverId, conversationId: senderId },
         {
+          id: senderId,
           provider: 'local',
           accountId: receiverId,
           conversationId: senderId,
@@ -3139,7 +3576,7 @@ app.post(['/api/send', '/api/send/:channelCode'], async (req, res) => {
     const detail = typeof error === 'object'
       ? (error.message || JSON.stringify(error))
       : String(error);
-    console.error('❌ Send error:', detail);
+    console.error('Close Send error:', detail);
 
     // Attempt to map specific errors to status codes
     let status = 500;
@@ -3180,7 +3617,7 @@ app.get(['/api/status', '/api/status/:channelCode'], async (req, res) => {
       uptimeSec: Math.floor(process.uptime())
     });
   } catch (error) {
-    console.error('❌ Status endpoint error:', error.message);
+    console.error('Close Status endpoint error:', error.message);
     res.status(500).json({ error: 'Failed to fetch status' });
   }
 });
@@ -3199,8 +3636,9 @@ app.get(['/api/status-archive', '/api/status-archive/:channelCode'], async (req,
       query.statusOwnerId = ownerId;
     }
 
+    //  Bolt: Removed createdAt: -1 from sort to utilize the {provider: 1, accountId: 1, timestamp: -1} compound index perfectly and avoid a slow in-memory sort
     const items = await StatusArchive.find(query)
-      .sort({ timestamp: -1, createdAt: -1 })
+      .sort({ timestamp: -1 })
       .limit(limit)
       .lean();
 
@@ -3215,7 +3653,7 @@ app.get(['/api/status-archive', '/api/status-archive/:channelCode'], async (req,
       }
     });
   } catch (error) {
-    console.error('❌ Fetch status archive error:', error.message);
+    console.error('Close Fetch status archive error:', error.message);
     res.status(500).json({ error: 'Failed to fetch status archive', detail: error.message });
   }
 });
@@ -3250,7 +3688,7 @@ app.get(['/api/health', '/api/health/:channelCode'], async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Health endpoint error:', error.message);
+    console.error('Close Health endpoint error:', error.message);
     res.status(500).json({ error: 'Failed to fetch health' });
   }
 });
@@ -3284,7 +3722,7 @@ app.get(['/api/sync/state', '/api/sync/state/:channelCode'], async (req, res) =>
 
 const PORT = process.env.PORT || 3005;
 server.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
+  console.log(`Send Backend running on http://localhost:${PORT}`);
 });
 
 loadAiConfig();

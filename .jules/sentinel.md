@@ -12,3 +12,22 @@
 **Vulnerability:** The unvalidated `password` property from user input (e.g., `req.body.password`) was passed directly into the native Node.js `crypto.pbkdf2Sync` method. An attacker could pass a NoSQL payload object instead of a string, causing a `TypeError` in the native module and crashing the node process, resulting in a Denial of Service (DoS).
 **Learning:** Native Node.js modules like `crypto` often lack the graceful error handling or implicit casting found in some higher-level frameworks. Feeding them unexpected object types (especially from unvalidated Express request payloads) can cause synchronous crashes that take down the entire server.
 **Prevention:** Always explicitly cast unvalidated user input properties to primitives (e.g., `String(password)`) before passing them to native Node.js methods like `crypto`.
+
+## 2024-06-25 - [Fix IDOR in provider context resolution]
+**Vulnerability:** The `parseProviderContext` function allowed users to specify arbitrary `accountId` values via request parameters or body payload without validating authorization. This resulted in an Insecure Direct Object Reference (IDOR) where any authenticated user could act as another user.
+**Learning:** In a multi-tenant or multi-account system, blindly trusting user-provided identifiers for sensitive actions (like fetching chats or sending messages) leads to authorization bypasses.
+**Prevention:** Always enforce server-side authorization checks on resource identifiers provided by clients, ensuring the authenticated user has permission to access the requested resource. Override untrusted identifiers with authenticated session data where appropriate.
+
+## 2024-10-25 - [Fix Broken Access Control in AI Config]
+**Vulnerability:** The `PUT /api/ai/config` endpoint lacked admin authorization checks. Any authenticated user could modify global AI configuration settings, including base URLs and prompts, introducing Broken Access Control and Server-Side Request Forgery (SSRF) risks.
+**Learning:** Global configuration endpoints must explicitly verify the user's role (e.g., `req.user.username === 'admin'`) rather than just relying on generic authentication middleware, to prevent unauthorized system-wide tampering.
+**Prevention:** Always enforce role-based access control (RBAC) on endpoints that mutate global state or configure external integrations.
+
+## 2024-07-02 - Redact sensitive internal URLs for non-admins
+**Vulnerability:** Information leakage where internal AI service URLs (e.g., lmStudioBaseUrl) were exposed to non-admin users via read endpoints.
+**Learning:** API read endpoints (`GET`) needed by the frontend often expose configuration data that must be explicitly filtered or redacted based on user roles, since non-admins need access to the endpoint but shouldn't see sensitive internal routing.
+**Prevention:** Ensure the authorization condition fails closed for unauthenticated requests (e.g., `if (!req.user || req.user.username !== "admin")`) and explicitly overwrite sensitive properties with placeholder values (e.g., `********`) before returning the response payload.
+## 2024-07-03 - [Fix Server-Side Request Forgery (SSRF) in link preview endpoint]
+**Vulnerability:** The `/api/link-preview` endpoint fetched arbitrary URLs provided by the client using `axios.get(targetUrl)` without validating if the URL pointed to an internal/private IP or local network service, resulting in a Server-Side Request Forgery (SSRF) risk.
+**Learning:** Endpoints that act as a proxy or fetch external resources on behalf of the client must strictly validate and sanitize the target URL to prevent attackers from accessing internal infrastructure, local ports, or sensitive local services.
+**Prevention:** Always parse user-provided URLs and validate the protocol (allowing only http/https) and the hostname (blocking localhost, loopback IPs, and private network address ranges) before making outbound HTTP requests.

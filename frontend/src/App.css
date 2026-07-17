@@ -119,6 +119,7 @@ button, textarea, input, select {
   place-items: center;
   padding: 20px;
   position: relative;
+  overflow-y: auto;
 }
 
 .authCard {
@@ -475,7 +476,7 @@ button, textarea, input, select {
 .chatAvatar {
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: 50%;
   background: var(--accent-gradient);
   color: white;
   display: grid;
@@ -615,7 +616,7 @@ button, textarea, input, select {
 .chatHeaderAvatar {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: 50%;
   color: white;
   display: grid;
   place-items: center;
@@ -709,7 +710,7 @@ button, textarea, input, select {
 
 .bubble {
   max-width: min(72%, 640px);
-  padding: 10px 14px 8px;
+  padding: 8px 12px 6px;
   border-radius: 18px 18px 18px 8px;
   position: relative;
   font-size: 16px;
@@ -760,7 +761,7 @@ button, textarea, input, select {
   justify-content: flex-end;
   gap: 6px;
   width: 100%;
-  margin-top: 7px;
+  margin-top: 4px;
 }
 
 .ackSingle,
@@ -775,42 +776,68 @@ button, textarea, input, select {
   color: #7ad6ff;
 }
 
-.bubbleActions {
-  margin-top: 8px;
-  display: flex;
-  justify-content: flex-end;
+.bubbleReplyBtn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 2px;
+  cursor: pointer;
   opacity: 0;
-  transform: translateY(2px);
-  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  border-radius: 50%;
   transition: opacity 0.16s ease, transform 0.16s ease;
+  vertical-align: middle;
 }
 
 @media (hover: hover) {
-  .bubble:hover .bubbleActions {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+  .bubble:hover .bubbleReplyBtn {
+    opacity: 0.65;
+  }
+  .bubbleReplyBtn:hover {
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.15);
   }
 }
-.bubble:focus-within .bubbleActions {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
 
-.replyBtn {
-  padding: 4px 10px;
-  font-size: 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
+@media (hover: none) {
+  .bubbleReplyBtn {
+    opacity: 0.75;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 4px;
+    margin-left: 8px;
+  }
 }
 
 .msgImage {
   max-width: 100%;
+  max-height: 280px;
+  object-fit: cover;
   border-radius: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  display: block;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.msgVideo {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  display: block;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.msgAudio {
+  max-width: 100%;
+  width: 260px;
+  margin-bottom: 8px;
+  display: block;
+  outline: none;
+  border-radius: 20px;
 }
 
 .statusArchiveSidebarItem {
@@ -1586,10 +1613,13 @@ button.fullWidth {
   }
 
   .headerActions button {
-    flex: 1;
-    padding: 8px 12px;
-    min-height: 48px;
-    min-width: 48px;
+    flex: none;
+    padding: 0;
+    min-height: 36px;
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
   }
 
   .waApp {
@@ -1885,7 +1915,7 @@ button.fullWidth {
 
 /* Offline Banner */
 .updateBanner {
-  background: var(--accent);
+  background: var(--accent-primary);
   color: white;
   padding: 12px;
   display: flex;
@@ -1895,6 +1925,22 @@ button.fullWidth {
   z-index: 1000;
 }
 .updateBanner button {
+  padding: 6px 16px;
+  min-height: 32px;
+  font-size: 14px;
+}
+
+.notificationBanner {
+  background: #2563eb;
+  color: white;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 1000;
+}
+.notificationBanner button {
   padding: 6px 16px;
   min-height: 32px;
   font-size: 14px;
@@ -1969,9 +2015,9 @@ button.fullWidth {
     min-width: 48px;
   }
 
-  button.replyBtn {
-    min-height: 48px;
-    min-width: 48px;
+  button.bubbleReplyBtn {
+    min-height: 32px;
+    min-width: 32px;
   }
 
   .logoutBtn,
@@ -2034,8 +2080,9 @@ select {
 /* Toasts */
 .toast-container {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
+  bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -2127,3 +2174,387 @@ select {
 .onboarding-wizard p:last-child {
   margin-bottom: 0;
 }
+
+.modalOverlay.fullscreenSettingsOverlay {
+  padding: 0;
+  background: #1e1f22;
+}
+
+/* Discord-like Full-Screen Settings Page */
+.profileSettingsModal.fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  background: #1e1f22;
+  animation: slideInUpFull 0.2s cubic-bezier(0.1, 0.9, 0.2, 1);
+  overflow: hidden;
+}
+
+@keyframes slideInUpFull {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.settingsSidebar {
+  width: 240px;
+  background: #2b2d31;
+  padding: 60px 10px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.settingsSidebarTitle {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #949ba4;
+  margin-bottom: 8px;
+  padding-left: 10px;
+}
+
+.settingsSidebarTab {
+  background: transparent;
+  border: none;
+  color: #949ba4;
+  padding: 8px 12px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: background 0.15s, color 0.15s;
+  width: 100%;
+}
+
+.settingsSidebarTab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #dbdee1;
+}
+
+.settingsSidebarTab.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-weight: 600;
+}
+
+.settingsMainWrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  background: #313338;
+}
+
+.settingsContentPane {
+  flex: 1;
+  max-width: 680px;
+  padding: 60px 40px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settingsCloseButton {
+  position: absolute;
+  top: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: #b5bac1;
+  transition: color 0.15s;
+  z-index: 10;
+}
+
+.settingsCloseButton:hover {
+  color: #dbdee1;
+}
+
+.settingsCloseButtonCircle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #b5bac1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.settingsCloseButton:hover .settingsCloseButtonCircle {
+  border-color: #dbdee1;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.settingsCloseButtonText {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+@media (max-width: 920px) {
+  .profileSettingsModal.fullscreen {
+    flex-direction: column;
+  }
+  .settingsSidebar {
+    width: 100%;
+    padding: 20px 16px;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .settingsSidebarTitle {
+    display: none;
+  }
+  .settingsContentPane {
+    padding: 30px 16px;
+  }
+  .settingsCloseButton {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    z-index: 1000;
+  }
+}
+
+.ackOffline {
+  color: #ff9f43;
+  margin-left: 5px;
+  font-size: 11px;
+}
+
+.bubbleRow .bubble.is-offline {
+  opacity: 0.65;
+  border: 1px dashed rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Animated Skeleton Message Screens */
+.skeleton-msg {
+  width: 60%;
+  height: 48px;
+  margin: 12px 0;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.05) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s infinite linear;
+}
+
+.skeleton-msg:nth-child(even) {
+  align-self: flex-end;
+  width: 45%;
+  background: linear-gradient(90deg, rgba(255, 111, 36, 0.05) 25%, rgba(255, 111, 36, 0.12) 50%, rgba(255, 111, 36, 0.05) 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes skeleton-pulse {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Message Ack Status Icons */
+.ackSingle, .ackDouble, .ackDoubleBlue, .ackClock {
+  font-size: 0.75rem;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+  font-weight: bold;
+}
+
+.ackSingle {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.ackDouble {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.ackDoubleBlue {
+  color: #3b82f6; /* WhatsApp style double blue check */
+  text-shadow: 0 0 4px rgba(59, 130, 246, 0.4);
+}
+
+.ackClock {
+  color: rgba(255, 255, 255, 0.45);
+  animation: rotation 2s infinite linear;
+}
+
+@keyframes rotation {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Grouped / Consecutive Chat Bubbles */
+.bubbleRow.consecutive {
+  margin-top: 2px !important;
+}
+
+.bubbleRow.mine.consecutive .bubble {
+  border-top-right-radius: 4px !important;
+}
+
+.bubbleRow.theirs.consecutive .bubble {
+  border-top-left-radius: 4px !important;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 111, 36, 0.45); }
+  70% { transform: scale(1.06); box-shadow: 0 0 0 20px rgba(255, 111, 36, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 111, 36, 0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Typing indicator animation */
+.typing-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 16px;
+  border-radius: 18px 18px 18px 4px;
+  align-self: flex-start;
+  margin: 8px 24px;
+  animation: slideIn 0.2s ease-out;
+  flex-shrink: 0;
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #a855f7;
+  border-radius: 50%;
+  animation: typing-bounce 1.4s infinite ease-in-out both;
+}
+.typing-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+@keyframes typing-bounce {
+  0%, 80%, 100% { 
+    transform: scale(0);
+  } 40% { 
+    transform: scale(1.0);
+  }
+}
+
+/* Reactions styling */
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.bubbleRow.mine .message-reactions {
+  justify-content: flex-end;
+}
+.reaction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #ccc;
+  user-select: none;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
+}
+.reaction-badge:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.reaction-badge.my-reaction {
+  background: rgba(168, 85, 247, 0.12);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #fff;
+}
+.reaction-picker-trigger {
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  font-size: 0.75rem;
+  color: #ccc;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
+}
+.bubbleRow:hover .reaction-picker-trigger {
+  opacity: 1;
+}
+.reaction-picker-menu {
+  position: absolute;
+  top: -36px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  padding: 2px 6px;
+  display: flex;
+  gap: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  z-index: 20;
+  animation: slideIn 0.12s ease-out;
+}
+.bubbleRow.mine .reaction-picker-menu {
+  right: 0;
+  left: auto;
+  transform: none;
+}
+.bubbleRow:not(.mine) .reaction-picker-menu {
+  left: 0;
+  right: auto;
+  transform: none;
+}
+.reaction-emoji-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.05rem;
+  cursor: pointer;
+  padding: 2px;
+  transition: transform 0.15s;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
+}
+.reaction-emoji-btn:hover {
+  transform: scale(1.25);
+}
+
