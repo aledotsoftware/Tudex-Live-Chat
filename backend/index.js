@@ -562,6 +562,10 @@ PublicStatusSchema.index({ createdAt: 1 }, { expireAfterSeconds: 86400 });
 //  Bolt: Add compound index for followed stories query combining $in filter and sort
 PublicStatusSchema.index({ userId: 1, createdAt: -1 });
 
+// ⚡ Bolt: Added compound index for optimal querying and sorting of followed statuses
+// Impact: Changes a full collection scan with in-memory sort into an efficient index scan
+PublicStatusSchema.index({ userId: 1, createdAt: -1 });
+
 const PublicStatus = mongoose.model('PublicStatus', PublicStatusSchema);
 
 // Session Schema

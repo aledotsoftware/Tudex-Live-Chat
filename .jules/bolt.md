@@ -2,6 +2,9 @@
 **Learning:** Adding `.lean()` to Mongoose queries returns plain JavaScript objects, significantly reducing memory and CPU usage for read-only operations. In this application, read-only queries were returning full Mongoose documents needlessly.
 **Action:** Always verify if a `.find()` operation needs to return full Mongoose documents. Use `.lean()` when documents are strictly meant for read-only serialization.
 
+## 2024-06-18 - [Mongoose Compound Index for Followed Statuses]
+**Learning:** Mongoose queries using `$in` operators combined with `.sort()` (e.g., fetching statuses from a list of followed users ordered by creation date) can result in highly inefficient full collection scans or unoptimized index scans followed by expensive in-memory sorting if an appropriate compound index is not present. Relying solely on a TTL index (like `createdAt: 1`) is insufficient for efficient targeted retrieval.
+**Action:** Always ensure that queries combining user-specific filtering (especially array inclusion like `$in: followedIds`) with sorting have a matching compound index, such as `{ userId: 1, createdAt: -1 }`, to maintain fast read performance as the dataset grows.
 ## 2024-06-18 - [Mongoose Compound Index and Sort Optimization]
 **Learning:** When sorting Mongoose query results, ensure that `.sort()` parameters align perfectly with the fields of the chosen compound index. Adding unindexed tie-breaker fields (e.g., `createdAt: -1`) to a query sorted by a partially matched index (e.g., `timestamp: -1`) will trigger a slow, memory-intensive in-memory sort.
 **Action:** Always verify schema indexes match query filters AND sorts exactly. Avoid adding redundant secondary sort fields if they aren't part of the compound index to prevent forcing MongoDB to sort in-memory.
