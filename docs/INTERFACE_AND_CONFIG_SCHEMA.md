@@ -159,3 +159,6 @@ Encapsuladas en un bloque expandible `<details>` para no congestionar la interfa
 
 ### IV. Cierre de Sesión Seguro
 - **Cerrar Sesión Activa:** Botón con diseño de peligro translúcido que elimina instantáneamente el token de acceso de `localStorage`, desconecta de forma limpia la conexión Socket.io con el servidor y limpia la caché local de IndexedDB del navegador.
+
+### V. Responsabilidad del Nodo Soberano
+Los administradores de cada nodo asumen un compromiso técnico y ético inquebrantable. Tienen estrictamente prohibido interceptar, analizar o monetizar el tráfico y los metadatos de su instancia. Deben garantizar el soporte absoluto para el cifrado extremo a extremo (E2EE), operar sobre infraestructura libre de dependencias corporativas y asegurar una federación transparente para no fragmentar la red.
