@@ -1,142 +1,173 @@
-# 📱 Tapchat PWA - Cliente de WhatsApp con Corrección IA Local
+# 📱 Tudex Live Chat PWA
 
-## 📖 Descripción del Proyecto
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-v18%2B-green.svg)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
+[![PWA](https://img.shields.io/badge/PWA-Installable-purple.svg)](https://web.dev/progressive-web-apps/)
 
-Tapchat es una plataforma de mensajería (PWA) independiente que emula una sesión de WhatsApp Web.
-Su objetivo principal es ayudarte a enviar mensajes bien escritos mediante asistencia de una IA local.
+**Tudex Live Chat** es un cliente independiente de mensajería (PWA) de alto rendimiento que emula y extiende las capacidades de una sesión de WhatsApp Web, actuando como un intermediario inteligente potenciado por Inteligencia Artificial (IA) local o en la nube. 
 
-A diferencia del flujo estándar donde un script edita un mensaje ya enviado, esta aplicación web actúa como un paso intermedio: escribes tu mensaje, la IA local lo analiza y corrige, y la plataforma te permite elegir si enviar tu texto original o la versión corregida.
+A diferencia de las herramientas de automatización tradicionales que editan o envían mensajes automáticamente (lo cual conlleva un alto riesgo de suspensión de cuenta), Tudex Live Chat sitúa al usuario en el centro del control: redactas tu mensaje, la IA analiza y genera sugerencias gramaticales y de estilo en tiempo real, y tú decides con un solo clic si enviar el texto original o la versión optimizada por IA.
+
+---
 
 ## ✨ Características Principales
 
-- **Privacidad total:** con LM Studio, la IA corre localmente en tu computadora. Tus borradores y chats no se envían a servicios externos de IA.
-- **Cero riesgo de baneos por automatización agresiva:** tú revisas y decides manualmente qué mensaje enviar.
-- **Interfaz PWA:** cliente web moderno, instalable y adaptable a móvil y escritorio.
-- **Almacenamiento local:** integración con MongoDB y Docker para guardar historial y facilitar despliegue.
-- **Archivado de estados:** revisión automática cada minuto para marcar estados como vistos y guardar imágenes nuevas en histórico consultable desde la web.
+*   **🧠 Privacidad Total (IA Local o Nube Privada):** Soporte nativo para **LM Studio** para correr modelos de lenguaje localmente (Llama 3, Mistral, Gemma, etc.) en tu propia máquina sin que tus borradores o chats salgan a internet. También admite **Cloudflare AI Workers** para una nube distribuida y segura.
+*   **🔒 Cifrado Extremo a Extremo (E2EE):** Motor criptográfico híbrido integrado (RSA-OAEP + AES-GCM) para asegurar la confidencialidad de tus mensajes e intercambio seguro de claves.
+*   **📞 Llamadas VoIP y Compartir Pantalla:** Arquitectura de comunicación multimedia integrada mediante **WebRTC** y Socket.io, permitiendo llamadas de voz en tiempo real y transmisión de pantalla directa desde el navegador.
+*   **⚡ Rendimiento Offline-First:** Caché multinivel estructurada. El frontend almacena chats, mensajes y archivos locales en **IndexedDB**, logrando tiempos de carga instantáneos, mientras que el backend maneja colas de sincronización asíncronas para evitar bloqueos del hilo principal.
+*   **⭕ Archivado e Ingestión de Estados:** Monitoreo automatizado de estados (historias). El sistema marca como vistos y descarga el contenido multimedia en una base de datos local para consultarlos posteriormente desde el Sidebar.
+*   **🔌 Extensibilidad Multicanal:** Diseñado con un registro central de adaptadores (`BaseAdapter`). Aunque WhatsApp está implementado por defecto a través de `whatsapp-web.js`, la arquitectura está lista para desplegar integraciones con Telegram u otros proveedores sin modificar el frontend.
 
-## 🛠️ Tecnologías Utilizadas
+---
 
-- **Backend:** Node.js + Express.
-- **Conexión WhatsApp:** `whatsapp-web.js` (con sesión persistente por QR).
-- **IA Local:** LM Studio con modelos ligeros (por ejemplo, Llama 3.1 8B o Mistral) en `http://localhost:1234`.
-- **Librerías auxiliares:** `axios`, `socket.io`, `mongoose`, `cors`, `dotenv`.
-- **Infraestructura:** Docker + Docker Compose + MongoDB.
+## 🛠️ Stack Tecnológico
 
-## 🧠 Arquitectura Centralizada
+*   **Frontend:** React, Vite, Vanilla CSS, IndexedDB (PWA Ready, Service Workers con Workbox).
+*   **Backend:** Node.js, Express, Socket.io, Mongoose (MongoDB).
+*   **Integración WhatsApp:** `whatsapp-web.js` con sesión persistente (`LocalAuth`).
+*   **IA de Asistencia:** LM Studio (API local) / Cloudflare AI Workers.
+*   **Despliegue:** Docker y Docker Compose.
 
-El sistema ya opera con arquitectura de cache multinivel y fuente de verdad central en backend:
+---
 
-- **Frontend ↔ Backend:** lectura rápida vía cache local (IndexedDB) + backend cacheado.
-- **Backend ↔ Proveedor:** sync asíncrono (cola) para evitar bloquear el read-path.
-- **Modelo canónico multi-proveedor:** `provider`, `accountId`, `conversationId`.
-- **Base para extensibilidad:** registry de adapters (WhatsApp implementado; Telegram listo para integrar).
+## 🚀 Instalación y Configuración Rápida
 
-Documentación técnica:
+### Requisitos Previos
 
-- [Arquitectura centralizada](./docs/CENTRALIZED_MESSAGING_ARCHITECTURE.md)
-- [Runbook operativo](./docs/OPERATIONS_RUNBOOK.md)
+*   [Docker](https://www.docker.com/) y [Docker Compose](https://docs.docker.com/compose/) instalados.
+*   (Opcional para IA local) [LM Studio](https://lmstudio.ai/) ejecutándose en tu máquina.
 
-## 🚀 Instalación y Configuración
+### Paso 1: Configurar la IA Local (LM Studio)
 
-### 1. Configurar IA local (LM Studio)
+1. Abre **LM Studio** y descarga cualquier modelo ligero de texto (ej. `Llama 3.1 8B Instruct` o `Mistral 7B`).
+2. Ve a la pestaña **AI Server** en el menú lateral.
+3. Inicia el servidor local en el puerto `1234`.
+4. Asegúrate de que el modelo esté cargado en la memoria de tu GPU/CPU.
 
-1. Abre LM Studio y descarga un modelo ligero.
-1. Ve a **AI Server**.
-1. Inicia el servidor en `http://localhost:1234`.
-1. Verifica que el modelo esté cargado en memoria.
+### Paso 2: Desplegar la Infraestructura
 
-### 2. Levantar servicios con Docker
-
-Desde la raíz del proyecto:
+Clona este repositorio y ejecuta el siguiente comando en la raíz del proyecto para construir y levantar los contenedores:
 
 ```bash
 docker compose up --build
 ```
 
-Esto levanta:
+Esto desplegará de forma automática:
+*   `tudex-live-chat-backend` en `http://localhost:3005` (servidor Express principal).
+*   `tudex-live-chat-mongo` en `mongodb://localhost:27017` (base de datos MongoDB).
+*   El frontend estático de producción servido y previsualizado por Vite en `http://localhost:8080`.
 
-- `tapchat-backend` en `http://localhost:3005`
-- `tapchat-mongo` en `mongodb://localhost:27017`
+### Paso 3: Sincronizar WhatsApp
 
-### 3. Sesión permanente de WhatsApp
+1. Abre tu navegador e ingresa a `http://localhost:8080`.
+2. La interfaz te mostrará un código QR para vincular tu dispositivo.
+3. Abre WhatsApp en tu teléfono móvil > **Dispositivos vinculados** > **Vincular un dispositivo** y escanea el código.
+4. La sesión se guardará persistentemente en un volumen de Docker (`whatsapp_auth`) para evitar que tengas que volver a escanearlo tras reiniciar los servicios.
 
-El backend usa `LocalAuth`, guardando sesión en un volumen Docker (`whatsapp_auth`) para no escanear QR en cada reinicio.
+---
 
-## 🔄 Flujo de Uso del Sistema
+## 📐 Arquitectura del Sistema
 
-1. **Inicio de sesión:** levantas contenedores y escaneas el QR desde WhatsApp > Dispositivos vinculados.
-1. **Redacción:** escribes el mensaje en la interfaz PWA.
-1. **Procesamiento IA:** el backend envía el texto a LM Studio vía API local.
-1. **Decisión:** visualizas "antes/después" y eliges qué versión enviar.
-1. **Envío final:** la app envía el mensaje elegido por WhatsApp.
+El flujo de información está estructurado para maximizar el rendimiento percibido por el usuario mediante un modelo de caché multinivel de lectura rápida:
 
-## 🧩 Variables de Entorno Relevantes
-
-En Docker Compose ya se inyectan:
-
-- `PORT=3005`
-- `MONGODB_URI=mongodb://mongo:27017/tapchat`
-- `LM_STUDIO_URL=http://host.docker.internal:1234`
-- `AI_PROVIDER=lmstudio` (o `cloudflare` usando `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN`)
-- `MODEL_NAME=llama-3.1-8b-instruct`
-- `CHROME_EXECUTABLE_PATH=/usr/bin/google-chrome-stable`
-- `STATUS_POLL_INTERVAL_MS=60000` para controlar cada cuánto se revisan estados y se archivan imágenes nuevas (Mínimo de 1000ms).
-- `AI_TEMPERATURE=0.7` Configuración avanzada de la temperatura del modelo IA.
-- `AI_MAX_TOKENS=180` Configuración del máximo de tokens para la generación de la IA.
-- `AI_TIMEOUT_MS=15000` Configuración de timeout para la IA en milisegundos.
-- `AI_SYSTEM_PROMPT` Define el rol y comportamiento esperado de la IA.
-- `AI_USER_PROMPT_TEMPLATE` Formato en el que se envía el mensaje original a la IA.
-- `API_KEY` para autenticar la API. Debe tener al menos 8 caracteres para considerarse segura en entornos de producción. Se puede configurar como un string vacío (o omitir por completo) para **deshabilitar la autenticación**, lo que registrará un warning de seguridad.
-- `LM_STUDIO_URL` y configuraciones de IA son estrictamente validadas para garantizar que sean URLs válidas.
-- Variables de caché (`CHATS_CACHE_TTL_MS`, `MESSAGES_CACHE_TTL_MS`, `AVATAR_TTL_MS`, `AVATAR_FETCH_LIMIT`, `AVATAR_FETCH_TIMEOUT_MS`) para controlar los tiempos de expiración y límites de la caché local del backend. Todas estas variables están protegidas mediante validación estricta y se limitan a rangos seguros.
-- `DEFAULT_ACCOUNT_ID` para especificar el ID de cuenta de proveedor predeterminado (por defecto es `default`).
-
-
-## 🩺 Diagnóstico y Estado
-
-Endpoints útiles para monitoreo:
-
-- `GET /api/health` estado general del backend y servicios.
-- `GET /api/status` estado de sesión WhatsApp y uptime.
-- `GET /api/ai/health?probe=1` verifica conectividad e inferencia con LM Studio.
-- `GET /api/ai/models` lista modelos disponibles en LM Studio.
-
-## 🧪 Logs útiles
-
-```bash
-docker compose logs -f backend
-docker compose logs -f mongo
+```text
+========================================================================================
+                               TUDEX LIVE CHAT SYSTEM
+========================================================================================
+[ 1. SIDEBAR (Izquierda / Principal) ]      | [ 2. CHAT PANEL (Derecha / Activo) ]
+--------------------------------------------+-------------------------------------------
+| HEADER:                                   | | HEADER:                                 |
+| [ Título de Tab ] [🔄 Reload] [👤 Avatar]*| | [← Volver] [📁 Recursos] [🔄] [👤 Avatar]*|
+|-------------------------------------------| |-----------------------------------------|
+| STATUS BAR:                               | |                                         |
+|  ● Conectado/Reconectando · Unread count  | | AREA DE MENSAJES (Burbujas en Cascada):  |
+|-------------------------------------------| |  - [Burbuja Propia] ✓✓ (Leído)          |
+| SEARCH / DISCOVERY:                       | |  - [Burbuja Remota] (Grammar check error)|
+|  [ 🔍 Buscar chat o estado...  ]  [ ➕ ]  | |  - [Previsualización de Audio/Video/Img]|
+|-------------------------------------------| |  - [Sugerencias en paralelo de la IA]   |
+| CONTENT FEED AREA (Dinámico por Tab):     | |                                         |
+|  - TAB CHATS: Lista de chats recientes    | |-----------------------------------------|
+|  - TAB ESTADOS: Lista de estados archiv.  | | COMPOSER FOOTER (Creador de mensajes):  |
+|  - TAB NOTIF: Alertas en segundo plano    | |  - [ Panel de Respuestas Paralelas ]    |
+|-------------------------------------------| |  - [ Input de texto / borrador (Draft) ]|
+| BOTTOM NAVIGATION BAR:                    | |  - [✨ Sugerencia] [📤 Enviar original]  |
+|  [ ⭕ Estados ] [ 💬 Chats ] [ 🔔 Notif. ]| |                                         |
+========================================================================================
+*Nota: Al pulsar cualquier [👤 Avatar] (arriba a la derecha), se despliega el menú general.
 ```
 
-## 🛡️ Referencia de la API (Publicación Externa)
+Para más detalles técnicos de bajo nivel, consulta las guías en la carpeta `docs`:
+*   [Arquitectura de Mensajería Centralizada](./docs/CENTRALIZED_MESSAGING_ARCHITECTURE.md)
+*   [Esquema de Pantallas e Interfaz](./docs/INTERFACE_AND_CONFIG_SCHEMA.md)
+*   [Manual de Operaciones y Runbook](./docs/OPERATIONS_RUNBOOK.md)
 
-Tapchat expone un endpoint para publicar en canales o chats desde servicios externos.
+---
 
-**Endpoint:** `POST /api/send`
+## 🔐 Cláusula de Soberanía y Ética (Nodo Soberano)
 
-**Autenticación:**
-Requiere el header `X-API-Key` o el parámetro `api_key` en la URL (si se definió `API_KEY` en el `docker-compose.yml`).
+Como parte de nuestro compromiso con la descentralización, privacidad y la autogestión de la infraestructura, Tudex Live Chat adopta la siguiente política ética:
 
-**Cuerpo de la petición (JSON):**
+> [!IMPORTANT]
+> **Responsabilidad del Nodo Soberano**
+> Los administradores de cada nodo asumen un compromiso técnico y ético inquebrantable. Tienen estrictamente prohibido interceptar, analizar o monetizar el tráfico y los metadatos de su instancia. Deben garantizar el soporte absoluto para el cifrado extremo a extremo (E2EE), operar sobre infraestructura libre de dependencias corporativas y asegurar una federación transparente para no fragmentar la red.
 
-| Parámetro | Tipo | Descripción |
+---
+
+## ⚙️ Variables de Entorno
+
+Puedes configurar el comportamiento del servidor inyectando las siguientes variables de entorno a través del archivo `docker-compose.yml` o un archivo `.env` en el backend:
+
+| Variable | Tipo / Valor por defecto | Descripción |
 | :--- | :--- | :--- |
-| `chatId` | String | ID del chat o canal (ej: `123456789@newsletter`). **Requerido**. |
-| `text` | String | Texto del mensaje o pie de foto (soporta links). |
-| `mediaUrl` | String | URL pública de una imagen para enviar. |
-| `mediaBase64`| String | Imagen en formato Base64 (si no usas `mediaUrl`). |
-| `mediaName` | String | Nombre del archivo (opcional, por defecto `image.jpg`). |
+| `PORT` | `3005` | Puerto de escucha del backend de Express. |
+| `MONGODB_URI` | `mongodb://mongo:27017/tudex_live_chat` | URI de conexión para la base de datos MongoDB. |
+| `LM_STUDIO_URL` | `http://host.docker.internal:1234` | Endpoint base para el servidor de LM Studio. |
+| `AI_PROVIDER` | `lmstudio` o `cloudflare` | Proveedor activo para la corrección de mensajes. |
+| `CLOUDFLARE_ACCOUNT_ID`| String | ID de cuenta de Cloudflare (obligatorio si usas Cloudflare). |
+| `CLOUDFLARE_API_TOKEN` | String | Token de API secreto para acceder a Cloudflare Workers AI. |
+| `MODEL_NAME` | `llama-3.1-8b-instruct` | Nombre del modelo a utilizar para las sugerencias. |
+| `AI_TEMPERATURE` | `0.7` | Grado de creatividad del modelo de lenguaje (`0.0` a `2.0`). |
+| `AI_MAX_TOKENS` | `180` | Límite máximo de tokens en la respuesta corregida. |
+| `AI_TIMEOUT_MS` | `15000` | Tiempo de espera máximo (ms) para las respuestas de la IA. |
+| `STATUS_POLL_INTERVAL_MS`| `60000` | Frecuencia de revisión y guardado de nuevos estados de WhatsApp. |
+| `API_KEY` | String | Clave para proteger los endpoints públicos (vacío para desactivar). |
 
-**Ejemplo con `curl`:**
+---
+
+## 📡 API de Integración Externa
+
+Tudex Live Chat expone una API REST para poder publicar mensajes o imágenes en tus chats activos desde servicios o scripts externos (como bots o sistemas de alerta remotos).
+
+### Enviar Mensaje
+
+*   **Ruta:** `POST /api/send`
+*   **Encabezados Requeridos:** `X-API-Key` (si la variable `API_KEY` está configurada).
+*   **Cuerpo (JSON):**
+
+```json
+{
+  "chatId": "1234567890@newsletter",
+  "text": "🚀 Mensaje de notificación automática",
+  "mediaUrl": "https://ejemplo.com/imagen.jpg"
+}
+```
+
+### Ejemplo de uso con `curl`:
 
 ```bash
 curl -X POST http://localhost:3005/api/send \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: tapchat_secret_key_123" \
+  -H "X-API-Key: tu_api_key_secreta" \
   -d '{
-    "chatId": "1234567890@newsletter",
-    "text": "🚀 Mensaje automático con imagen: https://ejemplo.com",
-    "mediaUrl": "https://piks.eldesmarque.com/bin/2023/12/12/whatsapp_canales_001.jpg"
+    "chatId": "54911xxxxxxx@c.us",
+    "text": "Prueba de envío automático a través de la API externa."
   }'
 ```
+
+---
+
+## ⚖️ Licencia
+
+Este proyecto está bajo la Licencia **MIT**. Consulta el archivo `LICENSE` para más detalles.

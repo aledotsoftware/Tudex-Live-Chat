@@ -55,3 +55,4 @@ pnpm-debug.log*
 *.sln
 *.sw?
 frontend/dev-dist
+.cbm-cache/

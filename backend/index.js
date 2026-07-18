@@ -496,7 +496,7 @@ app.use('/api', (req, res, next) => {
 
 // Root endpoint for connectivity check
 app.get('/', (req, res) => {
-  res.send('Send Tapchat Backend is running on port 3005!');
+  res.send('Send Tudex Live Chat Backend is running on port 3005!');
 });
 
 // Healthcheck/Auth verify endpoint
@@ -527,7 +527,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   avatarColor: { type: String },
   avatarUrl: { type: String, default: '' },
-  bio: { type: String, default: '¡Hola! Estoy usando Tapchat.' },
+  bio: { type: String, default: '¡Hola! Estoy usando Tudex Live Chat.' },
   status: { type: String, default: 'online' },
   publicKey: { type: String, default: '' },
   encryptedPrivateKey: { type: String, default: '' },
@@ -620,7 +620,7 @@ app.post('/api/auth/register', async (req, res) => {
       email: cleanEmail,
       password: hashedPassword,
       avatarColor,
-      bio: '¡Hola! Estoy usando Tapchat.',
+      bio: '¡Hola! Estoy usando Tudex Live Chat.',
       latitude,
       longitude,
       followedUsers: []
@@ -666,7 +666,7 @@ app.post('/api/auth/register', async (req, res) => {
       conversationKey: `local:${user._id}:ai_assistant`,
       from: 'ai_assistant',
       to: String(user._id),
-      body: `¡Hola ${username}! Bienvenido a Tapchat. Soy tu compañero de inteligencia artificial. Puedes chatear conmigo en cualquier momento o usarme para revisar la ortografía de tus mensajes. ¿En qué te puedo ayudar hoy?`,
+      body: `¡Hola ${username}! Bienvenido a Tudex Live Chat. Soy tu compañero de inteligencia artificial. Puedes chatear conmigo en cualquier momento o usarme para revisar la ortografía de tus mensajes. ¿En qué te puedo ayudar hoy?`,
       fromMe: false,
       timestamp: Math.floor(Date.now() / 1000)
     });

@@ -1,1 +1,0 @@
-I confirmed that the codebase already separates sending states and AI states. Modifying correctAndSend as requested was not necessary because it already deactivated correctingAndSending before sending.

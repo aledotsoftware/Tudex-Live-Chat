@@ -1,8 +1,8 @@
 {
-  "name": "tapchat-backend",
+  "name": "tudex-live-chat-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Backend API + WhatsApp bridge for Tapchat",
+  "description": "Backend API + WhatsApp bridge for Tudex Live Chat",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongo:7
-    container_name: tapchat-mongo
+    container_name: tudex-live-chat-mongo
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
@@ -14,7 +14,7 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: tapchat-backend
+    container_name: tudex-live-chat-backend
     restart: unless-stopped
     depends_on:
       mongo:
@@ -23,7 +23,7 @@ services:
       - "${BACKEND_PORT:-3005}:3005"
     environment:
       PORT: 3005
-      MONGODB_URI: mongodb://mongo:27017/tapchat
+      MONGODB_URI: mongodb://mongo:27017/tudex_live_chat
       LM_STUDIO_URL: ${LM_STUDIO_URL:-http://host.docker.internal:1234}
       MODEL_NAME: ${MODEL_NAME:-llama-3.1-8b-instruct}
       AI_PROVIDER: ${AI_PROVIDER:-lmstudio}
@@ -58,7 +58,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: tapchat-frontend
+    container_name: tudex-live-chat-frontend
     restart: unless-stopped
     depends_on:
       - backend

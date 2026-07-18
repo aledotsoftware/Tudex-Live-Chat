@@ -2997,9 +2997,9 @@ function App() {
             boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
             marginBottom: '20px'
           }}>
-            <span style={{ fontSize: '32px', color: '#fff', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>TC</span>
+            <span style={{ fontSize: '32px', color: '#fff', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>TLC</span>
           </div>
-          <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-heading)' }}>Tapchat</h1>
+          <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-heading)' }}>Tudex Live Chat</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', color: '#a855f7' }} aria-hidden="true" />
             Cargando la aplicación...
@@ -3030,9 +3030,9 @@ function App() {
                 boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
                 marginBottom: '15px'
               }}>
-                <span style={{ fontSize: '32px', color: '#fff' }}>Chat</span>
+                <span style={{ fontSize: '32px', color: '#fff' }}>TLC</span>
               </div>
-              <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tapchat</h1>
+              <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tudex Live Chat</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '5px' }}>
                 {authMode === "login" ? "Conéctate de forma segura" : "Crea tu cuenta de chat"}
               </p>
@@ -3256,7 +3256,7 @@ function App() {
         </div>
         <main className="authScreen">
         <section className="authCard" aria-live="polite" aria-labelledby="waAuthHeading">
-          <h1 id="waAuthHeading">Tapchat</h1>
+          <h1 id="waAuthHeading">Tudex Live Chat</h1>
           <h2>{authScreenLabel}</h2>
 
           {sessionStatus === "qr" && socketConnected && (
@@ -3264,7 +3264,7 @@ function App() {
               {qr ? (
                 <>
                   <div className="instructionList">
-                    <p>Para usar el proveedor en Tapchat:</p>
+                    <p>Para usar el proveedor en Tudex Live Chat:</p>
                     <ol>
                       <li>Abre la aplicación del proveedor en tu teléfono</li>
                       <li>Toca el menú (tres puntos) o "Configuración"</li>
@@ -3346,7 +3346,7 @@ function App() {
       </div>
       {pwaUpdateAvailable && (
         <div className="updateBanner" role="alert" aria-live="assertive">
-          <InfoIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Hay una nueva versión de Tapchat disponible.
+          <InfoIcon size={16} style={{ marginRight: '6px', display: 'inline-block', verticalAlign: 'middle' }} /> Hay una nueva versión de Tudex Live Chat disponible.
           <button className="primary" onClick={() => pwaUpdateAvailable(true)}>Actualizar ahora</button>
           <button className="secondary" onClick={() => setPwaUpdateAvailable(null)}>Ignorar</button>
         </div>
@@ -4379,7 +4379,7 @@ function App() {
             }}>
               <ChatIcon size={42} />
             </div>
-            <h2 style={{ color: '#fff', marginBottom: '12px', fontSize: '1.8rem', fontWeight: '600' }}>Tapchat Premium</h2>
+            <h2 style={{ color: '#fff', marginBottom: '12px', fontSize: '1.8rem', fontWeight: '600' }}>Tudex Live Chat Premium</h2>
             <p style={{ maxWidth: '420px', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '24px', color: 'var(--text-muted)' }}>
               Comienza a chatear con otros usuarios buscando en la red o selecciona una conversación existente en la barra lateral.
             </p>
@@ -4396,7 +4396,7 @@ function App() {
           <>
             <header className="chatHeader" style={{ position: 'relative' }}>
               <style>{`
-                @keyframes tapchat-sync-shimmer {
+                @keyframes tudex-sync-shimmer {
                   0% { background-position: -200% 0; }
                   100% { background-position: 200% 0; }
                 }
@@ -4410,7 +4410,7 @@ function App() {
                   height: '3px',
                   background: 'linear-gradient(90deg, #ff6f24 25%, #ff8c42 50%, #ff6f24 75%)',
                   backgroundSize: '200% 100%',
-                  animation: 'tapchat-sync-shimmer 1.5s infinite linear',
+                  animation: 'tudex-sync-shimmer 1.5s infinite linear',
                   zIndex: 20
                 }} />
               )}

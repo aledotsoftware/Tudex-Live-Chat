@@ -1,6 +1,6 @@
-# Esquema de Pantallas y Opciones de Configuración - Tapchat
+# Esquema de Pantallas y Opciones de Configuración - Tudex Live Chat
 
-Este documento describe la arquitectura visual, la navegación móvil-first y la estructura completa de todas las opciones de configuración disponibles en la plataforma de Tapchat.
+Este documento describe la arquitectura visual, la navegación móvil-first y la estructura completa de todas las opciones de configuración disponibles en la plataforma de Tudex Live Chat.
 
 ---
 
@@ -10,7 +10,7 @@ A continuación se detalla la disposición general de los componentes en la pant
 
 ```text
 ========================================================================================
-                                     TAPCHAT SYSTEM
+                               TUDEX LIVE CHAT SYSTEM
 ========================================================================================
 [ 1. SIDEBAR (Izquierda / Principal) ]      | [ 2. CHAT PANEL (Derecha / Activo) ]
 --------------------------------------------+-------------------------------------------
