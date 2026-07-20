@@ -1,11 +1,11 @@
-# 🌐 PROTOCOLO DE FEDERACIÓN Y COMUNICACIÓN INTER-NODO (TUDEX)
-## Ecosistema de Mensajería y Gobernanza bajo Democracia 4.0
+# 🌐 PROTOCOLO DE FEDERACIÓN Y COMUNICACIÓN INTER-NODO (Tudex Live Chat)
+## Ecosistema de Mensajería y Gobernanza bajo Democracia Líquida
 
-Este documento define las especificaciones técnicas y conceptuales del protocolo de federación de Tudex Live Chat, diseñado sobre los principios de **Democracia 4.0**. Este modelo busca no solo habilitar un chat técnico descentralizado, sino también dotar a las comunidades de herramientas integradas para la gobernanza colectiva, la confianza líquida, la privacidad criptográfica y la toma de decisiones descentralizada.
+Este documento define las especificaciones técnicas y conceptuales del protocolo de federación de Tudex Live Chat, diseñado sobre los principios de **Democracia Líquida**. Este modelo busca no solo habilitar un chat técnico descentralizado, sino también dotar a las comunidades de herramientas integradas para la gobernanza colectiva, la confianza líquida, la privacidad criptográfica y la toma de decisiones descentralizada.
 
 ---
 
-## 1. Fundamentos de Democracia 4.0 en la Red
+## 1. Fundamentos de Democracia Líquida en la Red
 
 Tudex concibe la mensajería como un derecho fundamental y una herramienta de organización civil. La infraestructura de comunicación debe estar alineada con una gobernanza que evite la centralización de poder técnico o político. Para ello, el protocolo se asienta sobre cuatro pilares democráticos:
 
