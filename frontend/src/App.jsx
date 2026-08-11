@@ -3729,6 +3729,23 @@ function App() {
                 <ProximityMap
                   currentUser={currentUser}
                   users={filteredProximityUsers}
+                  onLocationUpdate={(lat, lng) => {
+                    originalFetch(`${API_URL}/api/users/me/location`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem("tapchat_token")}`
+                      },
+                      body: JSON.stringify({ latitude: lat, longitude: lng })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                      if (data.success) {
+                        setCurrentUser(prev => prev ? { ...prev, latitude: lat, longitude: lng } : prev);
+                      }
+                    })
+                    .catch(() => {});
+                  }}
                   onSelectUser={(user) => {
                     const localChat = {
                       id: user._id,

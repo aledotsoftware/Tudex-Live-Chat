@@ -1,21 +1,50 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow }) {
+export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow, onLocationUpdate }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersGroupRef = useRef(null);
+  const [gpsStatus, setGpsStatus] = useState('Buscando GPS...');
 
-  const centerLat = currentUser?.latitude || 40.4167;
-  const centerLng = currentUser?.longitude || -3.7037;
+  const initialLat = currentUser?.latitude || 40.4167;
+  const initialLng = currentUser?.longitude || -3.7037;
+
+  const locateAndCenterUser = () => {
+    if ('geolocation' in navigator) {
+      setGpsStatus('Obteniendo posición GPS...');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const realLat = pos.coords.latitude;
+          const realLng = pos.coords.longitude;
+          setGpsStatus('GPS Activo');
+
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.setView([realLat, realLng], 14);
+          }
+
+          if (onLocationUpdate) {
+            onLocationUpdate(realLat, realLng);
+          }
+        },
+        (err) => {
+          console.warn('[Geolocation Error]:', err.message);
+          setGpsStatus('GPS no disponible');
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      setGpsStatus('Navegador sin GPS');
+    }
+  };
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
-        center: [centerLat, centerLng],
+        center: [initialLat, initialLng],
         zoom: 13,
         zoomControl: false
       });
@@ -31,8 +60,9 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow 
 
       markersGroupRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
-    } else {
-      mapInstanceRef.current.setView([centerLat, centerLng], mapInstanceRef.current.getZoom());
+
+      // Auto-locate real user GPS on load
+      locateAndCenterUser();
     }
 
     return () => {
@@ -49,8 +79,8 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow 
     markersGroupRef.current.clearLayers();
 
     // 1. Current user marker
-    const meLat = currentUser?.latitude || centerLat;
-    const meLng = currentUser?.longitude || centerLng;
+    const meLat = currentUser?.latitude || initialLat;
+    const meLng = currentUser?.longitude || initialLng;
     const meIcon = L.divIcon({
       className: 'custom-map-marker-me',
       html: `
@@ -78,14 +108,13 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow 
     const meMarker = L.marker([meLat, meLng], { icon: meIcon }).addTo(markersGroupRef.current);
     meMarker.bindPopup(`
       <div style="text-align: center; padding: 6px; color: #fff;">
-        <strong style="color: #a855f7;">Tu Ubicación Actual</strong>
-        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Punto central de búsqueda en la red</div>
+        <strong style="color: #a855f7;">Tu Ubicación Real</strong>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">Ubicación GPS del dispositivo</div>
       </div>
     `);
 
     // 2. Nearby users markers
     users.forEach((user, index) => {
-      // Offset coordinates if not present or identical
       const lat = user.latitude || (meLat + (Math.sin(index + 1) * 0.012));
       const lng = user.longitude || (meLng + (Math.cos(index + 1) * 0.012));
       const initial = (user.username || 'U').substring(0, 2).toUpperCase();
@@ -188,6 +217,8 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow 
   return (
     <div style={{ width: '100%', height: '100%', minHeight: '380px', borderRadius: '18px', overflow: 'hidden', position: 'relative' }}>
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%', minHeight: '380px' }} />
+      
+      {/* Top Left Badge */}
       <div style={{
         position: 'absolute',
         top: '12px',
@@ -206,8 +237,34 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow 
         gap: '6px'
       }}>
         <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7' }}></span>
-        <span>Mapa Interactivo de Red Social</span>
+        <span>Mapa Interactivo • {gpsStatus}</span>
       </div>
+
+      {/* Top Right Re-center GPS Button */}
+      <button
+        type="button"
+        onClick={locateAndCenterUser}
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          zIndex: 1000,
+          background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+          color: '#ffffff',
+          border: 'none',
+          padding: '8px 14px',
+          borderRadius: '12px',
+          fontWeight: '700',
+          fontSize: '0.82rem',
+          cursor: 'pointer',
+          boxShadow: '0 4px 15px rgba(168, 85, 247, 0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}
+      >
+        <span>🎯 Mi Ubicación Real</span>
+      </button>
     </div>
   );
 }
