@@ -71,6 +71,7 @@ console.log("[Tapchat] API target:", defaultApiUrl);
 
 const API_URL = import.meta.env.VITE_API_URL || defaultApiUrl;
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || defaultApiUrl;
+const APP_NAME = import.meta.env.VITE_APP_NAME || "Tudex Social";
 const MOBILE_BREAKPOINT_PX = 920;
 const DEFAULT_PROVIDER = "whatsapp";
 const DEFAULT_ACCOUNT_ID = "default";
@@ -1290,9 +1291,8 @@ function App() {
 
   const filteredChats = useMemo(() => {
     const needle = chatSearch.trim().toLowerCase();
-    const activeChats = chats.filter(c => c.id !== 'ai_assistant');
-    if (!needle) return activeChats;
-    return activeChats.filter((chat) => {
+    if (!needle) return chats;
+    return chats.filter((chat) => {
       const label = `${chat.name || ""} ${chat.id || ""}`.toLowerCase();
       return label.includes(needle);
     });
@@ -3078,9 +3078,9 @@ function App() {
               }}>
                 <span style={{ fontSize: '32px', color: '#fff' }}>TLC</span>
               </div>
-              <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tudex Live Chat</h1>
+              <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{APP_NAME}</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '5px' }}>
-                {authMode === "login" ? "Conéctate de forma segura" : "Crea tu cuenta de chat"}
+                Conéctate de forma segura con tu cuenta de Tudex Passport
               </p>
             </div>
 
@@ -3090,7 +3090,7 @@ function App() {
               </div>
             )}
 
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <button
                 type="button"
                 className="oidcLoginBtn"
@@ -3149,21 +3149,7 @@ function App() {
                 )}
               </button>
             </div>
-
-            <div style={{
-              padding: '14px',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              fontSize: '0.82rem',
-              color: 'var(--text-muted)',
-              lineHeight: '1.5'
-            }}>
-              🔒 Proveedor OIDC activo: <strong>passport.tudexnetworks.com</strong><br/>
-              No se requieren contraseñas locales. Al iniciar sesión serás redirigido de forma segura al proveedor oficial de Tudex Networks.
-            </div>
           </section>
-
 
         </main>
       </>
@@ -5086,7 +5072,7 @@ function App() {
                         }}
                       >
                         {currentUser?.avatarUrl ? (
-                          <img src={currentUser?.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={currentUser?.avatarUrl} alt="Avatar" onError={(e) => { e.currentTarget.style.display = 'none'; }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
                         )}

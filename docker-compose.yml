@@ -16,6 +16,8 @@ services:
       context: ./backend
     container_name: tudex-live-chat-backend
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       mongo:
         condition: service_healthy
@@ -23,19 +25,16 @@ services:
       - "${BACKEND_PORT:-3005}:3005"
     environment:
       PORT: 3005
-      MONGODB_URI: mongodb://mongo:27017/tudex_live_chat
-      LM_STUDIO_URL: ${LM_STUDIO_URL:-http://host.docker.internal:1234}
-      MODEL_NAME: ${MODEL_NAME:-llama-3.1-8b-instruct}
-      AI_PROVIDER: ${AI_PROVIDER:-lmstudio}
-      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
-      CLOUDFLARE_AI_BASE_URL: ${CLOUDFLARE_AI_BASE_URL:-}
-      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.7}
-      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-180}
-      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-15000}
-      STATUS_POLL_INTERVAL_MS: ${STATUS_POLL_INTERVAL_MS:-60000}
-      AI_SYSTEM_PROMPT: ${AI_SYSTEM_PROMPT:-"Eres un corrector experto de mensajes de WhatsApp en español. Corrige ortografía, gramática y claridad manteniendo el tono y la intención original. No incluyas razonamiento interno ni etiquetas como <think>."}
-      AI_USER_PROMPT_TEMPLATE: ${AI_USER_PROMPT_TEMPLATE:-"Corregí este texto y devolvé solo la versión final corregida, sin explicación:\n\n{{text}}"}
+      APP_NAME: ${APP_NAME:-Tudex Social}
+      MONGODB_URI: mongodb://mongo:27017/tudex_social
+      OIDC_ENABLED: ${OIDC_ENABLED:-true}
+      OIDC_ISSUER: ${OIDC_ISSUER:-https://passport.tudexnetworks.com}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-710e8b14-d605-4a21-83d4-86ed0e002811}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-ArhyOPh1ZCBlvZl6QJukl42emPA7sIK5}
+      OIDC_AUTHORIZE_URL: ${OIDC_AUTHORIZE_URL:-https://passport.tudexnetworks.com/authorize}
+      OIDC_TOKEN_URL: ${OIDC_TOKEN_URL:-https://passport.tudexnetworks.com/api/oidc/token}
+      OIDC_USERINFO_URL: ${OIDC_USERINFO_URL:-https://passport.tudexnetworks.com/api/oidc/userinfo}
+      OIDC_END_SESSION_URL: ${OIDC_END_SESSION_URL:-https://passport.tudexnetworks.com/api/oidc/end-session}
       API_KEY: ${API_KEY:-}
       CHATS_CACHE_TTL_MS: ${CHATS_CACHE_TTL_MS:-5000}
       MESSAGES_CACHE_TTL_MS: ${MESSAGES_CACHE_TTL_MS:-5000}
@@ -58,8 +57,12 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_APP_NAME: ${APP_NAME:-Tudex Social}
     container_name: tudex-live-chat-frontend
     restart: unless-stopped
+    env_file:
+      - .env
     depends_on:
       - backend
     ports:

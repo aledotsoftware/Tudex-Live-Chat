@@ -2,15 +2,17 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+const appName = process.env.VITE_APP_NAME || process.env.APP_NAME || "Tudex Social";
+
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: "prompt",
       manifest: {
-        name: "Tapchat PWA",
-        short_name: "Tapchat",
-        description: "Mensajería PWA con IA",
+        name: appName,
+        short_name: appName,
+        description: `${appName} - Plataforma de Mensajería y Red Social`,
         theme_color: "#0d1418",
         background_color: "#0d1418",
         display: "standalone",

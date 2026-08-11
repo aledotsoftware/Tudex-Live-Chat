@@ -494,6 +494,20 @@ const OIDC_CONFIG = {
   jwksUrl: process.env.OIDC_JWKS_URL || 'https://passport.tudexnetworks.com/.well-known/jwks.json'
 };
 
+function resolveOidcAvatarUrl(userInfo) {
+  if (!userInfo || typeof userInfo !== 'object') return '';
+  const raw = userInfo.picture || userInfo.avatar_url || userInfo.avatar || userInfo.icon || '';
+  if (!raw) return '';
+  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:')) {
+    return raw;
+  }
+  const issuerBase = OIDC_CONFIG.issuer.replace(/\/$/, '');
+  if (raw.startsWith('/')) {
+    return `${issuerBase}${raw}`;
+  }
+  return `${issuerBase}/${raw}`;
+}
+
 // Middleware global para proteger todas las rutas /api/ (excepto auth de login, registro, oidc y endpoints de health)
 app.use('/api', (req, res, next) => {
   if (
@@ -738,6 +752,8 @@ app.post('/api/auth/oidc/callback', async (req, res) => {
       ]
     });
 
+    const extractedAvatarUrl = resolveOidcAvatarUrl(userInfo);
+
     if (!user) {
       let finalUsername = cleanUsername;
       const existingName = await User.findOne({ username: finalUsername }).lean();
@@ -756,53 +772,23 @@ app.post('/api/auth/oidc/callback', async (req, res) => {
         password: '',
         oidcSub: String(sub),
         avatarColor,
-        avatarUrl: userInfo.picture || userInfo.avatar_url || '',
-        bio: 'Usuario autenticado con Tudex Passport (Pocket ID)',
+        avatarUrl: extractedAvatarUrl,
+        bio: 'Usuario autenticado con Tudex Passport',
         latitude,
         longitude,
         followedUsers: []
       });
-
-      await Chat.findOneAndUpdate(
-        {
-          provider: 'local',
-          accountId: String(user._id),
-          conversationId: 'ai_assistant'
-        },
-        {
-          id: 'ai_assistant',
-          provider: 'local',
-          accountId: String(user._id),
-          conversationId: 'ai_assistant',
-          conversationKey: `local:${user._id}:ai_assistant`,
-          name: 'AI Companion',
-          timestamp: Math.floor(Date.now() / 1000),
-          isGroup: false,
-          avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&q=80',
-          unreadCount: 0
-        },
-        { upsert: true, new: true }
-      );
-
-      await Message.create({
-        provider: 'local',
-        accountId: String(user._id),
-        conversationId: 'ai_assistant',
-        chatId: 'ai_assistant',
-        providerMessageId: `ai-welcome-${user._id}-${Date.now()}`,
-        conversationKey: `local:${user._id}:ai_assistant`,
-        from: 'ai_assistant',
-        to: String(user._id),
-        body: `¡Hola ${user.username}! Bienvenido a Tudex Live Chat. Tu cuenta ha sido enlazada con Tudex Passport (Pocket ID). Soy tu compañero de inteligencia artificial. ¿En qué te puedo ayudar hoy?`,
-        fromMe: false,
-        timestamp: Math.floor(Date.now() / 1000)
-      });
     } else {
+      let changed = false;
       if (!user.oidcSub) {
         user.oidcSub = String(sub);
-        if (userInfo.picture && !user.avatarUrl) {
-          user.avatarUrl = userInfo.picture;
-        }
+        changed = true;
+      }
+      if (extractedAvatarUrl && user.avatarUrl !== extractedAvatarUrl) {
+        user.avatarUrl = extractedAvatarUrl;
+        changed = true;
+      }
+      if (changed) {
         await user.save();
       }
     }
