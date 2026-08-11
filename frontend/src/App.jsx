@@ -3085,12 +3085,12 @@ function App() {
             </div>
 
             {authError && (
-              <div id="authError" role="alert" aria-live="assertive" className="notice error" style={{ marginBottom: '20px', borderRadius: '12px', padding: '12px' }}>
+              <div id="authError" role="alert" aria-live="assertive" className="notice error" style={{ marginBottom: '22px', borderRadius: '12px', padding: '12px 16px', fontSize: '0.9rem' }}>
                 {authError}
               </div>
             )}
 
-            <div style={{ marginBottom: '25px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <button
                 type="button"
                 className="oidcLoginBtn"
@@ -3117,234 +3117,51 @@ function App() {
                 }}
                 style={{
                   width: '100%',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(168, 85, 247, 0.4)',
-                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%)',
+                  padding: '16px',
+                  borderRadius: '14px',
+                  border: '1px solid rgba(168, 85, 247, 0.5)',
+                  background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
                   color: '#ffffff',
                   fontWeight: '700',
-                  fontSize: '0.98rem',
+                  fontSize: '1.05rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '10px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(168, 85, 247, 0.25)',
+                  gap: '12px',
+                  cursor: authChecking ? 'wait' : 'pointer',
+                  boxShadow: '0 6px 20px rgba(99, 102, 241, 0.35)',
                   transition: 'all 0.2s ease-in-out'
-                }}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  <circle cx="12" cy="11" r="3"/>
-                </svg>
-                <span>Iniciar sesión con Tudex Passport (Pocket ID)</span>
-              </button>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '20px 0 10px 0',
-                color: 'var(--text-muted)',
-                fontSize: '0.78rem'
-              }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                <span style={{ padding: '0 10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>o usa tu cuenta local</span>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              background: 'rgba(255, 255, 255, 0.05)',
-              padding: '4px',
-              borderRadius: '12px',
-              marginBottom: '25px',
-              border: '1px solid rgba(255, 255, 255, 0.08)'
-            }}>
-              <button
-                type="button"
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: authMode === "login" ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  color: authMode === "login" ? '#fff' : 'var(--text-muted)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => { setAuthMode("login"); setAuthError(""); }}
-              >
-                Ingresar
-              </button>
-              <button
-                type="button"
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: authMode === "register" ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  color: authMode === "register" ? '#fff' : 'var(--text-muted)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => { setAuthMode("register"); setAuthError(""); }}
-              >
-                Registrarse
-              </button>
-            </div>
-
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setAuthChecking(true);
-              setAuthError("");
-              try {
-                if (authMode === "login") {
-                  const res = await originalFetch(`${API_URL}/api/auth/login`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ identifier: email, password })
-                  });
-                  const data = await res.json();
-                  if (res.ok) {
-                    window.tempLoginPassword = password;
-                    localStorage.setItem("tapchat_token", data.token);
-                    localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
-                    setCurrentUser(data.user);
-                    setApiAuthenticated(true);
-                    showNotice("¡Bienvenido a Tapchat!", "success");
-                  } else {
-                    setAuthError(data.error || "Error al iniciar sesión.");
-                  }
-                } else {
-                  if (password !== confirmPassword) {
-                    setAuthError("Las contraseñas no coinciden.");
-                    setAuthChecking(false);
-                    return;
-                  }
-                  const res = await originalFetch(`${API_URL}/api/auth/register`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, email, password })
-                  });
-                  const data = await res.json();
-                  if (res.ok) {
-                    window.tempLoginPassword = password;
-                    localStorage.setItem("tapchat_token", data.token);
-                    localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
-                    setCurrentUser(data.user);
-                    setApiAuthenticated(true);
-                    showNotice("Cuenta creada con éxito.", "success");
-                  } else {
-                    setAuthError(data.error || "Error al registrar la cuenta.");
-                  }
-                }
-              } catch (err) {
-                setAuthError("Error de conexión con el servidor.");
-              } finally {
-                setAuthChecking(false);
-              }
-            }}>
-              {authMode === "register" && (
-                <div style={{ marginBottom: '18px' }}>
-                  <label htmlFor="usernameInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>Nombre de usuario</label>
-                  <input
-                    id="usernameInput"
-                    className="authInput"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="ej. carlos_dev"
-                    required
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              )}
-
-              <div style={{ marginBottom: '18px' }}>
-                <label htmlFor="emailInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>
-                  {authMode === "login" ? "Usuario o Correo" : "Correo electrónico"}
-                </label>
-                <input
-                  id="emailInput"
-                  className="authInput"
-                  type={authMode === "login" ? "text" : "email"}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={authMode === "login" ? "ej. admin o correo@ejemplo.com" : "ej. correo@ejemplo.com"}
-                  required
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: authMode === "register" ? '18px' : '25px' }}>
-                <label htmlFor="passwordInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>Contraseña</label>
-                <div className="passwordInputWrapper" style={{ width: '100%' }}>
-                  <input
-                    id="passwordInput"
-                    className="authInput"
-                    type={showApiKey ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    style={{ width: '100%' }}
-                  />
-                  <button
-                    type="button"
-                    className="passwordToggleBtn"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    aria-label={showApiKey ? "Ocultar" : "Mostrar"}
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)' }}
-                  >
-                    {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              {authMode === "register" && (
-                <div style={{ marginBottom: '25px' }}>
-                  <label htmlFor="confirmPasswordInput" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: '500' }}>Confirmar Contraseña</label>
-                  <input
-                    id="confirmPasswordInput"
-                    className="authInput"
-                    type={showApiKey ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="primary fullWidth"
-                disabled={authChecking}
-                style={{
-                  background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
-                  border: 'none',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  fontWeight: '600',
-                  boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)',
-                  transition: 'transform 0.2s ease',
-                  cursor: 'pointer'
                 }}
               >
                 {authChecking ? (
                   <>
                     <span className="buttonSpinner" aria-hidden="true" />
-                    <span>Procesando...</span>
+                    <span>Conectando con Tudex Passport...</span>
                   </>
                 ) : (
-                  authMode === "login" ? "Ingresar de forma segura" : "Crear cuenta"
+                  <>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                      <circle cx="12" cy="11" r="3"/>
+                    </svg>
+                    <span>Iniciar sesión con Tudex Passport</span>
+                  </>
                 )}
               </button>
-            </form>
+            </div>
+
+            <div style={{
+              padding: '14px',
+              borderRadius: '12px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              fontSize: '0.82rem',
+              color: 'var(--text-muted)',
+              lineHeight: '1.5'
+            }}>
+              🔒 Proveedor OIDC activo: <strong>passport.tudexnetworks.com</strong><br/>
+              No se requieren contraseñas locales. Al iniciar sesión serás redirigido de forma segura al proveedor oficial de Tudex Networks.
+            </div>
           </section>
 
 
@@ -5249,13 +5066,13 @@ function App() {
                   <>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#fff', marginBottom: '8px' }}>Mi Cuenta</h2>
                     
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(255,255,255,0.03)', padding: '18px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
                       <div
                         style={{
                           width: '64px',
                           height: '64px',
                           borderRadius: '50%',
-                          background: (userAvatarUrlInput || currentUser?.avatarUrl) ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
+                          background: currentUser?.avatarUrl ? 'transparent' : getAvatarGradient(currentUser?.avatarColor || currentUser?.id || 'me'),
                           color: '#fff',
                           fontWeight: '700',
                           border: '2.5px solid #fff',
@@ -5268,162 +5085,60 @@ function App() {
                           overflow: 'hidden'
                         }}
                       >
-                        {(userAvatarUrlInput || currentUser?.avatarUrl) ? (
-                          <img src={userAvatarUrlInput || currentUser?.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {currentUser?.avatarUrl ? (
+                          <img src={currentUser?.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           (currentUser?.username || "Yo").slice(0, 2).toUpperCase()
                         )}
                       </div>
-                      <div style={{ overflow: 'hidden' }}>
+                      <div style={{ overflow: 'hidden', flex: 1 }}>
                         <div style={{ fontWeight: '700', color: '#fff', fontSize: '1.2rem' }}>{currentUser?.username || 'Usuario'}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{currentUser?.email || 'sin-correo@tapchat.com'}</div>
+                        <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{currentUser?.email || 'sin-correo@passport.tudexnetworks.com'}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'rgba(168, 85, 247, 0.9)', marginTop: '3px', fontWeight: '500' }}>{currentUser?.bio || 'Usuario autenticado con Tudex Passport (Pocket ID)'}</div>
                       </div>
                     </div>
 
-                    <div>
-                      <label htmlFor="userAvatarUploadInput" style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', fontWeight: '600', color: '#ccc' }}>Foto de Perfil Personalizada</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <input
-                          id="userAvatarUploadInput"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setUserAvatarUrlInput(reader.result);
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          style={{ display: 'none' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('userAvatarUploadInput').click()}
-                          className="secondary small"
-                        >
-                          <AttachmentIcon size={14} /> Subir Foto
-                        </button>
-                        {(userAvatarUrlInput || currentUser?.avatarUrl) && (
-                          <button
-                            type="button"
-                            onClick={() => setUserAvatarUrlInput("")}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              background: 'rgba(239, 68, 68, 0.15)',
-                              color: '#ef4444',
-                              fontSize: '0.8rem',
-                              cursor: 'pointer',
-                              fontWeight: '600',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <CloseIcon size={12} /> Eliminar
-                          </button>
-                        )}
-                      </div>
+                    <div style={{
+                      padding: '20px',
+                      borderRadius: '14px',
+                      background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%)',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🛡️</div>
+                      <h3 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0 0 6px 0' }}>Gestión de Cuenta Centralizada</h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+                        Los datos de tu cuenta (nombre de usuario, correo, contraseña y foto de perfil) se gestionan de forma centralizada y segura desde <strong>Tudex Passport (Pocket ID)</strong>.
+                      </p>
+                      
+                      <a
+                        href="https://passport.tudexnetworks.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '12px 20px',
+                          borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                          color: '#ffffff',
+                          fontWeight: '700',
+                          fontSize: '0.95rem',
+                          textDecoration: 'none',
+                          boxShadow: '0 4px 15px rgba(168, 85, 247, 0.3)',
+                          transition: 'transform 0.2s ease, boxShadow 0.2s ease'
+                        }}
+                      >
+                        <span>Gestionar Mi Cuenta en Tudex Passport</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </a>
                     </div>
-
-                    <div>
-                      <label htmlFor="userUsernameInput">Nombre de Usuario</label>
-                      <input
-                        id="userUsernameInput"
-                        type="text"
-                        value={userUsernameInput}
-                        onChange={(e) => setUserUsernameInput(e.target.value)}
-                        placeholder="Nombre de usuario"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="userEmailInput">Correo Electrónico</label>
-                      <input
-                        id="userEmailInput"
-                        type="email"
-                        value={userEmailInput}
-                        onChange={(e) => setUserEmailInput(e.target.value)}
-                        placeholder="tu@correo.com"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="userPasswordInput">Nueva Contraseña (dejar en blanco para no cambiar)</label>
-                      <input
-                        id="userPasswordInput"
-                        type="password"
-                        value={userPasswordInput}
-                        onChange={(e) => setUserPasswordInput(e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="userBioInput">Estado / Biografía</label>
-                      <input
-                        id="userBioInput"
-                        type="text"
-                        value={userBioInput}
-                        onChange={(e) => setUserBioInput(e.target.value)}
-                        placeholder="¡Hola! Estoy usando Tapchat."
-                      />
-                    </div>
-
-                    <div>
-                      <label>Color de Avatar Personalizado</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                        {[
-                          '#ff6f24',
-                          '#0284c7',
-                          '#16a34a',
-                          '#7c3aed',
-                          '#db2777',
-                          '#ef4444',
-                          '#0f172a',
-                          '#f59e0b'
-                        ].map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            onClick={() => setUserAvatarColorInput(color)}
-                            aria-label={"Seleccionar color " + color}
-                            style={{
-                              width: '26px',
-                              height: '26px',
-                              borderRadius: '50%',
-                              background: color,
-                              border: userAvatarColorInput === color ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                              transform: userAvatarColorInput === color ? 'scale(1.2)' : 'none',
-                              boxShadow: userAvatarColorInput === color ? '0 0 10px rgba(255,255,255,0.6)' : 'none',
-                              padding: 0
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <input
-                        id="userAvatarColorInput"
-                        type="text"
-                        value={userAvatarColorInput}
-                        onChange={(e) => setUserAvatarColorInput(e.target.value)}
-                        placeholder="Ej. #ff6f24, hsl(200, 70%, 40%)"
-                      />
-                    </div>
-
-                     <button
-                      type="button"
-                      className="primary"
-                      onClick={saveUserProfile}
-                      style={{ width: '100%', marginTop: '10px' }}
-                    >
-                      Guardar Cambios de Perfil
-                    </button>
 
                     <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
                       <h4 style={{ color: '#fff', fontSize: '0.95rem', fontWeight: '600', marginBottom: '8px' }}>Notificaciones del Sistema</h4>
