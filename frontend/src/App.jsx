@@ -1759,7 +1759,44 @@ function App() {
   };
 
   useEffect(() => {
+    if (!apiAuthenticated || !currentUser) return;
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          originalFetch(`${API_URL}/api/users/me/location`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem("tapchat_token")}`
+            },
+            body: JSON.stringify({ latitude, longitude })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              setCurrentUser(prev => prev ? { ...prev, latitude: data.latitude, longitude: data.longitude } : prev);
+            }
+          })
+          .catch(err => console.warn("[Geolocation] Location sync failed:", err.message));
+        },
+        (err) => console.warn("[Geolocation] Permission denied or unavailable:", err.message),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, [apiAuthenticated, currentUser?.id]);
+
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const oidcError = urlParams.get('error_description') || urlParams.get('error');
+    if (oidcError) {
+      setAuthError(`Error de Tudex Passport: ${oidcError}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setAuthChecking(false);
+      setInitialAuthChecked(true);
+      return;
+    }
+
     const oidcCode = urlParams.get('code');
     if (oidcCode) {
       setAuthChecking(true);
@@ -5165,8 +5202,9 @@ function App() {
                       </div>
                       <div style={{ overflow: 'hidden', flex: 1 }}>
                         <div style={{ fontWeight: '700', color: '#fff', fontSize: '1.2rem' }}>{currentUser?.username || 'Usuario'}</div>
-                        <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>{currentUser?.email || 'sin-correo@passport.tudexnetworks.com'}</div>
-                        <div style={{ fontSize: '0.78rem', color: 'rgba(168, 85, 247, 0.9)', marginTop: '3px', fontWeight: '500' }}>{currentUser?.bio || 'Usuario autenticado con Tudex Passport (Pocket ID)'}</div>
+                        {currentUser?.bio && !currentUser.bio.toLowerCase().includes('autenticado con') ? (
+                          <div style={{ fontSize: '0.78rem', color: 'rgba(168, 85, 247, 0.9)', marginTop: '3px', fontWeight: '500' }}>{currentUser.bio}</div>
+                        ) : null}
                       </div>
                     </div>
 

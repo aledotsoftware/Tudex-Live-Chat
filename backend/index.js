@@ -688,18 +688,26 @@ app.post('/api/auth/oidc/callback', async (req, res) => {
       params.append('code', String(code));
       params.append('redirect_uri', redirectUri);
 
+      const headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      };
+
+      if (OIDC_CONFIG.clientId && OIDC_CONFIG.clientSecret) {
+        const credentials = Buffer.from(`${OIDC_CONFIG.clientId}:${OIDC_CONFIG.clientSecret}`).toString('base64');
+        headers['Authorization'] = `Basic ${credentials}`;
+      }
+
       const tokenRes = await axios.post(OIDC_CONFIG.tokenUrl, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json'
-        },
+        headers,
         timeout: 10000
       });
       tokenData = tokenRes.data;
     } catch (tokenErr) {
-      console.error('OIDC token exchange error:', tokenErr?.response?.data || tokenErr.message);
+      const errorMsg = tokenErr?.response?.data?.error_description || tokenErr?.response?.data?.error || tokenErr?.response?.data || tokenErr.message;
+      console.error('OIDC token exchange error:', errorMsg);
       return res.status(400).json({
-        error: 'Error al intercambiar el código OIDC por un token.',
+        error: typeof errorMsg === 'string' ? errorMsg : 'Error al intercambiar el código OIDC por un token.',
         details: tokenErr?.response?.data || tokenErr.message
       });
     }
@@ -773,7 +781,7 @@ app.post('/api/auth/oidc/callback', async (req, res) => {
         oidcSub: String(sub),
         avatarColor,
         avatarUrl: extractedAvatarUrl,
-        bio: 'Usuario autenticado con Tudex Passport',
+        bio: '',
         latitude,
         longitude,
         followedUsers: []
@@ -978,22 +986,43 @@ function getHaversineDistance(lat1, lon1, lat2, lon2) {
   return R * c; // in metres
 }
 
+// Update current user location endpoint
+app.put('/api/users/me/location', async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return res.status(400).json({ error: 'Latitud y longitud válidas son requeridas.' });
+    }
+
+    req.user.latitude = latitude;
+    req.user.longitude = longitude;
+    await req.user.save();
+
+    res.json({
+      success: true,
+      latitude: req.user.latitude,
+      longitude: req.user.longitude
+    });
+  } catch (err) {
+    console.error('Error al actualizar ubicación:', err);
+    res.status(500).json({ error: 'Error al actualizar ubicación.' });
+  }
+});
+
 // Proximity-based discovery grid
 app.get('/api/users/proximity', async (req, res) => {
   try {
     const userLat = req.user.latitude || 40.4167;
     const userLng = req.user.longitude || -3.7037;
 
-    //  Bolt: Using .lean() to bypass Mongoose document instantiation, returning plain JS objects
-    // for significantly lower memory usage and faster read performance.
     const allUsers = await User.find({
       _id: { $ne: req.user._id },
       username: { $ne: 'admin' }
     }).select('_id username email avatarColor avatarUrl bio status publicKey latitude longitude').lean();
 
     const mapped = allUsers.map(u => {
-      const lat = u.latitude || (40.4167 + (Math.random() - 0.5) * 0.08);
-      const lng = u.longitude || (-3.7037 + (Math.random() - 0.5) * 0.08);
+      const lat = u.latitude || (userLat + (Math.random() - 0.5) * 0.04);
+      const lng = u.longitude || (userLng + (Math.random() - 0.5) * 0.04);
       const distance = getHaversineDistance(userLat, userLng, lat, lng);
       
       return {
@@ -1001,9 +1030,11 @@ app.get('/api/users/proximity', async (req, res) => {
         username: u.username,
         avatarColor: u.avatarColor,
         avatarUrl: u.avatarUrl || '',
-        bio: u.bio,
+        bio: (u.bio && !u.bio.toLowerCase().includes('autenticado con')) ? u.bio : '',
         publicKey: u.publicKey || '',
         status: u.status,
+        latitude: lat,
+        longitude: lng,
         distanceMeters: distance !== null ? Math.round(distance) : null,
         isFollowed: Array.isArray(req.user.followedUsers) && req.user.followedUsers.some(id => String(id) === String(u._id))
       };

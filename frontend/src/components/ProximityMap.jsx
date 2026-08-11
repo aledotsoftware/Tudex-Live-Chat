@@ -134,13 +134,15 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow 
         ? (user.distanceMeters < 1000 ? `${user.distanceMeters} m` : `${(user.distanceMeters / 1000).toFixed(1)} km`)
         : '150 m';
 
+      const displayBio = (user.bio && !user.bio.toLowerCase().includes('autenticado con')) ? user.bio : '';
+
       const popupNode = document.createElement('div');
       popupNode.style.padding = '8px';
       popupNode.style.textAlign = 'center';
       popupNode.style.minWidth = '160px';
       popupNode.innerHTML = `
         <div style="font-weight: 700; font-size: 15px; color: #fff;">${user.username}</div>
-        <div style="font-size: 12px; color: #94a3b8; margin: 4px 0 8px 0;">${user.bio || '¡Hola! Estoy usando Tudex Social.'}</div>
+        ${displayBio ? `<div style="font-size: 12px; color: #94a3b8; margin: 4px 0 8px 0;">${displayBio}</div>` : '<div style="margin-bottom: 6px;"></div>'}
         <div style="font-size: 11px; background: rgba(168, 85, 247, 0.2); color: #c084fc; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 10px; font-weight: 600;">
           📍 a ${distanceText}
         </div>
