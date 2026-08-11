@@ -1632,9 +1632,21 @@ function App() {
     });
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const token = localStorage.getItem("tapchat_token");
+    if (token) {
+      try {
+        await originalFetch(`${API_URL}/api/auth/oidc/logout`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+      } catch (e) {
+        console.error("OIDC logout error:", e);
+      }
+    }
     localStorage.removeItem("tapchat_token");
     localStorage.removeItem("tapchat_api_key");
+    localStorage.removeItem("tapchat_cached_user");
     setApiAuthenticated(false);
     setCurrentUser(null);
     setSessionStatus("connecting");
@@ -1741,6 +1753,40 @@ function App() {
   };
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const oidcCode = urlParams.get('code');
+    if (oidcCode) {
+      setAuthChecking(true);
+      const redirectUri = window.location.origin + window.location.pathname;
+      originalFetch(`${API_URL}/api/auth/oidc/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: oidcCode, redirect_uri: redirectUri })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.token) {
+          localStorage.setItem("tapchat_token", data.token);
+          localStorage.setItem("tapchat_cached_user", JSON.stringify(data.user));
+          setCurrentUser(data.user);
+          setApiAuthenticated(true);
+          showNotice("¡Sesión iniciada exitosamente con Tudex Passport!", "success");
+        } else {
+          setAuthError(data.error || "Error al autenticar con Tudex Passport.");
+        }
+      })
+      .catch(err => {
+        console.error("OIDC callback error:", err);
+        setAuthError("Error de conexión al procesar la autenticación de Tudex Passport.");
+      })
+      .finally(() => {
+        setAuthChecking(false);
+        setInitialAuthChecked(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      });
+      return;
+    }
+
     const savedKey = localStorage.getItem("tapchat_token") || localStorage.getItem("tapchat_api_key");
     if (savedKey) {
       checkAuth(savedKey);
@@ -3043,6 +3089,68 @@ function App() {
                 {authError}
               </div>
             )}
+
+            <div style={{ marginBottom: '25px' }}>
+              <button
+                type="button"
+                className="oidcLoginBtn"
+                disabled={authChecking}
+                onClick={async () => {
+                  setAuthChecking(true);
+                  setAuthError("");
+                  try {
+                    const redirectUri = window.location.origin + window.location.pathname;
+                    const res = await originalFetch(`${API_URL}/api/auth/oidc/url?redirect_uri=${encodeURIComponent(redirectUri)}`);
+                    const data = await res.json();
+                    if (res.ok && data.url) {
+                      window.location.href = data.url;
+                    } else {
+                      const fallbackUrl = `https://passport.tudexnetworks.com/authorize?client_id=710e8b14-d605-4a21-83d4-86ed0e002811&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=openid+profile+email`;
+                      window.location.href = fallbackUrl;
+                    }
+                  } catch (err) {
+                    const fallbackUrl = `https://passport.tudexnetworks.com/authorize?client_id=710e8b14-d605-4a21-83d4-86ed0e002811&redirect_uri=${encodeURIComponent(window.location.origin + window.location.pathname)}&response_type=code&scope=openid+profile+email`;
+                    window.location.href = fallbackUrl;
+                  } finally {
+                    setAuthChecking(false);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(168, 85, 247, 0.4)',
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(99, 102, 241, 0.3) 100%)',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  fontSize: '0.98rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(168, 85, 247, 0.25)',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <circle cx="12" cy="11" r="3"/>
+                </svg>
+                <span>Iniciar sesión con Tudex Passport (Pocket ID)</span>
+              </button>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                margin: '20px 0 10px 0',
+                color: 'var(--text-muted)',
+                fontSize: '0.78rem'
+              }}>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                <span style={{ padding: '0 10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>o usa tu cuenta local</span>
+                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+              </div>
+            </div>
 
             <div style={{
               display: 'flex',

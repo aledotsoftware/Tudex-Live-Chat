@@ -481,11 +481,25 @@ app.use(express.json({ limit: '50mb' }));
 app.use(STATUS_ARCHIVE_PUBLIC_BASE, express.static(STATUS_ARCHIVE_DIR));
 app.use(MEDIA_ARCHIVE_PUBLIC_BASE, express.static(MEDIA_ARCHIVE_DIR));
 
-// Middleware global para proteger todas las rutas /api/ (excepto auth de login, registro y endpoints de health)
+// OIDC / Pocket ID Config (Tudex Passport)
+const OIDC_CONFIG = {
+  enabled: process.env.OIDC_ENABLED !== 'false',
+  issuer: process.env.OIDC_ISSUER || 'https://passport.tudexnetworks.com',
+  clientId: process.env.OIDC_CLIENT_ID || '710e8b14-d605-4a21-83d4-86ed0e002811',
+  clientSecret: process.env.OIDC_CLIENT_SECRET || 'ArhyOPh1ZCBlvZl6QJukl42emPA7sIK5',
+  authorizeUrl: process.env.OIDC_AUTHORIZE_URL || 'https://passport.tudexnetworks.com/authorize',
+  tokenUrl: process.env.OIDC_TOKEN_URL || 'https://passport.tudexnetworks.com/api/oidc/token',
+  userinfoUrl: process.env.OIDC_USERINFO_URL || 'https://passport.tudexnetworks.com/api/oidc/userinfo',
+  endSessionUrl: process.env.OIDC_END_SESSION_URL || 'https://passport.tudexnetworks.com/api/oidc/end-session',
+  jwksUrl: process.env.OIDC_JWKS_URL || 'https://passport.tudexnetworks.com/.well-known/jwks.json'
+};
+
+// Middleware global para proteger todas las rutas /api/ (excepto auth de login, registro, oidc y endpoints de health)
 app.use('/api', (req, res, next) => {
   if (
     req.path === '/auth/login' ||
     req.path === '/auth/register' ||
+    req.path.startsWith('/auth/oidc/') ||
     req.path === '/health' ||
     req.path.startsWith('/health/')
   ) {
@@ -524,7 +538,8 @@ function verifyPassword(password, storedPassword) {
 const UserSchema = new mongoose.Schema({
   username: { type: String, unique: true, required: true, index: true },
   email: { type: String, unique: true, required: true, index: true },
-  password: { type: String, required: true },
+  password: { type: String, default: '' },
+  oidcSub: { type: String, sparse: true, index: true },
   avatarColor: { type: String },
   avatarUrl: { type: String, default: '' },
   bio: { type: String, default: '¡Hola! Estoy usando Tudex Live Chat.' },
@@ -770,6 +785,243 @@ app.post('/api/auth/logout', async (req, res) => {
   } catch (err) {
     console.error('Logout error:', err);
     res.status(500).json({ error: 'Error al cerrar sesión.' });
+  }
+});
+
+// OIDC Config endpoint (Pocket ID / Tudex Passport)
+app.get('/api/auth/oidc/config', (req, res) => {
+  res.json({
+    enabled: OIDC_CONFIG.enabled,
+    issuer: OIDC_CONFIG.issuer,
+    clientId: OIDC_CONFIG.clientId,
+    authorizeUrl: OIDC_CONFIG.authorizeUrl,
+    endSessionUrl: OIDC_CONFIG.endSessionUrl
+  });
+});
+
+// OIDC Get Authorization URL
+app.get('/api/auth/oidc/url', (req, res) => {
+  try {
+    const redirectUri = req.query.redirect_uri || 'http://localhost:5173/auth/callback';
+    const state = crypto.randomBytes(16).toString('hex');
+    const authUrl = new URL(OIDC_CONFIG.authorizeUrl);
+    authUrl.searchParams.set('client_id', OIDC_CONFIG.clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', 'openid profile email');
+    authUrl.searchParams.set('state', state);
+
+    res.json({
+      url: authUrl.toString(),
+      state
+    });
+  } catch (err) {
+    console.error('OIDC auth URL error:', err);
+    res.status(500).json({ error: 'Error al generar URL de autenticación OIDC.' });
+  }
+});
+
+// OIDC Callback endpoint (Token exchange + UserInfo + User Provisioning / Session)
+app.post('/api/auth/oidc/callback', async (req, res) => {
+  try {
+    const { code, redirect_uri } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: 'El código de autorización OIDC es requerido.' });
+    }
+
+    const redirectUri = redirect_uri || 'http://localhost:5173/auth/callback';
+
+    // Request access token from Pocket ID / OIDC token endpoint
+    let tokenData;
+    try {
+      const params = new URLSearchParams();
+      params.append('grant_type', 'authorization_code');
+      params.append('client_id', OIDC_CONFIG.clientId);
+      if (OIDC_CONFIG.clientSecret) {
+        params.append('client_secret', OIDC_CONFIG.clientSecret);
+      }
+      params.append('code', String(code));
+      params.append('redirect_uri', redirectUri);
+
+      const tokenRes = await axios.post(OIDC_CONFIG.tokenUrl, params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      });
+      tokenData = tokenRes.data;
+    } catch (tokenErr) {
+      console.error('OIDC token exchange error:', tokenErr?.response?.data || tokenErr.message);
+      return res.status(400).json({
+        error: 'Error al intercambiar el código OIDC por un token.',
+        details: tokenErr?.response?.data || tokenErr.message
+      });
+    }
+
+    const accessToken = tokenData.access_token;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'No se recibió un access_token válido de Pocket ID.' });
+    }
+
+    // Fetch userinfo from Pocket ID
+    let userInfo = {};
+    try {
+      const userinfoRes = await axios.get(OIDC_CONFIG.userinfoUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      });
+      userInfo = userinfoRes.data;
+    } catch (uErr) {
+      console.error('OIDC userinfo error:', uErr?.response?.data || uErr.message);
+      if (tokenData.id_token) {
+        try {
+          const parts = tokenData.id_token.split('.');
+          if (parts.length === 3) {
+            userInfo = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          }
+        } catch (e) {
+          console.error('Failed to parse id_token fallback:', e.message);
+        }
+      }
+    }
+
+    const sub = userInfo.sub || userInfo.id;
+    if (!sub) {
+      return res.status(400).json({ error: 'No se obtuvo información de usuario (sub) válida desde el proveedor OIDC.' });
+    }
+
+    const email = userInfo.email ? String(userInfo.email).trim().toLowerCase() : `${sub}@passport.tudexnetworks.com`;
+    const preferredUsername = userInfo.preferred_username || userInfo.username || userInfo.name || email.split('@')[0];
+    const cleanUsername = String(preferredUsername).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || `user_${sub.substring(0, 6)}`;
+
+    // Find or create user
+    let user = await User.findOne({
+      $or: [
+        { oidcSub: String(sub) },
+        { email },
+        { username: cleanUsername }
+      ]
+    });
+
+    if (!user) {
+      let finalUsername = cleanUsername;
+      const existingName = await User.findOne({ username: finalUsername }).lean();
+      if (existingName) {
+        finalUsername = `${cleanUsername}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+
+      const hue = Math.floor(Math.random() * 360);
+      const avatarColor = `hsl(${hue}, 70%, 40%)`;
+      const latitude = 40.4167 + (Math.random() - 0.5) * 0.08;
+      const longitude = -3.7037 + (Math.random() - 0.5) * 0.08;
+
+      user = await User.create({
+        username: finalUsername,
+        email,
+        password: '',
+        oidcSub: String(sub),
+        avatarColor,
+        avatarUrl: userInfo.picture || userInfo.avatar_url || '',
+        bio: 'Usuario autenticado con Tudex Passport (Pocket ID)',
+        latitude,
+        longitude,
+        followedUsers: []
+      });
+
+      await Chat.findOneAndUpdate(
+        {
+          provider: 'local',
+          accountId: String(user._id),
+          conversationId: 'ai_assistant'
+        },
+        {
+          id: 'ai_assistant',
+          provider: 'local',
+          accountId: String(user._id),
+          conversationId: 'ai_assistant',
+          conversationKey: `local:${user._id}:ai_assistant`,
+          name: 'AI Companion',
+          timestamp: Math.floor(Date.now() / 1000),
+          isGroup: false,
+          avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&q=80',
+          unreadCount: 0
+        },
+        { upsert: true, new: true }
+      );
+
+      await Message.create({
+        provider: 'local',
+        accountId: String(user._id),
+        conversationId: 'ai_assistant',
+        chatId: 'ai_assistant',
+        providerMessageId: `ai-welcome-${user._id}-${Date.now()}`,
+        conversationKey: `local:${user._id}:ai_assistant`,
+        from: 'ai_assistant',
+        to: String(user._id),
+        body: `¡Hola ${user.username}! Bienvenido a Tudex Live Chat. Tu cuenta ha sido enlazada con Tudex Passport (Pocket ID). Soy tu compañero de inteligencia artificial. ¿En qué te puedo ayudar hoy?`,
+        fromMe: false,
+        timestamp: Math.floor(Date.now() / 1000)
+      });
+    } else {
+      if (!user.oidcSub) {
+        user.oidcSub = String(sub);
+        if (userInfo.picture && !user.avatarUrl) {
+          user.avatarUrl = userInfo.picture;
+        }
+        await user.save();
+      }
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    await Session.create({
+      userId: user._id,
+      token,
+      expiresAt
+    });
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatarColor: user.avatarColor,
+        avatarUrl: user.avatarUrl || '',
+        bio: user.bio,
+        publicKey: user.publicKey || '',
+        encryptedPrivateKey: user.encryptedPrivateKey || '',
+        oidcSub: user.oidcSub
+      },
+      oidcEndSessionUrl: OIDC_CONFIG.endSessionUrl
+    });
+  } catch (err) {
+    console.error('OIDC callback internal error:', err);
+    res.status(500).json({ error: 'Error interno durante el procesamiento del callback OIDC.' });
+  }
+});
+
+// OIDC Logout endpoint
+app.post('/api/auth/oidc/logout', async (req, res) => {
+  try {
+    if (req.session) {
+      await Session.deleteOne({ _id: req.session._id });
+    }
+    res.json({
+      success: true,
+      message: 'Sesión OIDC cerrada exitosamente.',
+      endSessionUrl: OIDC_CONFIG.endSessionUrl
+    });
+  } catch (err) {
+    console.error('OIDC Logout error:', err);
+    res.status(500).json({ error: 'Error al cerrar sesión OIDC.' });
   }
 });
 
