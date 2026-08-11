@@ -26,6 +26,7 @@ import { VirtualMessageList } from "./components/VirtualMessageList";
 import { useVoiceCall } from "./hooks/useVoiceCall";
 import { VoiceCallOverlay } from "./components/VoiceCallOverlay";
 import { cacheMediaFile, getCachedMediaUrl } from "./mediaCache";
+import { ProximityMap } from "./components/ProximityMap";
 
 const MemoizedMessageReactions = React.memo(({ reactions, currentUser, onSendReaction, providerMessageId }) => {
   const groupedReactions = React.useMemo(() => {
@@ -767,6 +768,7 @@ function App() {
 
 
   const [authMode, setAuthMode] = useState("login");
+  const [discoverViewMode, setDiscoverViewMode] = useState("map");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1302,6 +1304,10 @@ function App() {
     () => chats.reduce((acc, chat) => acc + Number(chat.unreadCount || 0), 0),
     [chats]
   );
+
+  useEffect(() => {
+    document.title = totalUnread > 0 ? `(${totalUnread}) ${APP_NAME}` : APP_NAME;
+  }, [totalUnread]);
 
   const filteredStatusArchive = useMemo(() => {
     const needle = chatSearch.trim().toLowerCase();
@@ -3627,145 +3633,225 @@ function App() {
           ))}
 
           {viewMode === "discover" && (
-            loadingProximity ? (
-              <p className="helper">Cargando usuarios cercanos...</p>
-            ) : filteredProximityUsers.length === 0 ? (
-              <p className="helper">No se encontraron usuarios en la zona.</p>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', padding: '10px 5px' }}>
-                {filteredProximityUsers.map((user) => (
-                  <div
-                    key={user._id}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '18px',
-                      padding: '14px',
-                      textAlign: 'center',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '8px',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
-                      position: 'relative'
-                    }}
-                  >
-                    {/* Status Dot */}
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        background: user.status === 'online' ? 'var(--success)' : '#64748b',
-                        boxShadow: `0 0 8px ${user.status === 'online' ? 'var(--success)' : '#64748b'}`
-                      }}
-                    />
-                    {/* Profile Avatar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                padding: '4px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.08)'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setDiscoverViewMode('map')}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: discoverViewMode === 'map' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'transparent',
+                    color: discoverViewMode === 'map' ? '#fff' : 'var(--text-muted)',
+                    fontWeight: '600',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>🗺️ Vista Mapa</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDiscoverViewMode('grid')}
+                  style={{
+                    flex: 1,
+                    padding: '8px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: discoverViewMode === 'grid' ? 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)' : 'transparent',
+                    color: discoverViewMode === 'grid' ? '#fff' : 'var(--text-muted)',
+                    fontWeight: '600',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>🎴 Lista Tarjetas</span>
+                </button>
+              </div>
+
+              {loadingProximity ? (
+                <p className="helper">Cargando usuarios cercanos...</p>
+              ) : discoverViewMode === 'map' ? (
+                <ProximityMap
+                  currentUser={currentUser}
+                  users={filteredProximityUsers}
+                  onSelectUser={(user) => {
+                    const localChat = {
+                      id: user._id,
+                      name: user.username,
+                      provider: 'local',
+                      accountId: currentUser?.id || 'default',
+                      timestamp: Math.floor(Date.now() / 1000),
+                      unreadCount: 0,
+                      isGroup: false,
+                      avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)',
+                      avatarUrl: user.avatarUrl || ''
+                    };
+                    setChats(prev => {
+                      if (prev.some(c => c.id === user._id)) return prev;
+                      return [localChat, ...prev];
+                    });
+                    setSelectedChatId(user._id);
+                    selectedChatIdRef.current = user._id;
+                    setViewMode("chats");
+                  }}
+                  onToggleFollow={(userId, isFollowed) => toggleFollowUser(userId, isFollowed)}
+                />
+              ) : filteredProximityUsers.length === 0 ? (
+                <p className="helper">No se encontraron usuarios en la zona.</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', padding: '10px 5px' }}>
+                  {filteredProximityUsers.map((user) => (
                     <div
+                      key={user._id}
                       style={{
-                        width: '54px',
-                        height: '54px',
-                        borderRadius: '50%',
-                        background: user.avatarUrl ? 'transparent' : getAvatarGradient(user.avatarColor || user._id),
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '18px',
+                        padding: '14px',
+                        textAlign: 'center',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: '700',
-                        color: '#fff',
-                        fontSize: '1.2rem',
-                        border: '2px solid rgba(255, 255, 255, 0.2)',
-                        overflow: 'hidden'
+                        gap: '8px',
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)',
+                        position: 'relative'
                       }}
                     >
-                      {user.avatarUrl ? (
-                        <img src={user.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        user.username.slice(0, 2).toUpperCase()
-                      )}
-                    </div>
-                    {/* Name & Bio */}
-                    <div>
-                      <div style={{ fontWeight: '700', color: '#fff', fontSize: '0.9rem' }}>{user.username}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
-                        {user.bio || '¡Hola! Estoy usando Tapchat.'}
+                      {/* Status Dot */}
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '12px',
+                          right: '12px',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: user.status === 'online' ? 'var(--success)' : '#64748b',
+                          boxShadow: `0 0 8px ${user.status === 'online' ? 'var(--success)' : '#64748b'}`
+                        }}
+                      />
+                      {/* Profile Avatar */}
+                      <div
+                        style={{
+                          width: '54px',
+                          height: '54px',
+                          borderRadius: '50%',
+                          background: user.avatarUrl ? 'transparent' : getAvatarGradient(user.avatarColor || user._id),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: '700',
+                          color: '#fff',
+                          fontSize: '1.2rem',
+                          border: '2px solid rgba(255, 255, 255, 0.2)',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          user.username.slice(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      {/* Name & Bio */}
+                      <div>
+                        <div style={{ fontWeight: '700', color: '#fff', fontSize: '0.9rem' }}>{user.username}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                          {user.bio || '¡Hola! Estoy usando Tudex Social.'}
+                        </div>
+                      </div>
+                      {/* Distance Badge */}
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '2px 8px',
+                        borderRadius: '20px',
+                        background: 'rgba(255, 111, 36, 0.1)',
+                        color: 'var(--accent-primary)',
+                        border: '1px solid rgba(255, 111, 36, 0.2)',
+                        fontWeight: '600'
+                      }}>
+                         a {user.distanceMeters ? (user.distanceMeters < 1000 ? `${user.distanceMeters} m` : `${(user.distanceMeters/1000).toFixed(1)} km`) : '150 m'}
+                      </span>
+                      {/* Actions */}
+                      <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '4px' }}>
+                        <button
+                          onClick={() => {
+                            const localChat = {
+                              id: user._id,
+                              name: user.username,
+                              provider: 'local',
+                              accountId: currentUser?.id || 'default',
+                              timestamp: Math.floor(Date.now() / 1000),
+                              unreadCount: 0,
+                              isGroup: false,
+                              avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)',
+                              avatarUrl: user.avatarUrl || ''
+                            };
+
+                            setChats(prev => {
+                              if (prev.some(c => c.id === user._id)) return prev;
+                              return [localChat, ...prev];
+                            });
+
+                            setSelectedChatId(user._id);
+                            selectedChatIdRef.current = user._id;
+                            setViewMode("chats");
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '6px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                            color: '#fff',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Chat
+                        </button>
+                        <button
+                          onClick={() => toggleFollowUser(user._id, user.isFollowed)}
+                          style={{
+                            flex: 1,
+                            padding: '6px',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            background: user.isFollowed ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                            color: user.isFollowed ? '#a855f7' : '#ccc',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {user.isFollowed ? 'Seguido' : 'Seguir'}
+                        </button>
                       </div>
                     </div>
-                    {/* Distance Badge */}
-                    <span style={{
-                      fontSize: '0.7rem',
-                      padding: '2px 8px',
-                      borderRadius: '20px',
-                      background: 'rgba(255, 111, 36, 0.1)',
-                      color: 'var(--accent-primary)',
-                      border: '1px solid rgba(255, 111, 36, 0.2)',
-                      fontWeight: '600'
-                    }}>
-                       a {user.distanceMeters ? (user.distanceMeters < 1000 ? `${user.distanceMeters} m` : `${(user.distanceMeters/1000).toFixed(1)} km`) : '150 m'}
-                    </span>
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: '6px', width: '100%', marginTop: '4px' }}>
-                      <button
-                        onClick={() => {
-                          const localChat = {
-                            id: user._id,
-                            name: user.username,
-                            provider: 'local',
-                            accountId: currentUser?.id || 'default',
-                            timestamp: Math.floor(Date.now() / 1000),
-                            unreadCount: 0,
-                            isGroup: false,
-                            avatarColor: user.avatarColor || 'hsl(180, 50%, 40%)',
-                            avatarUrl: user.avatarUrl || ''
-                          };
-
-                          setChats(prev => {
-                            if (prev.some(c => c.id === user._id)) return prev;
-                            return [localChat, ...prev];
-                          });
-
-                          setSelectedChatId(user._id);
-                          selectedChatIdRef.current = user._id;
-                          setViewMode("chats");
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          borderRadius: '10px',
-                          border: 'none',
-                          background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
-                          color: '#fff',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Chat
-                      </button>
-                      <button
-                        onClick={() => toggleFollowUser(user._id, user.isFollowed)}
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          borderRadius: '10px',
-                          border: '1px solid rgba(255, 255, 255, 0.15)',
-                          background: user.isFollowed ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                          color: user.isFollowed ? '#a855f7' : '#ccc',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {user.isFollowed ? 'Seguido' : 'Seguir'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {viewMode === "muro" && (

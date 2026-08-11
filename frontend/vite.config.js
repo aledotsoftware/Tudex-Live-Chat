@@ -5,8 +5,17 @@ import { VitePWA } from "vite-plugin-pwa";
 const appName = process.env.VITE_APP_NAME || process.env.APP_NAME || "Tudex Social";
 
 export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_NAME': JSON.stringify(appName)
+  },
   plugins: [
     react(),
+    {
+      name: 'html-transform',
+      transformIndexHtml(html) {
+        return html.replace(/%VITE_APP_NAME%/g, appName);
+      }
+    },
     VitePWA({
       registerType: "prompt",
       manifest: {
