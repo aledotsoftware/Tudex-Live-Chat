@@ -1,33 +1,33 @@
 :root {
-  --font-main: 'Inter', sans-serif;
-  --font-heading: 'Outfit', sans-serif;
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Outfit', system-ui, -apple-system, sans-serif;
   
-  /* Modern Dark Palette */
-  --bg-deep: #f2f2f2;
-  --bg-glass: rgba(17, 25, 31, 0.7);
-  --bg-darker: #0d1418;
-  --bg-card: #1f2c33;
-  --bg-sidebar: rgba(13, 20, 24, 0.95);
+  /* High-End Dark Palette */
+  --bg-deep: #0b0f17;
+  --bg-glass: rgba(15, 23, 42, 0.75);
+  --bg-darker: #080c14;
+  --bg-card: #151d2a;
+  --bg-sidebar: rgba(11, 15, 23, 0.96);
   
-  /* Accent Colors (Orange Theme) */
-  --accent-primary: #ff6f24;
-  --accent-secondary: #e55d0d;
-  --accent-gradient: linear-gradient(135deg, #ff8c42 0%, #ff6f24 100%);
-  --accent-glow: rgba(255, 111, 36, 0.25);
+  /* Accent Colors (Tudex Passport Brand Theme) */
+  --accent-primary: #a855f7;
+  --accent-secondary: #6366f1;
+  --accent-gradient: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+  --accent-glow: rgba(168, 85, 247, 0.25);
   
   /* States */
-  --success: #00e676;
-  --error: #ff5252;
-  --warning: #ffca28;
+  --success: #10b981;
+  --error: #ef4444;
+  --warning: #f59e0b;
   
   /* Text */
   --text-primary: #ffffff;
   --text-secondary: #e2e8f0;
-  --text-muted: #cbd5e1;
+  --text-muted: #94a3b8;
   
   /* Borders */
-  --border-light: rgba(255, 255, 255, 0.1);
-  --border-focus: #ff6f24;
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-focus: #a855f7;
 }
 
 * {
@@ -40,7 +40,7 @@ body {
   margin: 0;
   font-family: var(--font-main);
   background-color: var(--bg-deep);
-  color: #1f2c33;
+  color: var(--text-primary);
   height: 100dvh;
   overflow: hidden;
 }
