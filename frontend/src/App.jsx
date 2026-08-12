@@ -27,6 +27,7 @@ import { useVoiceCall } from "./hooks/useVoiceCall";
 import { VoiceCallOverlay } from "./components/VoiceCallOverlay";
 import { cacheMediaFile, getCachedMediaUrl } from "./mediaCache";
 import { ProximityMap } from "./components/ProximityMap";
+import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 
 const MemoizedMessageReactions = React.memo(({ reactions, currentUser, onSendReaction, providerMessageId }) => {
   const groupedReactions = React.useMemo(() => {
@@ -3076,21 +3077,21 @@ function App() {
         </div>
         <main className="authScreen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{
-            background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+            background: 'var(--accent-gradient)',
             width: '80px',
             height: '80px',
             borderRadius: '24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
+            boxShadow: 'var(--glass-shadow)',
             marginBottom: '20px'
           }}>
             <span style={{ fontSize: '32px', color: '#fff', fontWeight: '800', fontFamily: 'var(--font-heading)' }}>TLC</span>
           </div>
-          <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-heading)' }}>Tudex Live Chat</h1>
+          <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: '0', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-heading)' }}>Tudex Live Chat</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', color: '#a855f7' }} aria-hidden="true" />
+            <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', color: 'var(--accent-primary)' }} aria-hidden="true" />
             Cargando la aplicación...
           </p>
         </main>
@@ -3109,19 +3110,19 @@ function App() {
           <section className="authCard" aria-labelledby="authHeading" style={{ maxWidth: '420px', padding: '40px', width: '90%' }}>
             <div style={{ textAlign: 'center', marginBottom: '25px' }}>
               <div style={{
-                background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                background: 'var(--accent-gradient)',
                 width: '64px',
                 height: '64px',
                 borderRadius: '20px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 10px 25px -5px rgba(99, 102, 241, 0.4)',
+                boxShadow: 'var(--glass-shadow)',
                 marginBottom: '15px'
               }}>
                 <span style={{ fontSize: '32px', color: '#fff' }}>TLC</span>
               </div>
-              <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'linear-gradient(to right, #a855f7, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{APP_NAME}</h1>
+              <h1 id="authHeading" style={{ fontSize: '2.2rem', fontWeight: '800', margin: '0', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{APP_NAME}</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '5px' }}>
                 Conéctate de forma segura con tu cuenta de Tudex Passport
               </p>
@@ -3162,8 +3163,8 @@ function App() {
                   width: '100%',
                   padding: '16px',
                   borderRadius: '14px',
-                  border: '1px solid rgba(168, 85, 247, 0.5)',
-                  background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+                  border: 'var(--glass-border)',
+                  background: 'var(--accent-gradient)',
                   color: '#ffffff',
                   fontWeight: '700',
                   fontSize: '1.05rem',
@@ -3172,7 +3173,7 @@ function App() {
                   justifyContent: 'center',
                   gap: '12px',
                   cursor: authChecking ? 'wait' : 'pointer',
-                  boxShadow: '0 6px 20px rgba(99, 102, 241, 0.35)',
+                  boxShadow: 'var(--glass-shadow)',
                   transition: 'all 0.2s ease-in-out'
                 }}
               >
@@ -5894,6 +5895,8 @@ function App() {
           </div>
         ))}
       </div>
+
+      <PwaInstallPrompt />
 
       </main>
     </>

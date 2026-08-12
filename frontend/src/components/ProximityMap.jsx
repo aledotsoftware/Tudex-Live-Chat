@@ -236,7 +236,7 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow,
         alignItems: 'center',
         gap: '6px'
       }}>
-        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7' }}></span>
+        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0284c7', boxShadow: '0 0 8px #0284c7' }}></span>
         <span>Mapa Interactivo • {gpsStatus}</span>
       </div>
 
@@ -249,7 +249,7 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow,
           top: '12px',
           right: '12px',
           zIndex: 1000,
-          background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
           color: '#ffffff',
           border: 'none',
           padding: '8px 14px',
@@ -257,13 +257,20 @@ export function ProximityMap({ currentUser, users, onSelectUser, onToggleFollow,
           fontWeight: '700',
           fontSize: '0.82rem',
           cursor: 'pointer',
-          boxShadow: '0 4px 15px rgba(168, 85, 247, 0.4)',
+          boxShadow: '0 4px 15px rgba(2, 132, 199, 0.35)',
           display: 'flex',
           alignItems: 'center',
           gap: '6px'
         }}
       >
-        <span>🎯 Mi Ubicación Real</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="2" x2="12" y2="6"/>
+          <line x1="12" y1="18" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="6" y2="12"/>
+          <line x1="18" y1="12" x2="22" y2="12"/>
+        </svg>
+        <span>Mi Ubicación Real</span>
       </button>
     </div>
   );

@@ -2559,6 +2559,17 @@ select {
   transition: transform 0.15s;
   font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif;
 }
+
+@keyframes pwaSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 .reaction-emoji-btn:hover {
   transform: scale(1.25);
 }
