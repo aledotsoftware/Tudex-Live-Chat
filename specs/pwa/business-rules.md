@@ -36,3 +36,10 @@ The PWA Domain governs Progressive Web App installation lifecycle management, st
 - **Rule**: An active timer MUST check the 1-hour threshold every 60 seconds while the application tab remains open in the foreground (`document.visibilityState === 'visible'`).
 - **Behavior**: If the 1-hour threshold is crossed during an extended active session, the pop-up gracefully animates into view without interrupting active input streams.
 
+### BR-PWA-005: Account Settings PWA Status Card
+- **Rule**: The "Mi Cuenta" (Account Settings) panel MUST render a dedicated PWA Installation status card matching the "Notificaciones del Sistema" design pattern.
+- **Behavior**:
+  - **If Installed (Standalone)**: Displays a green success indicator: `"Aplicación PWA instalada en este dispositivo"`.
+  - **If Not Installed (Browser Context)**: Displays an installation invitation block with an `"Instalar PWA"` action button (or iOS Safari instructions) enabling the user to trigger device installation at any time.
+
+

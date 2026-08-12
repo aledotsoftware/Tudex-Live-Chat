@@ -45,6 +45,7 @@ export function PwaInstallPrompt() {
     // BR-PWA-002: Capture beforeinstallprompt
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
+      window.deferredPwaPrompt = e;
       setDeferredPrompt(e);
       evaluatePromptEligibility(e);
     };
