@@ -1703,7 +1703,7 @@ function App() {
       Notification.requestPermission().then(permission => {
         setShowNotificationPrompt(false);
         if (permission === "granted") {
-          showNotice("Alert ¡Notificaciones nativas del sistema activadas!", "success");
+          showNotice("Notificaciones nativas del sistema activadas.", "success");
         } else {
           showNotice("No se pudieron activar las notificaciones. Por favor revise los permisos del navegador.", "error");
         }
@@ -5285,7 +5285,7 @@ function App() {
                             onClick={() => {
                               Notification.requestPermission().then(permission => {
                                 if (permission === "granted") {
-                                  showNotice("Alert ¡Notificaciones nativas del sistema activadas!", "success");
+                                  showNotice("Notificaciones nativas del sistema activadas.", "success");
                                   window.location.reload();
                                 } else {
                                   showNotice("No se pudieron activar las notificaciones. Por favor revise los permisos del navegador.", "error");
