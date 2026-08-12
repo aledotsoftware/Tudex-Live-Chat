@@ -609,14 +609,14 @@ const Session = mongoose.model('Session', SessionSchema);
 // Register endpoint (Depreciated in favor of Tudex Passport OIDC)
 app.post('/api/auth/register', async (req, res) => {
   return res.status(400).json({
-    error: 'La autenticación se realiza únicamente a través de Tudex Passport (Pocket ID). Por favor utiliza el inicio de sesión con Tudex Passport.'
+    error: 'La autenticación se realiza únicamente a través de Tudex Passport.'
   });
 });
 
 // Login endpoint (Depreciated in favor of Tudex Passport OIDC)
 app.post('/api/auth/login', async (req, res) => {
   return res.status(400).json({
-    error: 'La autenticación se realiza únicamente a través de Tudex Passport (Pocket ID). Por favor utiliza el inicio de sesión con Tudex Passport.'
+    error: 'La autenticación se realiza únicamente a través de Tudex Passport.'
   });
 });
 
@@ -714,7 +714,7 @@ app.post('/api/auth/oidc/callback', async (req, res) => {
 
     const accessToken = tokenData.access_token;
     if (!accessToken) {
-      return res.status(400).json({ error: 'No se recibió un access_token válido de Pocket ID.' });
+      return res.status(400).json({ error: 'No se recibió un token de acceso válido de Tudex Passport.' });
     }
 
     // Fetch userinfo from Pocket ID

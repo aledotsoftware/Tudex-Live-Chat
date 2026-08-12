@@ -5233,9 +5233,9 @@ function App() {
                       textAlign: 'center'
                     }}>
                       <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🛡️</div>
-                      <h3 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0 0 6px 0' }}>Gestión de Cuenta Centralizada</h3>
+                      <h3 style={{ color: '#fff', fontSize: '1.1rem', fontWeight: '700', margin: '0 0 6px 0' }}>Gestión de Cuenta</h3>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', lineHeight: '1.5', margin: '0 0 16px 0' }}>
-                        Los datos de tu cuenta (nombre de usuario, correo, contraseña y foto de perfil) se gestionan de forma centralizada y segura desde <strong>Tudex Passport (Pocket ID)</strong>.
+                        Los datos de tu cuenta y seguridad se administran de forma segura desde <strong>Tudex Passport</strong>.
                       </p>
                       
                       <a
@@ -5258,7 +5258,7 @@ function App() {
                           transition: 'transform 0.2s ease, boxShadow 0.2s ease'
                         }}
                       >
-                        <span>Gestionar Mi Cuenta en Tudex Passport</span>
+                        <span>Gestionar mi cuenta</span>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                           <polyline points="15 3 21 3 21 9"></polyline>
