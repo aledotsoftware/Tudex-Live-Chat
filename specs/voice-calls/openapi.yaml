@@ -1,0 +1,34 @@
+openapi: 3.0.3
+info:
+  title: Tudex Live Chat - WebRTC Voice Call & TURN Credentials API
+  version: 1.0.0
+  description: API specification for retrieving TURN/STUN relay credentials for P2P WebRTC audio calls.
+paths:
+  /api/turn-credentials:
+    get:
+      summary: Retrieve TURN / STUN Server Credentials
+      description: Returns time-limited WebRTC TURN server credentials for peer-to-peer audio call traversal through NATs and firewalls.
+      responses:
+        '200':
+          description: TURN credentials generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  iceServers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        urls:
+                          type: array
+                          items:
+                            type: string
+                          example: ["stun:stun.l.google.com:19302", "turn:turn.tudexnetworks.com:3478"]
+                        username:
+                          type: string
+                          example: turn_user_123
+                        credential:
+                          type: string
+                          example: turn_pass_secret

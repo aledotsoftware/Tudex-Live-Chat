@@ -1,0 +1,136 @@
+openapi: 3.0.3
+info:
+  title: Tudex Live Chat - Ephemeral Public Statuses API Specification
+  version: 1.0.0
+  description: API specification for posting 24-hour ephemeral status updates, liking, viewing, and background auto-archiving.
+paths:
+  /api/public-statuses:
+    post:
+      summary: Post Ephemeral Status Update
+      description: Publishes a text, image, or video status update visible for 24 hours.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  example: ¡Disponible para consultas sobre la plataforma!
+                mediaUrl:
+                  type: string
+                  nullable: true
+                  example: /media-archive/status_img1.jpg
+      responses:
+        '201':
+          description: Status published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicStatus'
+
+    get:
+      summary: List Active Public Statuses
+      description: Returns active (non-expired) public status posts from community users.
+      responses:
+        '200':
+          description: List of active statuses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statuses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PublicStatus'
+
+  /api/public-statuses/{id}/like:
+    post:
+      summary: Toggle Like on Status
+      description: Toggles like state on a public status post for authenticated user.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Like toggled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  likesCount:
+                    type: integer
+                  isLiked:
+                    type: boolean
+
+  /api/public-statuses/{id}/view:
+    post:
+      summary: Record View on Status
+      description: Increments view count and records authenticated user view timestamp.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: View recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  viewsCount:
+                    type: integer
+
+  /api/status-archive/sweep:
+    post:
+      summary: Execute Archive Sweep Worker
+      description: Manually triggers background worker process to move expired (>24h) statuses to status archive storage.
+      responses:
+        '200':
+          description: Sweep executed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  archivedCount:
+                    type: integer
+                    example: 5
+
+components:
+  schemas:
+    PublicStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        username:
+          type: string
+        text:
+          type: string
+        mediaUrl:
+          type: string
+          nullable: true
+        likesCount:
+          type: integer
+        viewsCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time

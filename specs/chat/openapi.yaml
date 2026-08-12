@@ -1,0 +1,188 @@
+openapi: 3.0.3
+info:
+  title: Tudex Live Chat - Messaging & Multi-Provider Chat API Specification
+  version: 1.0.0
+  description: REST API specification for chat retrieval, message history, media upload, reaction handling, and message dispatch.
+paths:
+  /api/chats:
+    get:
+      summary: List Active Conversations
+      description: Retrieves list of recent chats across all integrated messaging channels or for a specific channel.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of active chats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chats:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Chat'
+
+  /api/chats/{chatId}/messages:
+    get:
+      summary: Fetch Message History
+      description: Retrieves messages for a specific conversation with pagination support.
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: string
+          example: 123456789@c.us
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: List of conversation messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+
+  /api/send:
+    post:
+      summary: Send Message
+      description: Dispatches an outbound text message, image, document, or audio attachment to a recipient.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - chatId
+              properties:
+                chatId:
+                  type: string
+                  example: 123456789@c.us
+                message:
+                  type: string
+                  example: Hola, ¿cómo estás?
+                mediaUrl:
+                  type: string
+                  nullable: true
+                  example: https://livechat.tudexnetworks.com/media-archive/file123.jpg
+                mediaType:
+                  type: string
+                  enum: [image, document, audio, video]
+                provider:
+                  type: string
+                  default: whatsapp
+      responses:
+        '200':
+          description: Message dispatched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    $ref: '#/components/schemas/Message'
+
+  /api/upload:
+    post:
+      summary: Upload Media Asset
+      description: Uploads a base64 encoded media file to the media archive directory and returns its public access URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - file
+                - filename
+              properties:
+                file:
+                  type: string
+                  description: Base64 data string or raw file stream
+                  example: data:image/png;base64,iVBORw0KGgo...
+                filename:
+                  type: string
+                  example: screenshot.png
+      responses:
+        '200':
+          description: Media uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: /media-archive/1770850000_screenshot.png
+
+components:
+  schemas:
+    Chat:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 123456789@c.us
+        name:
+          type: string
+          example: Juan Pérez
+        unreadCount:
+          type: integer
+          example: 2
+        lastMessage:
+          $ref: '#/components/schemas/Message'
+        updatedAt:
+          type: integer
+          example: 1770850000000
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          example: false_123456789@c.us_ABC123
+        chatId:
+          type: string
+          example: 123456789@c.us
+        senderId:
+          type: string
+          example: 123456789@c.us
+        text:
+          type: string
+          example: Hola mundo
+        timestamp:
+          type: integer
+          example: 1770850000000
+        isIncoming:
+          type: boolean
+          example: true
+        mediaUrl:
+          type: string
+          nullable: true
+        provider:
+          type: string
+          example: whatsapp

@@ -1,0 +1,199 @@
+openapi: 3.0.3
+info:
+  title: Tudex Live Chat - Authentication & Identity API Specification
+  version: 1.0.0
+  description: Specification for Tudex Passport (OIDC SSO) central authentication, profile management, and session verification.
+paths:
+  /api/auth/oidc/config:
+    get:
+      summary: Retrieve OIDC Configuration
+      description: Returns the public OIDC configuration for Tudex Passport SSO.
+      responses:
+        '200':
+          description: OIDC configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    example: true
+                  issuer:
+                    type: string
+                    example: https://passport.tudexnetworks.com
+                  clientId:
+                    type: string
+                    example: 710e8b14-d605-4a21-83d4-86ed0e002811
+                  authorizeUrl:
+                    type: string
+                    example: https://passport.tudexnetworks.com/authorize
+
+  /api/auth/oidc/url:
+    get:
+      summary: Generate OIDC Authorization URL
+      description: Generates a signed OAuth2/OIDC state parameter and full redirect authorization URL to Tudex Passport.
+      parameters:
+        - in: query
+          name: redirect_uri
+          required: true
+          schema:
+            type: string
+          example: https://livechat.tudexnetworks.com/auth/callback
+      responses:
+        '200':
+          description: Authorization URL created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: https://passport.tudexnetworks.com/authorize?client_id=...
+                  state:
+                    type: string
+                    example: a1b2c3d4e5f6
+        '400':
+          description: Missing redirect_uri query parameter
+
+  /api/auth/oidc/callback:
+    post:
+      summary: OIDC Callback & Code Exchange
+      description: Exchanges the OAuth2 authorization code for access tokens, fetches userinfo, creates/syncs local user, and establishes session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - redirect_uri
+              properties:
+                code:
+                  type: string
+                  example: auth_code_abc123
+                redirect_uri:
+                  type: string
+                  example: https://livechat.tudexnetworks.com/auth/callback
+                state:
+                  type: string
+                  example: a1b2c3d4e5f6
+      responses:
+        '200':
+          description: User authenticated successfully
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: tlc_session=xyz789; Path=/; HttpOnly; SameSite=Lax
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid authorization code or token verification failure
+        '500':
+          description: Identity provider unreachable
+
+  /api/auth/oidc/logout:
+    post:
+      summary: Logout Session
+      description: Destroys active user session locally and returns end-session URL for Tudex Passport.
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  logoutUrl:
+                    type: string
+                    example: https://passport.tudexnetworks.com/api/oidc/end-session
+
+  /api/check-auth:
+    get:
+      summary: Check Active Session Status
+      description: Validates current session token and returns authenticated user identity.
+      responses:
+        '200':
+          description: Session valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthenticated / Invalid session
+
+  /api/auth/profile:
+    put:
+      summary: Update User Profile
+      description: Updates current authenticated user profile attributes (bio, avatar color).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bio:
+                  type: string
+                  example: Software Architect & Dev
+                avatarColor:
+                  type: string
+                  example: hsl(210, 70%, 50%)
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 64f8a1b2c3d4e5f6
+        username:
+          type: string
+          example: alex_dev
+        email:
+          type: string
+          example: alex@tudexnetworks.com
+        avatarUrl:
+          type: string
+          nullable: true
+          example: https://passport.tudexnetworks.com/avatars/alex.png
+        avatarColor:
+          type: string
+          example: hsl(270, 70%, 40%)
+        bio:
+          type: string
+          example: Software Architect
+        latitude:
+          type: number
+          example: 40.4168
+        longitude:
+          type: number
+          example: -3.7038

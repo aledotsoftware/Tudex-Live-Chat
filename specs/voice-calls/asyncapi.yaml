@@ -1,0 +1,139 @@
+asyncapi: 2.6.0
+info:
+  title: Tudex Live Chat - WebRTC Real-Time Signaling API Specification
+  version: 1.0.0
+  description: Event-driven specification for Socket.io WebRTC audio call signaling (join, offer, answer, ICE candidates, reject, cancel).
+
+servers:
+  production:
+    url: ws://livechat.tudexnetworks.com
+    protocol: socket.io
+
+channels:
+  /:
+    subscribe:
+      summary: Signaling events sent to clients
+      message:
+        oneOf:
+          - $ref: '#/components/messages/IncomingVoiceCallEvent'
+          - $ref: '#/components/messages/VoicePeerJoinedEvent'
+          - $ref: '#/components/messages/VoicePeerLeftEvent'
+          - $ref: '#/components/messages/VoiceSignalEvent'
+          - $ref: '#/components/messages/VoiceCallRejectedEvent'
+          - $ref: '#/components/messages/VoiceCallCancelledEvent'
+    publish:
+      summary: Signaling events emitted by clients
+      message:
+        oneOf:
+          - $ref: '#/components/messages/JoinVoiceRoomClientEvent'
+          - $ref: '#/components/messages/LeaveVoiceRoomClientEvent'
+          - $ref: '#/components/messages/SendVoiceSignalClientEvent'
+          - $ref: '#/components/messages/RejectVoiceCallClientEvent'
+          - $ref: '#/components/messages/CancelVoiceCallClientEvent'
+
+components:
+  messages:
+    IncomingVoiceCallEvent:
+      name: incoming-voice-call
+      summary: Sent to recipient when a call is initiated
+      payload:
+        type: object
+        properties:
+          roomId:
+            type: string
+          hostId:
+            type: string
+
+    VoicePeerJoinedEvent:
+      name: voice-peer-joined
+      summary: Broadcasted to room members when a peer joins
+      payload:
+        type: object
+        properties:
+          peerId:
+            type: string
+
+    VoicePeerLeftEvent:
+      name: voice-peer-left
+      summary: Broadcasted when a peer leaves or disconnects
+      payload:
+        type: object
+        properties:
+          peerId:
+            type: string
+
+    VoiceSignalEvent:
+      name: voice-signal
+      summary: Relays WebRTC SDP offer/answer or ICE candidates
+      payload:
+        type: object
+        properties:
+          from:
+            type: string
+          signal:
+            type: object
+            description: WebRTC SDP payload or ICE candidate
+
+    VoiceCallRejectedEvent:
+      name: voice-call-rejected
+      summary: Emitted when recipient declines an incoming call
+      payload:
+        type: object
+        properties:
+          roomId:
+            type: string
+          rejecterId:
+            type: string
+
+    VoiceCallCancelledEvent:
+      name: voice-call-cancelled
+      summary: Emitted when caller cancels request before answer
+      payload:
+        type: object
+        properties:
+          roomId:
+            type: string
+
+    JoinVoiceRoomClientEvent:
+      name: join-voice-room
+      summary: Client request to create or join a call room
+      payload:
+        type: object
+        properties:
+          roomId:
+            type: string
+
+    LeaveVoiceRoomClientEvent:
+      name: leave-voice-room
+      summary: Client request to exit active voice call room
+
+    SendVoiceSignalClientEvent:
+      name: send-voice-signal
+      summary: Client emission of SDP or ICE candidate to peer
+      payload:
+        type: object
+        properties:
+          to:
+            type: string
+          signal:
+            type: object
+
+    RejectVoiceCallClientEvent:
+      name: reject-voice-call
+      summary: Client emission to reject incoming call
+      payload:
+        type: object
+        properties:
+          roomId:
+            type: string
+          hostId:
+            type: string
+
+    CancelVoiceCallClientEvent:
+      name: cancel-voice-call
+      summary: Client emission to cancel outbound call
+      payload:
+        type: object
+        properties:
+          roomId:
+            type: string

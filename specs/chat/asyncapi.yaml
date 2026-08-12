@@ -1,0 +1,127 @@
+asyncapi: 2.6.0
+info:
+  title: Tudex Live Chat - Real-time WebSocket Messaging API (Socket.io)
+  version: 1.0.0
+  description: Event-driven specification for Socket.io real-time chat messages, QR code auth updates, reaction handling, and status changes.
+
+servers:
+  production:
+    url: ws://livechat.tudexnetworks.com
+    protocol: socket.io
+
+channels:
+  /:
+    subscribe:
+      summary: Events emitted from server to connected client
+      message:
+        oneOf:
+          - $ref: '#/components/messages/NewMessageEvent'
+          - $ref: '#/components/messages/MessageUpdatedEvent'
+          - $ref: '#/components/messages/QREvent'
+          - $ref: '#/components/messages/ReadyEvent'
+          - $ref: '#/components/messages/ChatStateEvent'
+    publish:
+      summary: Events sent from client to server
+      message:
+        oneOf:
+          - $ref: '#/components/messages/SendReactionClientEvent'
+          - $ref: '#/components/messages/ChatStateClientEvent'
+
+components:
+  messages:
+    NewMessageEvent:
+      name: new_message
+      summary: Broadcast when a new incoming or outbound message is created
+      payload:
+        type: object
+        properties:
+          id:
+            type: string
+          chatId:
+            type: string
+          senderId:
+            type: string
+          text:
+            type: string
+          timestamp:
+            type: integer
+          isIncoming:
+            type: boolean
+          provider:
+            type: string
+            example: whatsapp
+
+    MessageUpdatedEvent:
+      name: message_updated
+      summary: Broadcast when an existing message is edited, reacted to, or status updated
+      payload:
+        type: object
+        properties:
+          id:
+            type: string
+          chatId:
+            type: string
+          status:
+            type: string
+            enum: [sent, delivered, read]
+
+    QREvent:
+      name: qr
+      summary: Emitted when WhatsApp Web QR authentication code is generated
+      payload:
+        type: object
+        properties:
+          qr:
+            type: string
+            description: Base64 or string QR representation
+          provider:
+            type: string
+            example: whatsapp
+
+    ReadyEvent:
+      name: ready
+      summary: Emitted when messaging provider client successfully authenticates and connects
+      payload:
+        type: object
+        properties:
+          status:
+            type: string
+            example: authenticated
+          provider:
+            type: string
+
+    ChatStateEvent:
+      name: chat_state
+      summary: Broadcasts typing or presence state in a conversation
+      payload:
+        type: object
+        properties:
+          chatId:
+            type: string
+          state:
+            type: string
+            enum: [composing, paused, recording]
+
+    SendReactionClientEvent:
+      name: send-reaction
+      summary: Client request to react to a message with an emoji
+      payload:
+        type: object
+        properties:
+          providerMessageId:
+            type: string
+          emoji:
+            type: string
+            example: "👍"
+
+    ChatStateClientEvent:
+      name: chat_state
+      summary: Client emission when user starts typing in a chat
+      payload:
+        type: object
+        properties:
+          chatId:
+            type: string
+          state:
+            type: string
+            enum: [composing, paused]

@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: Tudex Live Chat - Spatial & User Proximity API Specification
+  version: 1.0.0
+  description: API specification for location updates, proximity discovery, user search, and social graph interactions (follow/unfollow).
+paths:
+  /api/users/me/location:
+    put:
+      summary: Update Location Coordinates
+      description: Updates current authenticated user latitude and longitude for proximity map calculations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - latitude
+                - longitude
+              properties:
+                latitude:
+                  type: number
+                  example: 40.4168
+                longitude:
+                  type: number
+                  example: -3.7038
+      responses:
+        '200':
+          description: Location updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+  /api/users/proximity:
+    get:
+      summary: Discover Nearby Users
+      description: Returns nearby users within specified distance radius using Haversine calculation.
+      parameters:
+        - in: query
+          name: maxDistanceKm
+          schema:
+            type: number
+            default: 50
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of nearby users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProximityUser'
+
+  /api/users/{userId}/follow:
+    post:
+      summary: Follow User
+      description: Adds specified target user to authenticated user's follow list.
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully followed user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+  /api/users/{userId}/unfollow:
+    post:
+      summary: Unfollow User
+      description: Removes specified target user from authenticated user's follow list.
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully unfollowed user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+components:
+  schemas:
+    ProximityUser:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        avatarColor:
+          type: string
+        bio:
+          type: string
+        distanceKm:
+          type: number
+          example: 3.42
+        isFollowing:
+          type: boolean
+          example: false
