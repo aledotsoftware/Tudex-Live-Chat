@@ -15,12 +15,13 @@ The PWA Domain governs Progressive Web App installation lifecycle management, st
   - Document referrer matching `android-app://`
 - **Behavior**: If standalone execution is confirmed, all installation prompt triggers and banners MUST be permanently suppressed.
 
-### BR-PWA-002: PWA Installation Prompt Lifecycle
-- **Rule**: When running in a non-standalone browser context, the application MUST capture the browser's native `beforeinstallprompt` event, prevent default browser bar pop-ups, and defer execution until the custom installation interface is invoked.
-- **Behavior**:
-  - Intercepts `beforeinstallprompt` and stores the deferred event reference in application state.
-  - On Chromium/Android/Desktop: Clicking "Instalar PWA" triggers `deferredPrompt.prompt()`, captures the user choice (`accepted` or `dismissed`), and clears the stored event reference.
-  - On iOS Safari (where `beforeinstallprompt` is unavailable): Displays targeted visual instructions ("Pulsa Compartir ⎋ y luego 'Agregar a inicio ⊕'").
+### BR-PWA-002: PWA Installation Prompt Lifecycle & Cross-Platform Support
+- **Rule**: The PWA installer MUST be functional and accessible across all operating systems (Linux, Windows, macOS, Android, and iOS).
+- **Behavior & OS-Specific Execution**:
+  - **Linux / Windows / macOS (Chromium: Chrome, Brave, Edge, Opera)**: Captures `beforeinstallprompt`. Invoking `deferredPrompt.prompt()` opens the OS native desktop installation dialog (creating a `.desktop` shortcut on Linux systems like Ubuntu, Fedora, Arch, etc.).
+  - **Fallback Instructions (Desktop Linux/Windows/macOS)**: If `beforeinstallprompt` is pending or unsupported by the browser (e.g. Firefox Desktop), the interface displays step-by-step guidance: *"En Chrome / Edge / Brave: Hacé clic en el icono ⊕ (barra de navegación) o en el menú ⋮ > 'Instalar aplicación'"*.
+  - **Android (Chrome/Edge/Brave/Firefox Mobile)**: Triggers the native Android APK/PWA web app installation prompt.
+  - **iOS Safari (iPhone / iPad)**: Displays targeted iOS instructions: *"Pulsa Compartir ⎋ y selecciona 'Agregar a inicio ⊕'"*.
 
 ### BR-PWA-003: Local Persistence & 1-Hour Recurrence Policy
 - **Rule**: Dismissal or display timestamps MUST be persisted locally in `localStorage` (`tlc_pwa_prompt_last_shown`) to prevent user prompt fatigue while maintaining periodic engagement.
@@ -37,9 +38,9 @@ The PWA Domain governs Progressive Web App installation lifecycle management, st
 - **Behavior**: If the 1-hour threshold is crossed during an extended active session, the pop-up gracefully animates into view without interrupting active input streams.
 
 ### BR-PWA-005: Account Settings PWA Status Card
-- **Rule**: The "Mi Cuenta" (Account Settings) panel MUST render a dedicated PWA Installation status card matching the "Notificaciones del Sistema" design pattern.
+- **Rule**: The "Mi Cuenta" (Account Settings) panel MUST render a dedicated PWA Installation status card matching the "Notificaciones del Sistema" design pattern, functional on Linux, Windows, macOS, Android, and iOS.
 - **Behavior**:
-  - **If Installed (Standalone)**: Displays a green success indicator: `"Aplicación PWA instalada en este dispositivo"`.
-  - **If Not Installed (Browser Context)**: Displays an installation invitation block with an `"Instalar PWA"` action button (or iOS Safari instructions) enabling the user to trigger device installation at any time.
+  - **If Installed (Standalone Mode)**: Displays a green success indicator: `"Aplicación PWA instalada en este dispositivo"`.
+  - **If Not Installed (Browser Mode)**: Displays an installation invitation block with an `"Instalar PWA"` action button that executes `deferredPrompt.prompt()` (or surfaces Linux/Desktop/iOS guidance if `beforeinstallprompt` is pending).
 
 

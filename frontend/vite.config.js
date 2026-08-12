@@ -19,6 +19,8 @@ export default defineConfig({
     VitePWA({
       registerType: "prompt",
       manifest: {
+        id: "/",
+        scope: "/",
         name: appName,
         short_name: appName,
         description: `${appName} - Plataforma de Mensajería y Red Social`,
@@ -30,12 +32,14 @@ export default defineConfig({
           {
             src: "/pwa-192x192.png",
             sizes: "192x192",
-            type: "image/png"
+            type: "image/png",
+            purpose: "any maskable"
           },
           {
             src: "/pwa-512x512.png",
             sizes: "512x512",
-            type: "image/png"
+            type: "image/png",
+            purpose: "any maskable"
           }
         ]
       },

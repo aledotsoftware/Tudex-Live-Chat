@@ -174,7 +174,7 @@ export function PwaInstallPrompt() {
             Accede instantáneamente desde tu pantalla de inicio con notificaciones nativas en segundo plano y menor consumo de datos.
           </p>
 
-          {isIos && (
+          {isIos ? (
             <div style={{
               fontSize: '0.78rem',
               color: '#38bdf8',
@@ -185,42 +185,53 @@ export function PwaInstallPrompt() {
               marginBottom: '14px',
               lineHeight: '1.35'
             }}>
-              Para instalar en iOS: Pulsa el botón <strong>Compartir</strong> y selecciona <strong>"Agregar a inicio"</strong>.
+              Para instalar en iOS: Pulsa <strong>Compartir</strong> ⎋ y selecciona <strong>"Agregar a inicio"</strong> ⊕.
             </div>
-          )}
+          ) : !deferredPrompt ? (
+            <div style={{
+              fontSize: '0.78rem',
+              color: '#38bdf8',
+              background: 'rgba(2, 132, 199, 0.1)',
+              padding: '8px 12px',
+              borderRadius: '10px',
+              border: '1px solid rgba(2, 132, 199, 0.2)',
+              marginBottom: '14px',
+              lineHeight: '1.35'
+            }}>
+              En Linux / Escritorio: Hacé clic en el icono <strong>⊕</strong> de la barra de direcciones o en el menú <strong>⋮ &gt; Instalar Tudex Social</strong>.
+            </div>
+          ) : null}
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {deferredPrompt && (
-              <button
-                type="button"
-                onClick={handleInstallClick}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                  color: '#ffffff',
-                  fontWeight: '700',
-                  fontSize: '0.88rem',
-                  border: 'none',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'transform 0.15 ease, boxShadow 0.15s ease'
-                }}
-              >
-                <span>Instalar PWA</span>
-                <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
-                </div>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={deferredPrompt ? handleInstallClick : handleDismiss}
+              style={{
+                flex: 1,
+                padding: '10px 16px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                color: '#ffffff',
+                fontWeight: '700',
+                fontSize: '0.88rem',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'transform 0.15 ease, boxShadow 0.15s ease'
+              }}
+            >
+              <span>{deferredPrompt ? 'Instalar PWA' : 'Entendido'}</span>
+              <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            </button>
 
             <button
               type="button"
